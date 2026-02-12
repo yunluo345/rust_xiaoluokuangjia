@@ -6,15 +6,10 @@ use sha2::Sha256;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as base64bianma;
 
-#[allow(non_upper_case_globals)]
 const nonce_changdu: usize = 12;
-#[allow(non_upper_case_globals)]
 const miyao_changdu: usize = 32;
-#[allow(non_upper_case_globals)]
 const gongyao_changdu: usize = 32;
-#[allow(non_upper_case_globals)]
 const hkdf_xinxi: &[u8] = b"jiamichuanshu-aes256gcm";
-#[allow(non_upper_case_globals)]
 pub const yanfen: &[u8] = b"jiamichuanshu-yanfen";
 
 type Hmacsha256 = Hmac<Sha256>;

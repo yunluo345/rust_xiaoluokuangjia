@@ -1,3 +1,10 @@
-pub mod miyaojiaohuanjiekou;
-pub mod jiankangqingqiu;
-pub mod jiamijiankang;
+pub mod xitong;
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Deserialize, Serialize)]
+pub struct Xiangying<T> {
+    pub zhuangtaima: u16,
+    pub xiaoxi: String,
+    pub shuju: Option<T>,
+}
