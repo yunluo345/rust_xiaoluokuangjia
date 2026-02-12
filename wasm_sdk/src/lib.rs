@@ -13,6 +13,7 @@ use jiekou_nr::xitong::jiankangqingqiu as jiankangqq;
 use jiekou_nr::xitong::jiamijiankang as jiamijiankangqq;
 use jiekou_nr::xitong::sseceshi as sseceshiqq;
 use jiekou_nr::xitong::jiamisseceshi as jiamisseceshiqq;
+use jiekou_nr::yonghu::denglujiekou as dengluqq;
 
 const huihua_guoqi_zhuangtaima: u16 = 401;
 
@@ -220,6 +221,20 @@ impl Kehuduanjiami {
 
     pub async fn jiamisseceshiqingqiu(&mut self, huidiaohanming: &str) -> Result<(), JsValue> {
         self.ssejiamiqingqiu(jiamisseceshiqq::lujing, None, huidiaohanming).await
+    }
+
+    pub async fn dengluqingqiu(&mut self, zhanghao: &str, mima: &str) -> Result<String, JsValue> {
+        self.quebaoxieshang().await?;
+        let ti = xuliehua(&dengluqq::Qingqiuti { zhanghao: zhanghao.to_string(), mima: mima.to_string() })?;
+        let jieguo = self.zhixingjiamiqingqiu(dengluqq::fangshi, dengluqq::lujing, Some(&ti)).await;
+        let jiemi_wenben = if self.xuyaochongshi(&jieguo) {
+            self.chongxinxieshang().await?;
+            self.zhixingjiamiqingqiu(dengluqq::fangshi, dengluqq::lujing, Some(&ti)).await?
+        } else {
+            jieguo?
+        };
+        let xiangying: dengluqq::Xiangying = fanxuliehua(&jiemi_wenben, "解析登录响应失败")?;
+        xuliehua(&xiangying)
     }
 
     pub fn chongzhihuihua(&mut self) {

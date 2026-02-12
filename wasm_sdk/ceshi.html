@@ -22,6 +22,11 @@
         .zhuangtai { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
         .zhuangtai.lianjiecheng { background: #D1FAE5; color: #065F46; }
         .zhuangtai.weilianjiecheng { background: #FEE2E2; color: #991B1B; }
+        input { border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px; font-size: 14px; min-height: 44px; outline: none; transition: border-color 200ms; color: #1E293B; background: #fff; }
+        input:focus { border-color: #3B82F6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
+        label { font-size: 13px; color: #475569; margin-bottom: 4px; display: block; }
+        .shurukuang { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 8px; }
+        .shuruxiang { display: flex; flex-direction: column; }
     </style>
 </head>
 <body>
@@ -39,6 +44,21 @@
         <button id="btn_sseceshi" onclick="sseceshiqingqiu()" disabled>普通SSE测试</button>
         <button id="btn_jiamisseceshi" onclick="jiamisseceshiqingqiu()" disabled>加密SSE测试</button>
         <button id="btn_chongzhi" onclick="chongzhihuihua()" disabled>重置会话</button>
+    </div>
+
+    <div class="card">
+        <h2>登录测试</h2>
+        <div class="shurukuang">
+            <div class="shuruxiang">
+                <label for="denglu_zhanghao">账号</label>
+                <input id="denglu_zhanghao" type="text" value="xiaoluo" placeholder="请输入账号">
+            </div>
+            <div class="shuruxiang">
+                <label for="denglu_mima">密码</label>
+                <input id="denglu_mima" type="password" value="5201314" placeholder="请输入密码">
+            </div>
+            <button id="btn_denglu" onclick="dengluqingqiu()" disabled>加密登录</button>
+        </div>
     </div>
 
     <div class="card">
@@ -78,6 +98,7 @@
                 document.getElementById('btn_sseceshi').disabled = false;
                 document.getElementById('btn_jiamisseceshi').disabled = false;
                 document.getElementById('btn_chongzhi').disabled = false;
+                document.getElementById('btn_denglu').disabled = false;
             } catch (e) {
                 gengxinzhuangtai('wasm_zhuangtai', '加载失败', false);
                 rizhi('WASM 加载失败: ' + e, 'err');
@@ -125,6 +146,14 @@
             rizhi('--- 加密SSE开始 ---', 'info');
             await kehu.jiamisseceshiqingqiu('sse_huidiao');
             rizhi('--- 加密SSE结束 ---', 'info');
+        });
+
+        window.dengluqingqiu = () => zhixinganniu('btn_denglu', async () => {
+            const zhanghao = document.getElementById('denglu_zhanghao').value.trim();
+            const mima = document.getElementById('denglu_mima').value;
+            if (!zhanghao || !mima) return rizhi('账号或密码不能为空', 'warn');
+            const jieguo = await kehu.dengluqingqiu(zhanghao, mima);
+            rizhi('登录结果: ' + jieguo, 'ok');
         });
 
         window.qingkongrizhi = function() {

@@ -1,4 +1,5 @@
 pub mod xitong;
+pub mod yonghu;
 
 use serde::{Deserialize, Serialize};
 

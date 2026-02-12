@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 pub struct Zongpeizhi {
     pub wangzhanmingcheng: String,
     pub houduanyunxingduankou: u16,
+    pub jwtmiyao: String,
 }
 
 impl Default for Zongpeizhi {
@@ -13,6 +14,7 @@ impl Default for Zongpeizhi {
         Self {
             wangzhanmingcheng: "默认网站".to_string(),
             houduanyunxingduankou: 8080,
+            jwtmiyao: "qingxiugaicimiyao_xiaoLuo2026".to_string(),
         }
     }
 }

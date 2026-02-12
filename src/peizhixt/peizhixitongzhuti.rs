@@ -52,12 +52,10 @@ pub fn duqupeizhi<T: serde::de::DeserializeOwned>(wenjianming: &str) -> Option<T
     let lujing = huoqulujing(wenjianming);
     
     if let Some(neirong) = neicungongju::duqu(&lujing) {
-        println!("从内存缓存读取: {}", lujing);
         return serde_json::from_str(&neirong).ok();
     }
     
     if let Some(neirong) = duquwenjian(&lujing) {
-        println!("从磁盘IO读取: {}", lujing);
         return serde_json::from_str(&neirong).ok();
     }
     
