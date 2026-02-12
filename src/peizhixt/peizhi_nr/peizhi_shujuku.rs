@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 pub struct Shujuku {
     pub xiangliangku: Xiangliangku,
     pub psql: Psql,
+    pub redis: Redispeizhi,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,6 +33,7 @@ impl Default for Shujuku {
         Self {
             xiangliangku: Xiangliangku::default(),
             psql: Psql::default(),
+            redis: Redispeizhi::default(),
         }
     }
 }
@@ -57,6 +59,31 @@ impl Default for Psql {
             yonghuming: "postgres".to_string(),
             mima: "".to_string(),
             shujukuming: "rust_luokuangjia".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Redispeizhi {
+    pub bixuchushihua: bool,
+    pub fuwuqiid: String,
+    pub fuwuqimingcheng: String,
+    pub zhujidizhi: String,
+    pub duankou: u16,
+    pub zhanghao: String,
+    pub mima: String,
+}
+
+impl Default for Redispeizhi {
+    fn default() -> Self {
+        Self {
+            bixuchushihua: true,
+            fuwuqiid: "zhuredis".to_string(),
+            fuwuqimingcheng: "主要redis".to_string(),
+            zhujidizhi: "127.0.0.1".to_string(),
+            duankou: 6379,
+            zhanghao: "default".to_string(),
+            mima: "111222".to_string(),
         }
     }
 }

@@ -7,6 +7,15 @@
     "yonghuming": "postgres",
     "zhiji": "localhost"
   },
+  "redis": {
+    "bixuchushihua": true,
+    "duankou": 6379,
+    "fuwuqiid": "zhuredis",
+    "fuwuqimingcheng": "主要redis",
+    "mima": "111222",
+    "zhanghao": "default",
+    "zhujidizhi": "127.0.0.1"
+  },
   "xiangliangku": {
     "grpc_duankou": 6334,
     "jheqianzhui": "rust_luokuangjia",

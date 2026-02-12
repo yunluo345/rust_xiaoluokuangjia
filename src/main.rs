@@ -11,6 +11,7 @@ use peizhixt::peizhixitongzhuti;
 use shujuku::qrshujuku::qrshujukuzhuti::{self, Qrpeizhi};
 use shujuku::psqlshujuku::psqlshujukuzhuti::{self, Psqlpeizhi};
 use shujuku::psqlshujuku::shujubiao_nr;
+use shujuku::redisshujuku::redisshujukuzhuti::{self, Redislianjiepeizhi};
 use qdrant_client::qdrant::Distance;
 use actix_web::{App, HttpServer};
 
@@ -72,6 +73,22 @@ async fn main() -> std::io::Result<()> {
         }
 
         println!("PostgreSQL 数据库连接成功");
+    }
+    
+    let redispeizhi = Redislianjiepeizhi {
+        zhujidizhi: shujukupeizhi.redis.zhujidizhi,
+        duankou: shujukupeizhi.redis.duankou,
+        zhanghao: shujukupeizhi.redis.zhanghao,
+        mima: shujukupeizhi.redis.mima,
+    };
+
+    if !redisshujukuzhuti::lianjie(&redispeizhi).await {
+        if shujukupeizhi.redis.bixuchushihua {
+            tuichu("Redis 连接失败");
+        }
+        eprintln!("Redis 连接失败，已跳过");
+    } else {
+        println!("Redis 连接成功: {}", shujukupeizhi.redis.fuwuqimingcheng);
     }
     
     if !gongju::wangluogongju::shifangduankou(zongpeizhi.houduanyunxingduankou) {
