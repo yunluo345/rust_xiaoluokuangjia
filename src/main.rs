@@ -10,6 +10,7 @@ use peizhixt::peizhixitongzhuti;
 use shujuku::qrshujuku::qrshujukuzhuti::{self, Qrpeizhi};
 use shujuku::psqlshujuku::psqlshujukuzhuti::{self, Psqlpeizhi, Shujubiaodinyi, Biaozhucexinxi};
 use shujuku::psqlshujuku::shujubiao_nr::shujubiao_shujubiaojilubiao::Shujubiaojilubiao;
+use shujuku::psqlshujuku::shujubiao_nr::ai::shujubiao_aiqudao::Aiqudao;
 use qdrant_client::qdrant::Distance;
 use actix_web::{App, HttpServer};
 
@@ -61,6 +62,12 @@ async fn main() -> std::io::Result<()> {
                 biaonicheng: Shujubiaojilubiao::biaonicheng(),
                 biaojieshao: Shujubiaojilubiao::biaojieshao(),
                 ziduanlie: Shujubiaojilubiao::ziduanlie(),
+            },
+            Biaozhucexinxi {
+                biaoming: Aiqudao::biaoming(),
+                biaonicheng: Aiqudao::biaonicheng(),
+                biaojieshao: Aiqudao::biaojieshao(),
+                ziduanlie: Aiqudao::ziduanlie(),
             },
         ];
 
