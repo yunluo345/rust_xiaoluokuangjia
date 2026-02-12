@@ -14,6 +14,7 @@ use shujuku::psqlshujuku::shujubiao_nr;
 use shujuku::redisshujuku::redisshujukuzhuti::{self, Redislianjiepeizhi};
 use qdrant_client::qdrant::Distance;
 use actix_web::{App, HttpServer};
+use actix_cors::Cors;
 
 fn tuichu(xinxi: &str) -> ! {
     eprintln!("{}", xinxi);
@@ -98,7 +99,9 @@ async fn main() -> std::io::Result<()> {
     println!("启动服务器: http://127.0.0.1:{}", zongpeizhi.houduanyunxingduankou);
     
     HttpServer::new(|| {
+        let kuayu = Cors::permissive();
         App::new()
+            .wrap(kuayu)
             .configure(jiekouxt::jiekouxtzhuti::peizhi)
     })
         .bind(("127.0.0.1", zongpeizhi.houduanyunxingduankou))?

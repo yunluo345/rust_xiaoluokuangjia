@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>加密传输测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Noto Sans SC', Inter, sans-serif; background: #F8FAFC; color: #1E293B; padding: 24px; line-height: 1.6; }
+        h1 { font-size: 20px; margin-bottom: 20px; color: #0F172A; }
+        .card { background: rgba(255,255,255,0.9); border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+        .card h2 { font-size: 15px; color: #475569; margin-bottom: 12px; }
+        button { background: #3B82F6; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; cursor: pointer; transition: background-color 200ms; min-height: 44px; margin-right: 8px; margin-bottom: 8px; }
+        button:hover { background: #2563EB; }
+        button:focus { outline: none; box-shadow: 0 0 0 2px #3B82F6; }
+        button:disabled { background: #94A3B8; cursor: not-allowed; }
+        .log { background: #0F172A; color: #E2E8F0; border-radius: 8px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; margin-top: 12px; }
+        .ok { color: #10B981; }
+        .err { color: #EF4444; }
+        .info { color: #3B82F6; }
+        .warn { color: #F59E0B; }
+        .zhuangtai { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .zhuangtai.lianjiecheng { background: #D1FAE5; color: #065F46; }
+        .zhuangtai.weilianjiecheng { background: #FEE2E2; color: #991B1B; }
+        label { display: block; font-size: 13px; color: #64748B; margin-bottom: 4px; }
+        input { width: 100%; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-bottom: 12px; min-height: 44px; }
+        input:focus { outline: none; border-color: #3B82F6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
+    </style>
+</head>
+<body>
+    <h1>加密传输测试面板</h1>
+
+    <div class="card">
+        <h2>连接状态</h2>
+        <p>WASM: <span id="wasm_zhuangtai" class="zhuangtai weilianjiecheng">未加载</span></p>
+        <p style="margin-top:8px">会话: <span id="huihua_zhuangtai" class="zhuangtai weilianjiecheng">未协商</span></p>
+    </div>
+
+    <div class="card">
+        <h2>1. 初始化</h2>
+        <label for="fuwuqidizhi">服务器地址</label>
+        <input id="fuwuqidizhi" type="text" value="http://127.0.0.1:8889" />
+        <button id="btn_chushihua" onclick="chushihua()">加载 WASM 并初始化</button>
+    </div>
+
+    <div class="card">
+        <h2>2. 密钥协商</h2>
+        <button id="btn_xieshang" onclick="xieshangmiyao()" disabled>协商密钥</button>
+        <button id="btn_chongzhi" onclick="chongzhihuihua()" disabled>重置会话</button>
+    </div>
+
+    <div class="card">
+        <h2>3. 普通请求（不加密）</h2>
+        <button id="btn_jiankang" onclick="jiankangqingqiu()" disabled>GET 健康检查</button>
+    </div>
+
+    <div class="card">
+        <h2>4. 加密请求</h2>
+        <button id="btn_jiamiqingqiu" onclick="jiamijiankangqingqiu()" disabled>加密健康测试</button>
+    </div>
+
+    <div class="card">
+        <h2>日志</h2>
+        <button onclick="qingkongrizhi()" style="background:#64748B;font-size:12px;padding:6px 14px;min-height:36px">清空</button>
+        <div id="rizhi" class="log"></div>
+    </div>
+
+    <script type="module">
+        import init, { Kehuduanjiami } from './pkg/wasm_sdk.js';
+
+        let kehu = null;
+        let wasm_yijiazai = false;
+
+        function rizhi(neirong, leixing = '') {
+            const el = document.getElementById('rizhi');
+            const shijian = new Date().toLocaleTimeString();
+            const leixingclass = leixing ? ` class="${leixing}"` : '';
+            el.innerHTML += `<span style="color:#64748B">[${shijian}]</span> <span${leixingclass}>${neirong}</span>\n`;
+            el.scrollTop = el.scrollHeight;
+        }
+
+        function gengxinzhuangtai(id, wenben, chenggong) {
+            const el = document.getElementById(id);
+            el.textContent = wenben;
+            el.className = 'zhuangtai ' + (chenggong ? 'lianjiecheng' : 'weilianjiecheng');
+        }
+
+        function shengchengzhiwen() {
+            const xinxi = [
+                navigator.userAgent,
+                screen.width + 'x' + screen.height,
+                Intl.DateTimeFormat().resolvedOptions().timeZone,
+                navigator.language,
+                navigator.platform
+            ].join('|');
+            return sha256(xinxi);
+        }
+
+        async function sha256(wenben) {
+            const shuju = new TextEncoder().encode(wenben);
+            const sanzhi = await crypto.subtle.digest('SHA-256', shuju);
+            return Array.from(new Uint8Array(sanzhi)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        window.chushihua = async function() {
+            const btn = document.getElementById('btn_chushihua');
+            btn.disabled = true;
+            try {
+                rizhi('正在加载 WASM 模块...', 'info');
+                await init();
+                const dizhi = document.getElementById('fuwuqidizhi').value.replace(/\/+$/, '');
+                kehu = new Kehuduanjiami(dizhi);
+                wasm_yijiazai = true;
+                gengxinzhuangtai('wasm_zhuangtai', '已加载', true);
+                rizhi('WASM 加载成功，服务器: ' + dizhi, 'ok');
+                document.getElementById('btn_xieshang').disabled = false;
+                document.getElementById('btn_jiankang').disabled = false;
+            } catch (e) {
+                rizhi('WASM 加载失败: ' + e, 'err');
+                gengxinzhuangtai('wasm_zhuangtai', '加载失败', false);
+            } finally {
+                btn.disabled = false;
+            }
+        };
+
+        window.xieshangmiyao = async function() {
+            if (!kehu) return rizhi('请先初始化', 'warn');
+            const btn = document.getElementById('btn_xieshang');
+            btn.disabled = true;
+            try {
+                rizhi('正在生成设备指纹...', 'info');
+                const zhiwen = await shengchengzhiwen();
+                rizhi('设备指纹: ' + zhiwen.substring(0, 16) + '...', 'info');
+                rizhi('正在协商密钥...', 'info');
+                await kehu.xieshangmiyao(zhiwen);
+                gengxinzhuangtai('huihua_zhuangtai', '已协商', true);
+                rizhi('密钥协商成功', 'ok');
+                document.getElementById('btn_chongzhi').disabled = false;
+                document.getElementById('btn_jiamiqingqiu').disabled = false;
+            } catch (e) {
+                rizhi('密钥协商失败: ' + e, 'err');
+                gengxinzhuangtai('huihua_zhuangtai', '协商失败', false);
+            } finally {
+                btn.disabled = false;
+            }
+        };
+
+        window.chongzhihuihua = function() {
+            if (!kehu) return;
+            kehu.chongzhihuihua();
+            gengxinzhuangtai('huihua_zhuangtai', '未协商', false);
+            document.getElementById('btn_jiamiqingqiu').disabled = true;
+            document.getElementById('btn_chongzhi').disabled = true;
+            rizhi('会话已重置', 'warn');
+        };
+
+        window.jiankangqingqiu = async function() {
+            if (!kehu) return rizhi('请先初始化', 'warn');
+            const btn = document.getElementById('btn_jiankang');
+            btn.disabled = true;
+            try {
+                rizhi('发送普通 GET 请求: /jiekou/xitong/jiankang', 'info');
+                const jieguo = await kehu.jiankangqingqiu();
+                rizhi('响应: ' + JSON.stringify(jieguo), 'ok');
+            } catch (e) {
+                rizhi('请求失败: ' + e, 'err');
+            } finally {
+                btn.disabled = false;
+            }
+        };
+
+        window.jiamijiankangqingqiu = async function() {
+            if (!kehu || !kehu.yixieshang()) return rizhi('请先协商密钥', 'warn');
+            const btn = document.getElementById('btn_jiamiqingqiu');
+            btn.disabled = true;
+            try {
+                rizhi('发送加密健康测试请求', 'info');
+                const jieguo = await kehu.jiamijiankangqingqiu("你好加密传输");
+                rizhi('解密响应: ' + JSON.stringify(jieguo), 'ok');
+            } catch (e) {
+                rizhi('加密请求失败: ' + e, 'err');
+            } finally {
+                btn.disabled = false;
+            }
+        };
+
+        window.qingkongrizhi = function() {
+            document.getElementById('rizhi').innerHTML = '';
+        };
+
+        window.sse_huidiao = function(shuju) {
+            rizhi('SSE: ' + shuju, 'info');
+        };
+    </script>
+</body>
+</html>

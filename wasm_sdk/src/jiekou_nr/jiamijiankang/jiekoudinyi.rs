@@ -1,0 +1,24 @@
+use serde::{Deserialize, Serialize};
+
+#[allow(non_upper_case_globals)]
+pub const lujing: &str = "/jiekou/xitong/jiamiceshi";
+#[allow(non_upper_case_globals)]
+pub const fangshi: &str = "POST";
+
+#[derive(Serialize)]
+pub struct Qingqiuti {
+    pub neirong: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct Xiangyingshuju {
+    pub huifu: String,
+    pub yuanshishuju: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct Xiangying {
+    pub zhuangtaima: u16,
+    pub xiaoxi: String,
+    pub shuju: Option<Xiangyingshuju>,
+}

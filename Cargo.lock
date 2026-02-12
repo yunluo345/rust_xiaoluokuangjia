@@ -2808,6 +2808,7 @@ dependencies = [
  "actix-web",
  "aes-gcm",
  "argon2",
+ "base64",
  "deadpool-redis",
  "dotenvy",
  "fastrand",
