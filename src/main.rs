@@ -1,6 +1,7 @@
 #![allow(unused_imports, dead_code)]
 
 mod gongju;
+mod jiekouxt;
 mod peizhixt;
 mod shujuku;
 
@@ -60,6 +61,12 @@ async fn main() -> std::io::Result<()> {
         if !psqlshujukuzhuti::lianjie(&psqlpeizhi, &biaolie).await {
             tuichu("PostgreSQL 数据库连接失败");
         }
+
+        let jiekoulie = jiekouxt::jiekou_nr::huoqujiekoulie();
+        if !jiekouxt::jiekouxtzhuti::tongbujiekoulie(&jiekoulie).await {
+            tuichu("接口记录同步失败");
+        }
+
         println!("PostgreSQL 数据库连接成功");
     }
     
@@ -69,7 +76,10 @@ async fn main() -> std::io::Result<()> {
     
     println!("启动服务器: http://127.0.0.1:{}", zongpeizhi.houduanyunxingduankou);
     
-    HttpServer::new(|| App::new())
+    HttpServer::new(|| {
+        App::new()
+            .configure(jiekouxt::jiekouxtzhuti::peizhi)
+    })
         .bind(("127.0.0.1", zongpeizhi.houduanyunxingduankou))?
         .run()
         .await
