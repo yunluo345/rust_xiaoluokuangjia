@@ -1,6 +1,7 @@
 use crate::gongju::wenjiancaozuo::{wenjiancunzai, duquwenjian, xieruwenjian, liebiaowenjian};
 use crate::gongju::neicungongju;
 use super::peizhi_nr::peizhi_zongpeizhi::Zongpeizhi;
+use super::peizhi_nr::peizhi_shujuku::Shujuku;
 use serde_json::Value;
 
 #[allow(non_upper_case_globals)]
@@ -88,5 +89,6 @@ pub fn regengxinhuancun() -> bool {
 /// 初始化配置系统：同步所有配置文件（补充缺失字段）并加载到内存
 pub fn chushihua() -> bool {
     tongbupeizhiwenjian::<Zongpeizhi>(Zongpeizhi::wenjianming())
+        && tongbupeizhiwenjian::<Shujuku>(Shujuku::wenjianming())
         && jiazaisuoyoupeizhi()
 }

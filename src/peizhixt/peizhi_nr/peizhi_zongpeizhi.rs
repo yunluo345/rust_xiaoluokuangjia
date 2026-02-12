@@ -1,7 +1,5 @@
 #![allow(non_upper_case_globals)]
 
-#![allow(non_upper_case_globals)]
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
