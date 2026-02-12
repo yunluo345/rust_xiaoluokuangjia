@@ -8,9 +8,8 @@ use peizhixt::peizhi_nr::peizhi_zongpeizhi::Zongpeizhi;
 use peizhixt::peizhi_nr::peizhi_shujuku::Shujuku;
 use peizhixt::peizhixitongzhuti;
 use shujuku::qrshujuku::qrshujukuzhuti::{self, Qrpeizhi};
-use shujuku::psqlshujuku::psqlshujukuzhuti::{self, Psqlpeizhi, Shujubiaodinyi, Biaozhucexinxi};
-use shujuku::psqlshujuku::shujubiao_nr::shujubiao_shujubiaojilubiao::Shujubiaojilubiao;
-use shujuku::psqlshujuku::shujubiao_nr::ai::shujubiao_aiqudao::Aiqudao;
+use shujuku::psqlshujuku::psqlshujukuzhuti::{self, Psqlpeizhi};
+use shujuku::psqlshujuku::shujubiao_nr;
 use qdrant_client::qdrant::Distance;
 use actix_web::{App, HttpServer};
 
@@ -56,22 +55,9 @@ async fn main() -> std::io::Result<()> {
             shujukuming: shujukupeizhi.psql.shujukuming,
         };
 
-        let biaolie = &[
-            Biaozhucexinxi {
-                biaoming: Shujubiaojilubiao::biaoming(),
-                biaonicheng: Shujubiaojilubiao::biaonicheng(),
-                biaojieshao: Shujubiaojilubiao::biaojieshao(),
-                ziduanlie: Shujubiaojilubiao::ziduanlie(),
-            },
-            Biaozhucexinxi {
-                biaoming: Aiqudao::biaoming(),
-                biaonicheng: Aiqudao::biaonicheng(),
-                biaojieshao: Aiqudao::biaojieshao(),
-                ziduanlie: Aiqudao::ziduanlie(),
-            },
-        ];
+        let biaolie = shujubiao_nr::huoqubiaolie();
 
-        if !psqlshujukuzhuti::lianjie(&psqlpeizhi, biaolie).await {
+        if !psqlshujukuzhuti::lianjie(&psqlpeizhi, &biaolie).await {
             tuichu("PostgreSQL 数据库连接失败");
         }
         println!("PostgreSQL 数据库连接成功");
