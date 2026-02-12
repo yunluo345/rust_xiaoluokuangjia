@@ -19,7 +19,7 @@ pub async fn xinzeng(mingcheng: &str, leixing: &str, jiekoudizhi: &str, miyao: &
 /// 根据ID删除渠道
 pub async fn shanchu(id: &str) -> Option<u64> {
     psqlcaozuo::zhixing(
-        &format!("DELETE FROM {} WHERE id = $1", biaoming),
+        &format!("DELETE FROM {} WHERE id = $1::BIGINT", biaoming),
         &[id],
     ).await
 }
@@ -34,7 +34,7 @@ pub async fn gengxin(id: &str, ziduanlie: &[(&str, &str)]) -> Option<u64> {
         .map(|(i, (ming, _))| format!("{} = ${}", ming, i + 2))
         .collect();
     shezhi.push(format!("gengxinshijian = ${}", ziduanlie.len() + 2));
-    let sql = format!("UPDATE {} SET {} WHERE id = $1", biaoming, shezhi.join(", "));
+    let sql = format!("UPDATE {} SET {} WHERE id = $1::BIGINT", biaoming, shezhi.join(", "));
     let mut canshu: Vec<&str> = vec![id];
     canshu.extend(ziduanlie.iter().map(|(_, zhi)| *zhi));
     canshu.push(&shijian);
@@ -44,7 +44,7 @@ pub async fn gengxin(id: &str, ziduanlie: &[(&str, &str)]) -> Option<u64> {
 /// 根据ID查询单个渠道
 pub async fn chaxun_id(id: &str) -> Option<Value> {
     let jieguo = psqlcaozuo::chaxun(
-        &format!("SELECT * FROM {} WHERE id = $1", biaoming),
+        &format!("SELECT * FROM {} WHERE id = $1::BIGINT", biaoming),
         &[id],
     ).await?;
     jieguo.into_iter().next()
@@ -78,7 +78,7 @@ pub async fn chaxun_leixing(leixing: &str) -> Option<Vec<Value>> {
 pub async fn qiehuanzhuangtai(id: &str) -> Option<u64> {
     let shijian = jichugongju::huoqushijianchuo().to_string();
     psqlcaozuo::zhixing(
-        &format!("UPDATE {} SET zhuangtai = CASE WHEN zhuangtai = '1' THEN '0' ELSE '1' END, gengxinshijian = $2 WHERE id = $1", biaoming),
+        &format!("UPDATE {} SET zhuangtai = CASE WHEN zhuangtai = '1' THEN '0' ELSE '1' END, gengxinshijian = $2 WHERE id = $1::BIGINT", biaoming),
         &[id, &shijian],
     ).await
 }
@@ -87,7 +87,7 @@ pub async fn qiehuanzhuangtai(id: &str) -> Option<u64> {
 pub async fn gengxinyouxianji(id: &str, youxianji: &str) -> Option<u64> {
     let shijian = jichugongju::huoqushijianchuo().to_string();
     psqlcaozuo::zhixing(
-        &format!("UPDATE {} SET youxianji = $2, gengxinshijian = $3 WHERE id = $1", biaoming),
+        &format!("UPDATE {} SET youxianji = $2, gengxinshijian = $3 WHERE id = $1::BIGINT", biaoming),
         &[id, youxianji, &shijian],
     ).await
 }

@@ -19,7 +19,7 @@ pub async fn xinzeng(zhanghao: &str, mima: &str, nicheng: &str, yonghuzuid: &str
 /// 根据ID删除用户
 pub async fn shanchu(id: &str) -> Option<u64> {
     psqlcaozuo::zhixing(
-        &format!("DELETE FROM {} WHERE id = $1", biaoming),
+        &format!("DELETE FROM {} WHERE id = $1::BIGINT", biaoming),
         &[id],
     ).await
 }
@@ -34,7 +34,7 @@ pub async fn gengxin(id: &str, ziduanlie: &[(&str, &str)]) -> Option<u64> {
         .map(|(i, (ming, _))| format!("{} = ${}", ming, i + 2))
         .collect();
     shezhi.push(format!("gengxinshijian = ${}", ziduanlie.len() + 2));
-    let sql = format!("UPDATE {} SET {} WHERE id = $1", biaoming, shezhi.join(", "));
+    let sql = format!("UPDATE {} SET {} WHERE id = $1::BIGINT", biaoming, shezhi.join(", "));
     let mut canshu: Vec<&str> = vec![id];
     canshu.extend(ziduanlie.iter().map(|(_, zhi)| *zhi));
     canshu.push(&shijian);
@@ -44,7 +44,7 @@ pub async fn gengxin(id: &str, ziduanlie: &[(&str, &str)]) -> Option<u64> {
 /// 根据ID查询单个用户
 pub async fn chaxun_id(id: &str) -> Option<Value> {
     let jieguo = psqlcaozuo::chaxun(
-        &format!("SELECT * FROM {} WHERE id = $1", biaoming),
+        &format!("SELECT * FROM {} WHERE id = $1::BIGINT", biaoming),
         &[id],
     ).await?;
     jieguo.into_iter().next()
@@ -80,7 +80,7 @@ pub async fn fengjin(id: &str, yuanyin: &str, jieshu: Option<&str>) -> Option<u6
     let shijian = jichugongju::huoqushijianchuo().to_string();
     let jieshu_zhi = jieshu.unwrap_or("");
     psqlcaozuo::zhixing(
-        &format!("UPDATE {} SET fengjin = '1', fengjinyuanyin = $2, fengjinjieshu = $3, gengxinshijian = $4 WHERE id = $1", biaoming),
+        &format!("UPDATE {} SET fengjin = '1', fengjinyuanyin = $2, fengjinjieshu = $3, gengxinshijian = $4 WHERE id = $1::BIGINT", biaoming),
         &[id, yuanyin, jieshu_zhi, &shijian],
     ).await
 }
@@ -89,7 +89,7 @@ pub async fn fengjin(id: &str, yuanyin: &str, jieshu: Option<&str>) -> Option<u6
 pub async fn jiefeng(id: &str) -> Option<u64> {
     let shijian = jichugongju::huoqushijianchuo().to_string();
     psqlcaozuo::zhixing(
-        &format!("UPDATE {} SET fengjin = '0', fengjinyuanyin = NULL, fengjinjieshu = NULL, gengxinshijian = $2 WHERE id = $1", biaoming),
+        &format!("UPDATE {} SET fengjin = '0', fengjinyuanyin = NULL, fengjinjieshu = NULL, gengxinshijian = $2 WHERE id = $1::BIGINT", biaoming),
         &[id, &shijian],
     ).await
 }
@@ -98,7 +98,7 @@ pub async fn jiefeng(id: &str) -> Option<u64> {
 pub async fn gengxindenglu(id: &str) -> Option<u64> {
     let shijian = jichugongju::huoqushijianchuo().to_string();
     psqlcaozuo::zhixing(
-        &format!("UPDATE {} SET zuihoudenglu = $2, gengxinshijian = $2 WHERE id = $1", biaoming),
+        &format!("UPDATE {} SET zuihoudenglu = $2, gengxinshijian = $2 WHERE id = $1::BIGINT", biaoming),
         &[id, &shijian],
     ).await
 }

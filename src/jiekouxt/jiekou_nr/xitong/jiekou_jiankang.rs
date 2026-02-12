@@ -11,7 +11,7 @@ pub const dinyi: Jiekoudinyi = Jiekoudinyi {
     jiami: false,
     xudenglu: false,
     xuyonghuzu: false,
-    yunxuputong: true,
+    yunxuputong: false,
 };
 
 #[derive(Serialize)]
