@@ -1,4 +1,5 @@
-use actix_web::web;
+use actix_web::{web, HttpResponse};
+use serde::Serialize;
 use super::jiekou_nr;
 use crate::gongju::jichugongju;
 use crate::shujuku::psqlshujuku::psqlcaozuo;
@@ -19,6 +20,35 @@ impl Qingqiufangshi {
             Qingqiufangshi::Sse => "SSE",
         }
     }
+}
+
+/// 统一接口返回结构
+#[derive(Serialize)]
+pub struct Tongyifanhui<T: Serialize> {
+    zhuangtaima: u16,
+    xiaoxi: String,
+    shijianchuo: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shuju: Option<T>,
+}
+
+fn goujianxiangying<T: Serialize>(zhuangtaima: u16, xiaoxi: impl Into<String>, shuju: Option<T>) -> HttpResponse {
+    HttpResponse::Ok().json(Tongyifanhui {
+        zhuangtaima,
+        xiaoxi: xiaoxi.into(),
+        shijianchuo: jichugongju::huoqushijianchuo(),
+        shuju,
+    })
+}
+
+/// 成功响应，携带数据
+pub fn chenggong<T: Serialize>(xiaoxi: impl Into<String>, shuju: T) -> HttpResponse {
+    goujianxiangying(200, xiaoxi, Some(shuju))
+}
+
+/// 失败响应，仅携带业务状态码和消息
+pub fn shibai(zhuangtaima: u16, xiaoxi: impl Into<String>) -> HttpResponse {
+    goujianxiangying::<()>(zhuangtaima, xiaoxi, None)
 }
 
 /// 接口定义，所有接口文件必须提供

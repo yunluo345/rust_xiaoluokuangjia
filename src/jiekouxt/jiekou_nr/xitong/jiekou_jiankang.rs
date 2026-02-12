@@ -1,7 +1,6 @@
 use actix_web::HttpResponse;
-use serde_json::json;
-use crate::gongju::jichugongju;
-use crate::jiekouxt::jiekouxtzhuti::{Jiekoudinyi, Qingqiufangshi};
+use serde::Serialize;
+use crate::jiekouxt::jiekouxtzhuti::{self, Jiekoudinyi, Qingqiufangshi};
 
 #[allow(non_upper_case_globals)]
 pub const dinyi: Jiekoudinyi = Jiekoudinyi {
@@ -15,10 +14,12 @@ pub const dinyi: Jiekoudinyi = Jiekoudinyi {
     yunxuputong: true,
 };
 
-/// 健康检查接口，返回服务运行状态和当前时间戳
+#[derive(Serialize)]
+struct Jiankangshuju {
+    zhuangtai: &'static str,
+}
+
+/// 健康检查接口，返回服务运行状态
 pub async fn chuli() -> HttpResponse {
-    HttpResponse::Ok().json(json!({
-        "zhuangtai": "正常",
-        "shijianchuo": jichugongju::huoqushijianchuo()
-    }))
+    jiekouxtzhuti::chenggong("服务运行正常", Jiankangshuju { zhuangtai: "正常" })
 }
