@@ -141,7 +141,10 @@ async fn querenshujuku(peizhi: &Psqlpeizhi) -> bool {
 fn shengchengjianbiaosql(biaoming: &str, ziduanlie: &[Ziduandinyi]) -> String {
     let ziduan = ziduanlie
         .iter()
-        .map(|z| format!("\"{}\" {}", z.mingcheng, z.leixing))
+        .map(|z| match z.morenzhi {
+            Some(mz) => format!("\"{}\" {} DEFAULT '{}'", z.mingcheng, z.leixing, mz),
+            None => format!("\"{}\" {}", z.mingcheng, z.leixing),
+        })
         .collect::<Vec<_>>()
         .join(", ");
     format!("CREATE TABLE IF NOT EXISTS \"{}\" ({})", biaoming, ziduan)
@@ -205,6 +208,13 @@ async fn zhixing_sql_lie(chi: &PgPool, sqlie: Vec<String>) -> bool {
     true
 }
 
+fn shengchengmorenzhi_sql(biaoming: &str, ziduan: &Ziduandinyi) -> Option<String> {
+    ziduan.morenzhi.map(|mz| format!(
+        "ALTER TABLE \"{}\" ALTER COLUMN \"{}\" SET DEFAULT '{}'",
+        biaoming, ziduan.mingcheng, mz
+    ))
+}
+
 async fn tongbuziduan(chi: &PgPool, biaoming: &str, ziduanlie: &[Ziduandinyi]) -> bool {
     let shiji = match huoqushijiziduan(chi, biaoming).await {
         Some(j) => j,
@@ -222,6 +232,12 @@ async fn tongbuziduan(chi: &PgPool, biaoming: &str, ziduanlie: &[Ziduandinyi]) -
                 .iter()
                 .filter(|m| !dingyi.contains(m.as_str()))
                 .map(|m| shengchengshanchu_sql(biaoming, m)),
+        )
+        .chain(
+            ziduanlie
+                .iter()
+                .filter(|z| shiji.contains(z.mingcheng))
+                .filter_map(|z| shengchengmorenzhi_sql(biaoming, z)),
         )
         .collect();
 

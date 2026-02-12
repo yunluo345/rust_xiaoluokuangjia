@@ -15,7 +15,11 @@ pub async fn chaxun(sql: &str, canshu: &[&str]) -> Option<Vec<Value>> {
         .map(|hang| {
             let mut duixiang = Map::new();
             for (i, lie) in hang.columns().iter().enumerate() {
-                let zhi: Option<String> = hang.try_get(i).ok();
+                let zhi = hang.try_get::<Option<String>, _>(i)
+                    .or_else(|_| hang.try_get::<Option<i64>, _>(i).map(|v| v.map(|n| n.to_string())))
+                    .or_else(|_| hang.try_get::<Option<f64>, _>(i).map(|v| v.map(|n| n.to_string())))
+                    .or_else(|_| hang.try_get::<Option<bool>, _>(i).map(|v| v.map(|b| b.to_string())))
+                    .unwrap_or(None);
                 duixiang.insert(
                     lie.name().to_string(),
                     zhi.map(Value::String).unwrap_or(Value::Null),

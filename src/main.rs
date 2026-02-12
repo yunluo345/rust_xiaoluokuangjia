@@ -67,6 +67,10 @@ async fn main() -> std::io::Result<()> {
             tuichu("接口记录同步失败");
         }
 
+        if !shujubiao_nr::yonghu::chushihua_yonghu::chushihua().await {
+            tuichu("用户系统初始化失败");
+        }
+
         println!("PostgreSQL 数据库连接成功");
     }
     

@@ -4,7 +4,7 @@ use actix_web::web;
 use super::jiekouxtzhuti::Jiekouzhucexinxi;
 
 #[allow(non_upper_case_globals)]
-const xitong_qianzhui: &str = "/xitong";
+const xitong_qianzhui: &str = "/jiekou/xitong";
 
 /// 注册所有接口模块的路由
 pub fn zhuce(cfg: &mut web::ServiceConfig) {

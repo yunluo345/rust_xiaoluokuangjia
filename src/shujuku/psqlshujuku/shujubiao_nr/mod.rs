@@ -1,6 +1,7 @@
 pub mod ai;
 pub mod shujubiao_jiekoujilubiao;
 pub mod shujubiao_shujubiaojilubiao;
+pub mod shujucaozuo_jiekoujilubiao;
 pub mod yonghu;
 
 use super::psqlshujukuzhuti::{Biaozhucexinxi, Shujubiaodinyi};

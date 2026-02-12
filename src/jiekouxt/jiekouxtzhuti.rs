@@ -82,5 +82,8 @@ pub fn huoqufangfa(fangshi: Qingqiufangshi) -> fn() -> actix_web::Route {
 
 /// 配置所有接口路由，挂载到 App
 pub fn peizhi(cfg: &mut web::ServiceConfig) {
-    jiekou_nr::zhuce(cfg);
+    cfg.service(
+        web::scope("/jiekou")
+            .configure(jiekou_nr::zhuce)
+    );
 }

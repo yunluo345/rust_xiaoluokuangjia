@@ -98,6 +98,15 @@ pub async fn mingchengcunzai(mingcheng: &str) -> bool {
     .is_some_and(|jieguo| !jieguo.is_empty())
 }
 
+/// 根据名称查询用户组
+pub async fn chaxun_mingcheng(mingcheng: &str) -> Option<Value> {
+    let jieguo = psqlcaozuo::chaxun(
+        &format!("SELECT * FROM {} WHERE mingcheng = $1", biaoming),
+        &[mingcheng],
+    ).await?;
+    jieguo.into_iter().next()
+}
+
 /// 查询该用户组下的用户数量
 pub async fn yonghushuliang(id: &str) -> Option<Value> {
     let jieguo = psqlcaozuo::chaxun(
