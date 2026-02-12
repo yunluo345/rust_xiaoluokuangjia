@@ -36,6 +36,8 @@
         <h2>请求测试</h2>
         <button id="btn_jiankang" onclick="jiankangqingqiu()" disabled>普通健康检查</button>
         <button id="btn_jiamiqingqiu" onclick="jiamijiankangqingqiu()" disabled>加密健康测试</button>
+        <button id="btn_sseceshi" onclick="sseceshiqingqiu()" disabled>普通SSE测试</button>
+        <button id="btn_jiamisseceshi" onclick="jiamisseceshiqingqiu()" disabled>加密SSE测试</button>
         <button id="btn_chongzhi" onclick="chongzhihuihua()" disabled>重置会话</button>
     </div>
 
@@ -73,6 +75,8 @@
                 rizhi('WASM 自动加载成功，服务器: ' + fuwuqidizhi, 'ok');
                 document.getElementById('btn_jiankang').disabled = false;
                 document.getElementById('btn_jiamiqingqiu').disabled = false;
+                document.getElementById('btn_sseceshi').disabled = false;
+                document.getElementById('btn_jiamisseceshi').disabled = false;
                 document.getElementById('btn_chongzhi').disabled = false;
             } catch (e) {
                 gengxinzhuangtai('wasm_zhuangtai', '加载失败', false);
@@ -109,6 +113,18 @@
         window.jiamijiankangqingqiu = () => zhixinganniu('btn_jiamiqingqiu', async () => {
             const jieguo = await kehu.jiamijiankangqingqiu("你好加密传输");
             rizhi('加密响应: ' + jieguo, 'ok');
+        });
+
+        window.sseceshiqingqiu = () => zhixinganniu('btn_sseceshi', async () => {
+            rizhi('--- 普通SSE开始 ---', 'info');
+            await kehu.sseceshiqingqiu('sse_huidiao');
+            rizhi('--- 普通SSE结束 ---', 'info');
+        });
+
+        window.jiamisseceshiqingqiu = () => zhixinganniu('btn_jiamisseceshi', async () => {
+            rizhi('--- 加密SSE开始 ---', 'info');
+            await kehu.jiamisseceshiqingqiu('sse_huidiao');
+            rizhi('--- 加密SSE结束 ---', 'info');
         });
 
         window.qingkongrizhi = function() {

@@ -11,6 +11,8 @@ use js_sys::Uint8Array;
 use jiekou_nr::xitong::miyaojiaohuanjiekou as miyaojiekou;
 use jiekou_nr::xitong::jiankangqingqiu as jiankangqq;
 use jiekou_nr::xitong::jiamijiankang as jiamijiankangqq;
+use jiekou_nr::xitong::sseceshi as sseceshiqq;
+use jiekou_nr::xitong::jiamisseceshi as jiamisseceshiqq;
 
 const huihua_guoqi_zhuangtaima: u16 = 401;
 
@@ -88,6 +90,49 @@ fn shifouhuihuaguoqi(xiangying_wenben: &str) -> bool {
         .map_or(false, |ma| ma == huihua_guoqi_zhuangtaima as u64)
 }
 
+fn huoquhuidiao(hanming: &str) -> Result<js_sys::Function, JsValue> {
+    js_sys::Reflect::get(&js_sys::global(), &JsValue::from_str(hanming))
+        .map_err(|_| cuowu("找不到回调函数"))?
+        .dyn_into()
+        .map_err(|_| cuowu("回调不是函数"))
+}
+
+async fn duquliugushu(xiangying: &Response, chuli: impl Fn(&str) -> Result<(), JsValue>) -> Result<(), JsValue> {
+    let liuti = xiangying.body().ok_or_else(|| cuowu("无响应体"))?;
+    let duquqi: ReadableStreamDefaultReader = liuti.get_reader().dyn_into()?;
+    let jiemaqi = web_sys::TextDecoder::new().map_err(|_| cuowu("创建解码器失败"))?;
+    loop {
+        let jieguo = JsFuture::from(duquqi.read()).await?;
+        if js_sys::Reflect::get(&jieguo, &JsValue::from_str("done")).unwrap_or(JsValue::TRUE).is_truthy() {
+            break;
+        }
+        if let Some(shuzhu) = js_sys::Reflect::get(&jieguo, &JsValue::from_str("value")).ok().filter(|v| !v.is_undefined()) {
+            let wenben = jiemaqi.decode_with_buffer_source(&Uint8Array::new(&shuzhu)).unwrap_or_default();
+            chuli(&wenben)?;
+        }
+    }
+    Ok(())
+}
+
+async fn duquliushi(xiangying: &Response, huidiao: &js_sys::Function) -> Result<(), JsValue> {
+    duquliugushu(xiangying, |wenben| {
+        let _ = huidiao.call1(&JsValue::NULL, &JsValue::from_str(wenben));
+        Ok(())
+    }).await
+}
+
+async fn duqujiamiliushi(xiangying: &Response, miyao: &[u8], huidiao: &js_sys::Function) -> Result<(), JsValue> {
+    duquliugushu(xiangying, |yuanwen| {
+        for hang in yuanwen.split("data: ").filter(|s| !s.is_empty()) {
+            let miwen = hang.trim();
+            if miwen.is_empty() { continue; }
+            let mingwen = jiemixiangying(miwen, miyao)?;
+            let _ = huidiao.call1(&JsValue::NULL, &JsValue::from_str(&format!("data: {}\n\n", mingwen)));
+        }
+        Ok(())
+    }).await
+}
+
 #[wasm_bindgen]
 pub struct Kehuduanjiami {
     fuwuqidizhi: String,
@@ -146,8 +191,17 @@ impl Kehuduanjiami {
         xuliehua(&xiangying)
     }
 
+    pub async fn sseputongqingqiu(&self, fangfa: &str, lujing: &str, huidiaohanming: &str) -> Result<(), JsValue> {
+        let huidiao = huoquhuidiao(huidiaohanming)?;
+        let url = format!("{}{}", self.fuwuqidizhi, lujing);
+        let request = goujianqingqiu(fangfa, &url, None, None)?;
+        let xiangying = fasongqingqiu(&request).await?;
+        duquliushi(&xiangying, &huidiao).await
+    }
+
     pub async fn ssejiamiqingqiu(&mut self, lujing: &str, qingqiuti: Option<String>, huidiaohanming: &str) -> Result<(), JsValue> {
         self.quebaoxieshang().await?;
+        let huidiao = huoquhuidiao(huidiaohanming)?;
         let xinxi = self.huoqujiamixinxi()?;
         let jiami_ti = qingqiuti.map(|ti| jiamiqingqiuti(&ti, xinxi.miyao)).transpose()?;
         let url = format!("{}{}", self.fuwuqidizhi, lujing);
@@ -157,27 +211,15 @@ impl Kehuduanjiami {
         ];
         let request = goujianqingqiu("POST", &url, jiami_ti.as_deref(), Some(&ewaiqingqiutou))?;
         let xiangying = fasongqingqiu(&request).await?;
-        let liuti = xiangying.body().ok_or_else(|| cuowu("无响应体"))?;
-        let duquqi: ReadableStreamDefaultReader = liuti.get_reader().dyn_into()?;
-        let quanju = js_sys::global();
-        let huidiao_fn: js_sys::Function = js_sys::Reflect::get(&quanju, &JsValue::from_str(huidiaohanming))
-            .map_err(|_| cuowu("找不到回调函数"))?
-            .dyn_into()
-            .map_err(|_| cuowu("回调不是函数"))?;
-        let jiemaqi = web_sys::TextDecoder::new().map_err(|_| cuowu("创建解码器失败"))?;
-        loop {
-            let jieguo = JsFuture::from(duquqi.read()).await?;
-            let wancheng = js_sys::Reflect::get(&jieguo, &JsValue::from_str("done"))
-                .unwrap_or(JsValue::TRUE);
-            if wancheng.is_truthy() {
-                break;
-            }
-            if let Some(shuzhu) = js_sys::Reflect::get(&jieguo, &JsValue::from_str("value")).ok().filter(|v| !v.is_undefined()) {
-                let wenben = jiemaqi.decode_with_buffer_source(&Uint8Array::new(&shuzhu)).unwrap_or_default();
-                let _ = huidiao_fn.call1(&JsValue::NULL, &JsValue::from_str(&wenben));
-            }
-        }
-        Ok(())
+        duqujiamiliushi(&xiangying, xinxi.miyao, &huidiao).await
+    }
+
+    pub async fn sseceshiqingqiu(&self, huidiaohanming: &str) -> Result<(), JsValue> {
+        self.sseputongqingqiu(sseceshiqq::fangshi, sseceshiqq::lujing, huidiaohanming).await
+    }
+
+    pub async fn jiamisseceshiqingqiu(&mut self, huidiaohanming: &str) -> Result<(), JsValue> {
+        self.ssejiamiqingqiu(jiamisseceshiqq::lujing, None, huidiaohanming).await
     }
 
     pub fn chongzhihuihua(&mut self) {
