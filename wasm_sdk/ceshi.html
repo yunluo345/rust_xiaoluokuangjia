@@ -22,9 +22,6 @@
         .zhuangtai { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
         .zhuangtai.lianjiecheng { background: #D1FAE5; color: #065F46; }
         .zhuangtai.weilianjiecheng { background: #FEE2E2; color: #991B1B; }
-        label { display: block; font-size: 13px; color: #64748B; margin-bottom: 4px; }
-        input { width: 100%; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 14px; margin-bottom: 12px; min-height: 44px; }
-        input:focus { outline: none; border-color: #3B82F6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
     </style>
 </head>
 <body>
@@ -32,31 +29,14 @@
 
     <div class="card">
         <h2>连接状态</h2>
-        <p>WASM: <span id="wasm_zhuangtai" class="zhuangtai weilianjiecheng">未加载</span></p>
-        <p style="margin-top:8px">会话: <span id="huihua_zhuangtai" class="zhuangtai weilianjiecheng">未协商</span></p>
+        <p>WASM: <span id="wasm_zhuangtai" class="zhuangtai weilianjiecheng">加载中...</span></p>
     </div>
 
     <div class="card">
-        <h2>1. 初始化</h2>
-        <label for="fuwuqidizhi">服务器地址</label>
-        <input id="fuwuqidizhi" type="text" value="http://127.0.0.1:8889" />
-        <button id="btn_chushihua" onclick="chushihua()">加载 WASM 并初始化</button>
-    </div>
-
-    <div class="card">
-        <h2>2. 密钥协商</h2>
-        <button id="btn_xieshang" onclick="xieshangmiyao()" disabled>协商密钥</button>
-        <button id="btn_chongzhi" onclick="chongzhihuihua()" disabled>重置会话</button>
-    </div>
-
-    <div class="card">
-        <h2>3. 普通请求（不加密）</h2>
-        <button id="btn_jiankang" onclick="jiankangqingqiu()" disabled>GET 健康检查</button>
-    </div>
-
-    <div class="card">
-        <h2>4. 加密请求</h2>
+        <h2>请求测试</h2>
+        <button id="btn_jiankang" onclick="jiankangqingqiu()" disabled>普通健康检查</button>
         <button id="btn_jiamiqingqiu" onclick="jiamijiankangqingqiu()" disabled>加密健康测试</button>
+        <button id="btn_chongzhi" onclick="chongzhihuihua()" disabled>重置会话</button>
     </div>
 
     <div class="card">
@@ -68,8 +48,8 @@
     <script type="module">
         import init, { Kehuduanjiami } from './pkg/wasm_sdk.js';
 
+        const fuwuqidizhi = 'http://127.0.0.1:8889';
         let kehu = null;
-        let wasm_yijiazai = false;
 
         function rizhi(neirong, leixing = '') {
             const el = document.getElementById('rizhi');
@@ -85,104 +65,51 @@
             el.className = 'zhuangtai ' + (chenggong ? 'lianjiecheng' : 'weilianjiecheng');
         }
 
-        function shengchengzhiwen() {
-            const xinxi = [
-                navigator.userAgent,
-                screen.width + 'x' + screen.height,
-                Intl.DateTimeFormat().resolvedOptions().timeZone,
-                navigator.language,
-                navigator.platform
-            ].join('|');
-            return sha256(xinxi);
-        }
-
-        async function sha256(wenben) {
-            const shuju = new TextEncoder().encode(wenben);
-            const sanzhi = await crypto.subtle.digest('SHA-256', shuju);
-            return Array.from(new Uint8Array(sanzhi)).map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-
-        window.chushihua = async function() {
-            const btn = document.getElementById('btn_chushihua');
-            btn.disabled = true;
+        async function zidongchushihua() {
             try {
-                rizhi('正在加载 WASM 模块...', 'info');
                 await init();
-                const dizhi = document.getElementById('fuwuqidizhi').value.replace(/\/+$/, '');
-                kehu = new Kehuduanjiami(dizhi);
-                wasm_yijiazai = true;
-                gengxinzhuangtai('wasm_zhuangtai', '已加载', true);
-                rizhi('WASM 加载成功，服务器: ' + dizhi, 'ok');
-                document.getElementById('btn_xieshang').disabled = false;
+                kehu = new Kehuduanjiami(fuwuqidizhi);
+                gengxinzhuangtai('wasm_zhuangtai', '已就绪', true);
+                rizhi('WASM 自动加载成功，服务器: ' + fuwuqidizhi, 'ok');
                 document.getElementById('btn_jiankang').disabled = false;
-            } catch (e) {
-                rizhi('WASM 加载失败: ' + e, 'err');
-                gengxinzhuangtai('wasm_zhuangtai', '加载失败', false);
-            } finally {
-                btn.disabled = false;
-            }
-        };
-
-        window.xieshangmiyao = async function() {
-            if (!kehu) return rizhi('请先初始化', 'warn');
-            const btn = document.getElementById('btn_xieshang');
-            btn.disabled = true;
-            try {
-                rizhi('正在生成设备指纹...', 'info');
-                const zhiwen = await shengchengzhiwen();
-                rizhi('设备指纹: ' + zhiwen.substring(0, 16) + '...', 'info');
-                rizhi('正在协商密钥...', 'info');
-                await kehu.xieshangmiyao(zhiwen);
-                gengxinzhuangtai('huihua_zhuangtai', '已协商', true);
-                rizhi('密钥协商成功', 'ok');
-                document.getElementById('btn_chongzhi').disabled = false;
                 document.getElementById('btn_jiamiqingqiu').disabled = false;
+                document.getElementById('btn_chongzhi').disabled = false;
             } catch (e) {
-                rizhi('密钥协商失败: ' + e, 'err');
-                gengxinzhuangtai('huihua_zhuangtai', '协商失败', false);
-            } finally {
-                btn.disabled = false;
+                gengxinzhuangtai('wasm_zhuangtai', '加载失败', false);
+                rizhi('WASM 加载失败: ' + e, 'err');
             }
-        };
+        }
 
-        window.chongzhihuihua = function() {
-            if (!kehu) return;
-            kehu.chongzhihuihua();
-            gengxinzhuangtai('huihua_zhuangtai', '未协商', false);
-            document.getElementById('btn_jiamiqingqiu').disabled = true;
-            document.getElementById('btn_chongzhi').disabled = true;
-            rizhi('会话已重置', 'warn');
-        };
+        zidongchushihua();
 
-        window.jiankangqingqiu = async function() {
-            if (!kehu) return rizhi('请先初始化', 'warn');
-            const btn = document.getElementById('btn_jiankang');
+        async function zhixinganniu(anniuid, caozuo) {
+            if (!kehu) return rizhi('尚未初始化', 'warn');
+            const btn = document.getElementById(anniuid);
             btn.disabled = true;
             try {
-                rizhi('发送普通 GET 请求: /jiekou/xitong/jiankang', 'info');
-                const jieguo = await kehu.jiankangqingqiu();
-                rizhi('响应: ' + JSON.stringify(jieguo), 'ok');
+                await caozuo();
             } catch (e) {
                 rizhi('请求失败: ' + e, 'err');
             } finally {
                 btn.disabled = false;
             }
+        }
+
+        window.chongzhihuihua = function() {
+            if (!kehu) return;
+            kehu.chongzhihuihua();
+            rizhi('会话已重置，下次加密请求将自动重新协商', 'warn');
         };
 
-        window.jiamijiankangqingqiu = async function() {
-            if (!kehu || !kehu.yixieshang()) return rizhi('请先协商密钥', 'warn');
-            const btn = document.getElementById('btn_jiamiqingqiu');
-            btn.disabled = true;
-            try {
-                rizhi('发送加密健康测试请求', 'info');
-                const jieguo = await kehu.jiamijiankangqingqiu("你好加密传输");
-                rizhi('解密响应: ' + JSON.stringify(jieguo), 'ok');
-            } catch (e) {
-                rizhi('加密请求失败: ' + e, 'err');
-            } finally {
-                btn.disabled = false;
-            }
-        };
+        window.jiankangqingqiu = () => zhixinganniu('btn_jiankang', async () => {
+            const jieguo = await kehu.jiankangqingqiu();
+            rizhi('健康检查: ' + jieguo, 'ok');
+        });
+
+        window.jiamijiankangqingqiu = () => zhixinganniu('btn_jiamiqingqiu', async () => {
+            const jieguo = await kehu.jiamijiankangqingqiu("你好加密传输");
+            rizhi('加密响应: ' + jieguo, 'ok');
+        });
 
         window.qingkongrizhi = function() {
             document.getElementById('rizhi').innerHTML = '';
