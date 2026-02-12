@@ -1,4 +1,17 @@
 {
+  "psql": {
+    "duankou": 5432,
+    "huoqu_chaoshi_miao": 5,
+    "kongxian_chaoshi_miao": 300,
+    "mima": "111222",
+    "qiyong": true,
+    "shujukuming": "rust_luokuangjia",
+    "yonghuming": "postgres",
+    "zhiji": "localhost",
+    "zuida_lianjie": 10,
+    "zuida_shengming_miao": 1800,
+    "zuixiao_lianjie": 2
+  },
   "xiangliangku": {
     "grpc_duankou": 6334,
     "jheqianzhui": "rust_luokuangjia",
