@@ -52,11 +52,6 @@ async fn main() -> std::io::Result<()> {
             yonghuming: shujukupeizhi.psql.yonghuming,
             mima: shujukupeizhi.psql.mima,
             shujukuming: shujukupeizhi.psql.shujukuming,
-            zuida_lianjie: shujukupeizhi.psql.zuida_lianjie,
-            zuixiao_lianjie: shujukupeizhi.psql.zuixiao_lianjie,
-            huoqu_chaoshi_miao: shujukupeizhi.psql.huoqu_chaoshi_miao,
-            kongxian_chaoshi_miao: shujukupeizhi.psql.kongxian_chaoshi_miao,
-            zuida_shengming_miao: shujukupeizhi.psql.zuida_shengming_miao,
         };
 
         if !psqlshujukuzhuti::lianjie(&psqlpeizhi).await {

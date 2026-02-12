@@ -25,11 +25,6 @@ pub struct Psql {
     pub yonghuming: String,
     pub mima: String,
     pub shujukuming: String,
-    pub zuida_lianjie: u32,
-    pub zuixiao_lianjie: u32,
-    pub huoqu_chaoshi_miao: u64,
-    pub kongxian_chaoshi_miao: u64,
-    pub zuida_shengming_miao: u64,
 }
 
 impl Default for Shujuku {
@@ -62,11 +57,6 @@ impl Default for Psql {
             yonghuming: "postgres".to_string(),
             mima: "".to_string(),
             shujukuming: "rust_luokuangjia".to_string(),
-            zuida_lianjie: 10,
-            zuixiao_lianjie: 2,
-            huoqu_chaoshi_miao: 5,
-            kongxian_chaoshi_miao: 300,
-            zuida_shengming_miao: 1800,
         }
     }
 }

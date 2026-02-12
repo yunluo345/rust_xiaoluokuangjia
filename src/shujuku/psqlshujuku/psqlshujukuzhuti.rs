@@ -16,11 +16,6 @@ pub struct Psqlpeizhi {
     pub yonghuming: String,
     pub mima: String,
     pub shujukuming: String,
-    pub zuida_lianjie: u32,
-    pub zuixiao_lianjie: u32,
-    pub huoqu_chaoshi_miao: u64,
-    pub kongxian_chaoshi_miao: u64,
-    pub zuida_shengming_miao: u64,
 }
 
 fn goujianurl(peizhi: &Psqlpeizhi, shujukuming: &str) -> String {
@@ -34,16 +29,35 @@ fn gengxinzhuangtai(zhuangtai: bool) {
     neicungongju::xieru(psql_zhuangtai_jian, if zhuangtai { "1" } else { "0" });
 }
 
-async fn goujianchi(url: &str, peizhi: &Psqlpeizhi) -> Option<PgPool> {
+fn huoquhexinshu() -> u32 {
+    std::thread::available_parallelism()
+        .map(|n| n.get() as u32)
+        .unwrap_or(4)
+}
+
+fn jisuanchicansu() -> (u32, u32, Duration, Duration, Duration) {
+    let hexin = huoquhexinshu();
+    let zuida = hexin * 2 + 1;
+    let zuixiao = (zuida / 5).max(1);
+    (
+        zuida,
+        zuixiao,
+        Duration::from_secs(5),
+        Duration::from_secs(300),
+        Duration::from_secs(1800),
+    )
+}
+
+async fn goujianchi(url: &str) -> Option<PgPool> {
+    let (zuida, zuixiao, huoqu, kongxian, shengming) = jisuanchicansu();
     PgPoolOptions::new()
-        .max_connections(peizhi.zuida_lianjie)
-        .min_connections(peizhi.zuixiao_lianjie)
-        .acquire_timeout(Duration::from_secs(peizhi.huoqu_chaoshi_miao))
-        .idle_timeout(Duration::from_secs(peizhi.kongxian_chaoshi_miao))
-        .max_lifetime(Duration::from_secs(peizhi.zuida_shengming_miao))
+        .max_connections(zuida)
+        .min_connections(zuixiao)
+        .acquire_timeout(huoqu)
+        .idle_timeout(kongxian)
+        .max_lifetime(shengming)
         .connect(url)
         .await
-        .map_err(|e| eprintln!("连接池构建失败: {}", e))
         .ok()
 }
 
@@ -105,7 +119,7 @@ pub fn shifouqiyong() -> bool {
 pub async fn lianjie(peizhi: &Psqlpeizhi) -> bool {
     let chenggong = async {
         querenshujuku(peizhi).await.then_some(())?;
-        let chi = goujianchi(&goujianurl(peizhi, &peizhi.shujukuming), peizhi).await?;
+        let chi = goujianchi(&goujianurl(peizhi, &peizhi.shujukuming)).await?;
         let _ = quanju_chi.set(chi);
         Some(())
     }
