@@ -1,6 +1,7 @@
 pub mod xitong;
 pub mod jiami;
 pub mod yonghu;
+pub mod ai;
 
 use actix_web::web;
 use super::jiekouxtzhuti::Jiekouzhucexinxi;
@@ -11,12 +12,15 @@ const xitong_qianzhui: &str = "/jiekou/xitong";
 const jiami_qianzhui: &str = "/jiekou/jiami";
 #[allow(non_upper_case_globals)]
 const yonghu_qianzhui: &str = "/jiekou/yonghu";
+#[allow(non_upper_case_globals)]
+const ai_qianzhui: &str = "/jiekou/ai";
 
 /// 注册所有接口模块的路由
 pub fn zhuce(cfg: &mut web::ServiceConfig) {
     xitong::zhuce(cfg);
     jiami::zhuce(cfg);
     yonghu::zhuce(cfg);
+    ai::zhuce(cfg);
 }
 
 /// 汇总所有接口定义，用于同步到数据库
@@ -29,5 +33,6 @@ pub fn huoqujiekoulie() -> Vec<Jiekouzhucexinxi> {
         Jiekouzhucexinxi { qianzhui: jiami_qianzhui, dinyi: &jiami::jiekou_gongyao::dinyi },
         Jiekouzhucexinxi { qianzhui: yonghu_qianzhui, dinyi: &yonghu::jiekou_denglu::dinyi },
         Jiekouzhucexinxi { qianzhui: yonghu_qianzhui, dinyi: &yonghu::jiekou_aiqudao::dinyi },
+        Jiekouzhucexinxi { qianzhui: ai_qianzhui, dinyi: &ai::jiekou_aiduihua::dinyi },
     ]
 }

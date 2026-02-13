@@ -74,7 +74,7 @@ pub async fn chaxun_qiyong() -> Option<Vec<Value>> {
 /// 根据渠道类型查询
 pub async fn chaxun_leixing(leixing: &str) -> Option<Vec<Value>> {
     psqlcaozuo::chaxun(
-        &format!("SELECT * FROM {} WHERE leixing = $1 AND zhuangtai = '1' ORDER BY youxianji DESC", biaoming),
+        &format!("SELECT * FROM {} WHERE leixing = $1 AND zhuangtai = '1' ORDER BY COALESCE(youxianji, 0) DESC", biaoming),
         &[leixing],
     ).await
 }

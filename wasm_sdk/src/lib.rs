@@ -15,6 +15,7 @@ use jiekou_nr::xitong::sseceshi as sseceshiqq;
 use jiekou_nr::xitong::jiamisseceshi as jiamisseceshiqq;
 use jiekou_nr::yonghu::denglujiekou as dengluqq;
 use jiekou_nr::yonghu::aiqudaojiekou as aiqudaoqq;
+use jiekou_nr::ai::aiduihuajiekou as aiduihuaqq;
 
 const huihua_guoqi_zhuangtaima: u16 = 401;
 
@@ -295,6 +296,42 @@ impl Kehuduanjiami {
 
     pub async fn aiqudao_xiugai(&mut self, caozuo_json: &str) -> Result<String, JsValue> {
         self.aiqudao_caozuo(caozuo_json).await
+    }
+
+    pub async fn aiduihua(
+        &mut self,
+        leixing: &str,
+        xiaoxilie_json: &str,
+        huidiaohanming: &str,
+        xitongtishici: Option<String>,
+        gongjulie_json: Option<String>,
+    ) -> Result<(), JsValue> {
+        let lingpai = self.lingpai.clone().ok_or_else(|| cuowu("未登录，无令牌"))?;
+        self.quebaoxieshang().await?;
+        let xiaoxilie: Vec<aiduihuaqq::Xiaoxixiang> = fanxuliehua(xiaoxilie_json, "解析消息列表失败")?;
+        let gongjulie: Option<Vec<aiduihuaqq::Gongjuxiang>> = gongjulie_json
+            .map(|json| fanxuliehua(&json, "解析工具列表失败"))
+            .transpose()?;
+        let ti = aiduihuaqq::Qingqiuti {
+            leixing: leixing.to_string(),
+            xitongtishici,
+            xiaoxilie,
+            gongjulie,
+        };
+        let ti_str = xuliehua(&ti)?;
+        let huidiao = huoquhuidiao(huidiaohanming)?;
+        let xinxi = self.huoqujiamixinxi()?;
+        let jiami_ti = jiamiqingqiuti(&ti_str, xinxi.miyao)?;
+        let url = format!("{}{}", self.fuwuqidizhi, aiduihuaqq::lujing);
+        let shouquan = format!("Bearer {}", lingpai);
+        let ewaiqingqiutou = vec![
+            ("X-Huihua-Id", xinxi.huihuaid),
+            ("X-Kehugongyao", xinxi.kehugongyao),
+            ("Authorization", shouquan.as_str()),
+        ];
+        let request = goujianqingqiu("POST", &url, Some(&jiami_ti), Some(&ewaiqingqiutou))?;
+        let xiangying = fasongqingqiu(&request).await?;
+        duqujiamiliushi(&xiangying, xinxi.miyao, &huidiao).await
     }
 
     pub fn chongzhihuihua(&mut self) {

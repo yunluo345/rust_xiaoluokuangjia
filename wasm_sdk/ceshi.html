@@ -55,6 +55,32 @@
     </div>
 
     <div class="card">
+        <h2>AI对话测试</h2>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+            <div class="shuruxiang">
+                <label for="ai_leixing">渠道类型</label>
+                <select id="ai_leixing" style="width:140px">
+                    <option value="openai">openai</option>
+                    <option value="xiangliang">xiangliang</option>
+                </select>
+            </div>
+            <div class="shuruxiang" style="flex:1;min-width:200px">
+                <label for="ai_xitongtishici">系统提示词</label>
+                <input id="ai_xitongtishici" type="text" placeholder="可选，如：你是一个有帮助的助手" style="width:100%">
+            </div>
+        </div>
+        <div style="margin-bottom:10px">
+            <label for="ai_shuru">消息内容</label>
+            <textarea id="ai_shuru" rows="3" placeholder="输入你想问AI的内容..." style="width:100%;border:1px solid #E2E8F0;border-radius:8px;padding:10px 14px;font-size:14px;outline:none;resize:vertical;font-family:inherit;color:#1E293B;background:#fff;transition:border-color 200ms"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+            <button id="btn_ai_fasong" onclick="aifasong()" disabled>发送</button>
+            <button onclick="aiqingkong()" style="background:#64748B">清空对话</button>
+        </div>
+        <div id="ai_shuchu" style="background:#0F172A;color:#E2E8F0;border-radius:8px;padding:16px;font-family:'JetBrains Mono',monospace;font-size:13px;max-height:500px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;min-height:60px"></div>
+    </div>
+
+    <div class="card">
         <h2>请求测试</h2>
         <button id="btn_jiankang" onclick="jiankangqingqiu()" disabled>普通健康检查</button>
         <button id="btn_jiamiqingqiu" onclick="jiamijiankangqingqiu()" disabled>加密健康测试</button>
@@ -248,11 +274,54 @@
             rizhi('SSE: ' + shuju, 'info');
         };
 
+        window.ai_huidiao = function(shuju) {
+            const shuchu = document.getElementById('ai_shuchu');
+            for (const hang of shuju.split('data: ').filter(s => s.trim())) {
+                try {
+                    const shijian = JSON.parse(hang.trim());
+                    if (shijian.leixing === 'wenben_kuai') {
+                        shuchu.textContent += shijian.neirong;
+                    } else if (shijian.leixing === 'gongju_kaishi') {
+                        shuchu.textContent += `\n[工具调用: ${shijian.gongjuming}]\n`;
+                    } else if (shijian.leixing === 'gongju_canshu') {
+                        shuchu.textContent += shijian.bufen_json;
+                    } else if (shijian.leixing === 'gongju_jieguo') {
+                        shuchu.textContent += `\n[工具结果: ${shijian.jieguo}]\n`;
+                    } else if (shijian.leixing === 'wancheng') {
+                        shuchu.textContent += '\n--- 完成 ---\n';
+                    } else if (shijian.leixing === 'cuowu') {
+                        shuchu.textContent += `\n[错误: ${shijian.xinxi}]\n`;
+                    }
+                } catch (_) {}
+            }
+            shuchu.scrollTop = shuchu.scrollHeight;
+        };
+
+        window.aifasong = () => zhixinganniu('btn_ai_fasong', async () => {
+            const neirong = document.getElementById('ai_shuru').value.trim();
+            if (!neirong) return rizhi('请输入消息内容', 'warn');
+            const leixing = document.getElementById('ai_leixing').value;
+            const xitongtishici = document.getElementById('ai_xitongtishici').value.trim() || undefined;
+            const xiaoxilie = JSON.stringify([{ jiaose: 'yonghu', neirong }]);
+            const shuchu = document.getElementById('ai_shuchu');
+            shuchu.textContent += `\n[你]: ${neirong}\n[AI]: `;
+            shuchu.scrollTop = shuchu.scrollHeight;
+            rizhi('AI对话请求中...', 'info');
+            await kehu.aiduihua(leixing, xiaoxilie, 'ai_huidiao', xitongtishici, undefined);
+            rizhi('AI对话完成', 'ok');
+        });
+
+        window.aiqingkong = function() {
+            document.getElementById('ai_shuchu').textContent = '';
+            document.getElementById('ai_shuru').value = '';
+        };
+
         let qudao_biaodanxianshi = false;
 
         function qudao_qiyonganniu(kai) {
             document.getElementById('btn_qudao_liebiao').disabled = !kai;
             document.getElementById('btn_qudao_xinzeng').disabled = !kai;
+            document.getElementById('btn_ai_fasong').disabled = !kai;
         }
 
         window.qudao_xinzengbiaodanqiehuan = function() {
