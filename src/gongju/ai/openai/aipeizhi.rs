@@ -8,6 +8,7 @@ pub struct Aipeizhi {
     pub wendu: f32,
     pub chaoshishijian: u64,
     pub chongshicishu: u32,
+    pub zuidatoken: usize,
 }
 
 impl Aipeizhi {
@@ -21,6 +22,7 @@ impl Aipeizhi {
             wendu: quziduan(shuju, "wendu").parse().unwrap_or(0.0),
             chaoshishijian: 30,
             chongshicishu: 0,
+            zuidatoken: quzhengshu(shuju, "zuidatoken") as usize,
         })
     }
 
@@ -37,6 +39,10 @@ impl Aipeizhi {
 
 fn quziduan<'a>(shuju: &'a serde_json::Value, ming: &str) -> &'a str {
     shuju.get(ming).and_then(|v| v.as_str()).unwrap_or("")
+}
+
+fn quzhengshu(shuju: &serde_json::Value, ming: &str) -> i64 {
+    shuju.get(ming).and_then(|v| v.as_i64().or_else(|| v.as_str()?.parse().ok())).unwrap_or(0)
 }
 
 fn jiexi_leixing(leixing: &str) -> Option<LLMBackend> {
