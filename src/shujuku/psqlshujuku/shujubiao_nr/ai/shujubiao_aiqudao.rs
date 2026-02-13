@@ -14,7 +14,7 @@ const ziduanlie: &[Ziduandinyi] = &[
     Ziduandinyi { mingcheng: "moxing", nicheng: "默认模型", jieshao: "该渠道默认使用的模型名", leixing: "TEXT NOT NULL", morenzhi: None },
     Ziduandinyi { mingcheng: "wendu", nicheng: "温度", jieshao: "生成随机性控制，0.0到2.0", leixing: "TEXT NOT NULL", morenzhi: Some("0") },
     Ziduandinyi { mingcheng: "zhuangtai", nicheng: "状态", jieshao: "启用或禁用，1启用0禁用", leixing: "TEXT NOT NULL", morenzhi: Some("1") },
-    Ziduandinyi { mingcheng: "youxianji", nicheng: "优先级", jieshao: "多渠道调度顺序，数值越小优先级越高", leixing: "INTEGER NOT NULL", morenzhi: Some("0") },
+    Ziduandinyi { mingcheng: "youxianji", nicheng: "优先级", jieshao: "多渠道调度顺序，数值越大优先级越高", leixing: "INTEGER NOT NULL", morenzhi: Some("0") },
     Ziduandinyi { mingcheng: "beizhu", nicheng: "备注", jieshao: "补充说明", leixing: "TEXT", morenzhi: None },
     Ziduandinyi { mingcheng: "zuidatoken", nicheng: "最大Token", jieshao: "上下文最大token数，超出时自动压缩历史消息，0表示不限制", leixing: "INTEGER NOT NULL", morenzhi: Some("0") },
     Ziduandinyi { mingcheng: "chuangjianshijian", nicheng: "创建时间", jieshao: "记录创建时间", leixing: "TEXT NOT NULL", morenzhi: None },

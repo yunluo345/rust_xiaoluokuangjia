@@ -1,9 +1,13 @@
 use serde_json::Value;
+use rand::prelude::*;
 use crate::gongju::jichugongju;
 use crate::shujuku::psqlshujuku::psqlcaozuo;
 
 #[allow(non_upper_case_globals)]
 const biaoming: &str = "aiqudao";
+
+#[allow(non_upper_case_globals)]
+pub const yunxuleixing: &[&str] = &["openai", "xiangliang"];
 
 /// 新增AI渠道，返回自增ID
 pub async fn xinzeng(mingcheng: &str, leixing: &str, jiekoudizhi: &str, miyao: &str, moxing: &str, wendu: &str, beizhu: Option<&str>, zuidatoken: Option<&str>) -> Option<String> {
@@ -11,7 +15,7 @@ pub async fn xinzeng(mingcheng: &str, leixing: &str, jiekoudizhi: &str, miyao: &
     let beizhu_zhi = beizhu.unwrap_or("");
     let zuidatoken_zhi = zuidatoken.unwrap_or("0");
     let jieguo = psqlcaozuo::chaxun(
-        &format!("INSERT INTO {} (mingcheng, leixing, jiekoudizhi, miyao, moxing, wendu, zhuangtai, youxianji, beizhu, zuidatoken, chuangjianshijian, gengxinshijian) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::INTEGER,$11,$12) RETURNING id::TEXT", biaoming),
+        &format!("INSERT INTO {} (mingcheng, leixing, jiekoudizhi, miyao, moxing, wendu, zhuangtai, youxianji, beizhu, zuidatoken, chuangjianshijian, gengxinshijian) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::INTEGER,$9,$10::INTEGER,$11,$12) RETURNING id::TEXT", biaoming),
         &[mingcheng, leixing, jiekoudizhi, miyao, moxing, wendu, "1", "0", beizhu_zhi, zuidatoken_zhi, &shijian, &shijian],
     ).await?;
     jieguo.first().and_then(|v| v.get("id")?.as_str().map(String::from))
@@ -51,18 +55,18 @@ pub async fn chaxun_id(id: &str) -> Option<Value> {
     jieguo.into_iter().next()
 }
 
-/// 查询所有渠道（按优先级升序）
+/// 查询所有渠道（按优先级降序）
 pub async fn chaxun_quanbu() -> Option<Vec<Value>> {
     psqlcaozuo::chaxun(
-        &format!("SELECT * FROM {} ORDER BY youxianji ASC, chuangjianshijian DESC", biaoming),
+        &format!("SELECT * FROM {} ORDER BY youxianji DESC, chuangjianshijian DESC", biaoming),
         &[],
     ).await
 }
 
-/// 查询所有启用的渠道（按优先级升序）
+/// 查询所有启用的渠道（按优先级降序）
 pub async fn chaxun_qiyong() -> Option<Vec<Value>> {
     psqlcaozuo::chaxun(
-        &format!("SELECT * FROM {} WHERE zhuangtai = '1' ORDER BY youxianji ASC", biaoming),
+        &format!("SELECT * FROM {} WHERE zhuangtai = '1' ORDER BY youxianji DESC", biaoming),
         &[],
     ).await
 }
@@ -70,7 +74,7 @@ pub async fn chaxun_qiyong() -> Option<Vec<Value>> {
 /// 根据渠道类型查询
 pub async fn chaxun_leixing(leixing: &str) -> Option<Vec<Value>> {
     psqlcaozuo::chaxun(
-        &format!("SELECT * FROM {} WHERE leixing = $1 AND zhuangtai = '1' ORDER BY youxianji ASC", biaoming),
+        &format!("SELECT * FROM {} WHERE leixing = $1 AND zhuangtai = '1' ORDER BY youxianji DESC", biaoming),
         &[leixing],
     ).await
 }
@@ -109,4 +113,25 @@ pub async fn tongjishuliang() -> Option<Value> {
         &[],
     ).await?;
     jieguo.into_iter().next()
+}
+
+pub fn leixingyunxu(leixing: &str) -> bool {
+    yunxuleixing.contains(&leixing)
+}
+
+/// 按类型轮训选取渠道：启用状态、优先级最高、同优先级随机
+pub async fn lunxun(leixing: &str) -> Option<Value> {
+    let liebie = chaxun_leixing(leixing).await?;
+    if liebie.is_empty() {
+        return None;
+    }
+    let zuigao = liebie[0].get("youxianji").and_then(quzhengshu).unwrap_or(0);
+    let houxuanlie: Vec<&Value> = liebie.iter()
+        .take_while(|v| v.get("youxianji").and_then(quzhengshu).unwrap_or(0) == zuigao)
+        .collect();
+    houxuanlie.choose(&mut rand::rng()).map(|v| (*v).clone())
+}
+
+fn quzhengshu(v: &Value) -> Option<i64> {
+    v.as_i64().or_else(|| v.as_str()?.parse().ok())
 }

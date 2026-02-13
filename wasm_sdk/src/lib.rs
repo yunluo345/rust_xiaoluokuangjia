@@ -14,6 +14,7 @@ use jiekou_nr::xitong::jiamijiankang as jiamijiankangqq;
 use jiekou_nr::xitong::sseceshi as sseceshiqq;
 use jiekou_nr::xitong::jiamisseceshi as jiamisseceshiqq;
 use jiekou_nr::yonghu::denglujiekou as dengluqq;
+use jiekou_nr::yonghu::aiqudaojiekou as aiqudaoqq;
 
 const huihua_guoqi_zhuangtaima: u16 = 401;
 
@@ -141,6 +142,7 @@ pub struct Kehuduanjiami {
     miyao: Option<Vec<u8>>,
     kehugongyao_b64: Option<String>,
     zhiwen: String,
+    lingpai: Option<String>,
 }
 
 #[wasm_bindgen]
@@ -153,6 +155,7 @@ impl Kehuduanjiami {
             miyao: None,
             kehugongyao_b64: None,
             zhiwen: shebeishibie::shengchengzhiwen(),
+            lingpai: None,
         }
     }
 
@@ -234,7 +237,64 @@ impl Kehuduanjiami {
             jieguo?
         };
         let xiangying: dengluqq::Xiangying = fanxuliehua(&jiemi_wenben, "解析登录响应失败")?;
+        if let Some(ref shuju) = xiangying.shuju {
+            self.lingpai = Some(shuju.lingpai.clone());
+        }
         xuliehua(&xiangying)
+    }
+
+    pub fn shezhilingpai(&mut self, lingpai: &str) {
+        self.lingpai = Some(lingpai.to_string());
+    }
+
+    pub fn huoqulingpai(&self) -> Option<String> {
+        self.lingpai.clone()
+    }
+
+    pub async fn aiqudao_caozuo(&mut self, caozuo_json: &str) -> Result<String, JsValue> {
+        let lingpai = self.lingpai.clone().ok_or_else(|| cuowu("未登录，无令牌"))?;
+        self.quebaoxieshang().await?;
+        let jieguo = self.zhixingrenzhengjiamiqingqiu(aiqudaoqq::fangshi, aiqudaoqq::lujing, Some(caozuo_json), &lingpai).await;
+        let jiemi_wenben = if self.xuyaochongshi(&jieguo) {
+            self.chongxinxieshang().await?;
+            let lingpai = self.lingpai.clone().ok_or_else(|| cuowu("未登录，无令牌"))?;
+            self.zhixingrenzhengjiamiqingqiu(aiqudaoqq::fangshi, aiqudaoqq::lujing, Some(caozuo_json), &lingpai).await?
+        } else {
+            jieguo?
+        };
+        let xiangying: aiqudaoqq::Xiangying = fanxuliehua(&jiemi_wenben, "解析AI渠道响应失败")?;
+        xuliehua(&xiangying)
+    }
+
+    pub async fn aiqudao_liebiao(&mut self) -> Result<String, JsValue> {
+        let ti = xuliehua(&aiqudaoqq::Qingqiuti::caozuo("liebiao"))?;
+        self.aiqudao_caozuo(&ti).await
+    }
+
+    pub async fn aiqudao_tianjia(&mut self, mingcheng: &str, leixing: &str, jiekoudizhi: &str, miyao: &str, moxing: &str, wendu: Option<String>, beizhu: Option<String>, zuidatoken: Option<String>, youxianji: Option<String>) -> Result<String, JsValue> {
+        let mut ti = aiqudaoqq::Qingqiuti::caozuo("tianjia");
+        ti.mingcheng = Some(mingcheng.to_string());
+        ti.leixing = Some(leixing.to_string());
+        ti.jiekoudizhi = Some(jiekoudizhi.to_string());
+        ti.miyao = Some(miyao.to_string());
+        ti.moxing = Some(moxing.to_string());
+        ti.wendu = wendu;
+        ti.beizhu = beizhu;
+        ti.zuidatoken = zuidatoken;
+        ti.youxianji = youxianji;
+        let ti_str = xuliehua(&ti)?;
+        self.aiqudao_caozuo(&ti_str).await
+    }
+
+    pub async fn aiqudao_shanchu(&mut self, id: &str) -> Result<String, JsValue> {
+        let mut ti = aiqudaoqq::Qingqiuti::caozuo("shanchu");
+        ti.id = Some(id.to_string());
+        let ti_str = xuliehua(&ti)?;
+        self.aiqudao_caozuo(&ti_str).await
+    }
+
+    pub async fn aiqudao_xiugai(&mut self, caozuo_json: &str) -> Result<String, JsValue> {
+        self.aiqudao_caozuo(caozuo_json).await
     }
 
     pub fn chongzhihuihua(&mut self) {
@@ -290,6 +350,20 @@ impl Kehuduanjiami {
         let ewaiqingqiutou = vec![
             ("X-Huihua-Id", xinxi.huihuaid),
             ("X-Kehugongyao", xinxi.kehugongyao),
+        ];
+        let xiangying_wenben = putongqingqiu_neibu(fangfa, &url, jiami_ti.as_deref(), Some(&ewaiqingqiutou)).await?;
+        jiemixiangying(&xiangying_wenben, xinxi.miyao)
+    }
+
+    async fn zhixingrenzhengjiamiqingqiu(&self, fangfa: &str, lujing: &str, qingqiuti: Option<&str>, lingpai: &str) -> Result<String, JsValue> {
+        let xinxi = self.huoqujiamixinxi()?;
+        let jiami_ti = qingqiuti.map(|ti| jiamiqingqiuti(ti, xinxi.miyao)).transpose()?;
+        let url = format!("{}{}", self.fuwuqidizhi, lujing);
+        let shouquan = format!("Bearer {}", lingpai);
+        let ewaiqingqiutou = vec![
+            ("X-Huihua-Id", xinxi.huihuaid),
+            ("X-Kehugongyao", xinxi.kehugongyao),
+            ("Authorization", shouquan.as_str()),
         ];
         let xiangying_wenben = putongqingqiu_neibu(fangfa, &url, jiami_ti.as_deref(), Some(&ewaiqingqiutou)).await?;
         jiemixiangying(&xiangying_wenben, xinxi.miyao)

@@ -47,7 +47,7 @@ fn quzhengshu(shuju: &serde_json::Value, ming: &str) -> i64 {
 
 fn jiexi_leixing(leixing: &str) -> Option<LLMBackend> {
     match leixing {
-        "openai" => Some(LLMBackend::OpenAI),
+        "openai" | "xiangliang" => Some(LLMBackend::OpenAI),
         "claude" | "anthropic" => Some(LLMBackend::Anthropic),
         "deepseek" => Some(LLMBackend::DeepSeek),
         "google" | "gemini" => Some(LLMBackend::Google),

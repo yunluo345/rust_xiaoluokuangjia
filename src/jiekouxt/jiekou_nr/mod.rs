@@ -28,5 +28,6 @@ pub fn huoqujiekoulie() -> Vec<Jiekouzhucexinxi> {
         Jiekouzhucexinxi { qianzhui: xitong_qianzhui, dinyi: &xitong::jiekou_jiamisseceshi::dinyi },
         Jiekouzhucexinxi { qianzhui: jiami_qianzhui, dinyi: &jiami::jiekou_gongyao::dinyi },
         Jiekouzhucexinxi { qianzhui: yonghu_qianzhui, dinyi: &yonghu::jiekou_denglu::dinyi },
+        Jiekouzhucexinxi { qianzhui: yonghu_qianzhui, dinyi: &yonghu::jiekou_aiqudao::dinyi },
     ]
 }

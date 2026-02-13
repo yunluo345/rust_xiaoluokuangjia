@@ -1,8 +1,9 @@
-use actix_web::{web, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse};
 use serde::Serialize;
 use super::jiekou_nr;
 use crate::gongju::jichugongju;
 use crate::shujuku::psqlshujuku::psqlcaozuo;
+use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::yonghuyanzheng::{self, Quanxiancuowu};
 
 /// 请求方式
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -116,4 +117,29 @@ pub fn peizhi(cfg: &mut web::ServiceConfig) {
         web::scope("/jiekou")
             .configure(jiekou_nr::zhuce)
     );
+}
+
+#[allow(non_upper_case_globals)]
+const toubu_shouquan: &str = "Authorization";
+#[allow(non_upper_case_globals)]
+const shouquan_qianzhui: &str = "Bearer ";
+
+fn tiqulingpai(req: &HttpRequest) -> Option<&str> {
+    let zhi = req.headers().get(toubu_shouquan)?.to_str().ok()?;
+    zhi.strip_prefix(shouquan_qianzhui).or(Some(zhi)).filter(|s| !s.is_empty())
+}
+
+/// 统一接口权限校验，返回 Ok(Option<Zaiti>) 或直接返回错误响应
+pub async fn jiaoyanquanxian(req: &HttpRequest, dinyi: &Jiekoudinyi, lujing: &str) -> Result<Option<crate::gongju::jwtgongju::Zaiti>, HttpResponse> {
+    if !dinyi.xudenglu {
+        return Ok(None);
+    }
+    let lingpai = tiqulingpai(req);
+    yonghuyanzheng::yanzhengquanxian(lingpai, lujing, dinyi.xudenglu, dinyi.xuyonghuzu).await
+        .map_err(|e| match e {
+            Quanxiancuowu::Weidenglu => shibai(401, "请先登录"),
+            Quanxiancuowu::Lingpaiwuxiao => shibai(401, "令牌无效或已过期"),
+            Quanxiancuowu::Yibeifengjin(yuanyin) => shibai(403, format!("账号已被封禁：{}", yuanyin)),
+            Quanxiancuowu::Jiekoubeijinyong => shibai(403, "当前用户组无权访问此接口"),
+        })
 }
