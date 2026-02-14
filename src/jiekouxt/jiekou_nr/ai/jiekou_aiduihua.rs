@@ -4,7 +4,7 @@ use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
 use crate::gongju::jiamigongju;
 use crate::gongju::ai::openai::aigongju;
-use crate::gongju::ai::openai::liushishijian::Liushishijian;
+use crate::gongju::ai::openai::liushishijian::{Liushishijian, FaxianGongju};
 use crate::jiekouxt::jiekouxtzhuti::{self, Jiekoudinyi, Qingqiufangshi};
 use crate::jiekouxt::jiamichuanshu::jiamichuanshuzhongjian;
 use crate::shujuku::psqlshujuku::shujubiao_nr::ai::shujucaozuo_aiqudao as qudaocaozuo;
@@ -223,19 +223,22 @@ fn goujian_xiaoxilie(qingqiu: &Qingqiuti, zuidatoken: usize) -> Vec<serde_json::
     jieguo
 }
 
-fn goujian_gongjulie() -> Option<Vec<serde_json::Value>> {
-    let lie = aigongju::huoqu_suoyougongju();
+fn goujian_gongjulie(ewaigongju: &[&str]) -> Option<Vec<serde_json::Value>> {
+    let mut lie = aigongju::huoqu_hexingongju_json();
+    if !ewaigongju.is_empty() {
+        lie.extend(aigongju::huoqu_gongju_json_anming(ewaigongju));
+    }
     (!lie.is_empty()).then_some(lie)
 }
 
-fn goujian_qingqiuti(peizhi: &Qudaopeizhi, xiaoxilie: &[serde_json::Value]) -> serde_json::Value {
+fn goujian_qingqiuti(peizhi: &Qudaopeizhi, xiaoxilie: &[serde_json::Value], ewaigongju: &[&str]) -> serde_json::Value {
     let mut ti = serde_json::json!({
         "model": peizhi.moxing,
         "messages": xiaoxilie,
         "temperature": peizhi.wendu,
         "stream": true,
     });
-    if let Some(gj) = goujian_gongjulie() {
+    if let Some(gj) = goujian_gongjulie(ewaigongju) {
         ti["tools"] = serde_json::Value::Array(gj);
     }
     ti
@@ -402,13 +405,200 @@ fn goujian_gongjuxiaoxi(diaoyonglie: &[Gongjudiaoyong]) -> serde_json::Value {
     serde_json::json!({ "role": "assistant", "tool_calls": calls })
 }
 
+/// 意图分析提示词：让AI分析用户意图并生成搜索关键词
+#[allow(non_upper_case_globals)]
+const yitu_fenxi_tishici: &str = "你是一个意图分析助手。分析用户的消息，判断需要使用什么工具来处理。\n\
+\n\
+请输出JSON格式（不要输出其他内容）：\n\
+{\"yitu\": \"一句话描述用户意图\", \"guanjianci\": [\"关键词1\", \"关键词2\", ...]}\n\
+\n\
+关键词要求：\n\
+- 生成3-8个与所需工具功能相关的关键词\n\
+- 包含动作词（如：提取、分析、搜索、生成）\n\
+- 包含对象词（如：标签、实体、人名、时间、日报）\n\
+- 包含场景词（如：文本分析、信息提取、数据处理）\n\
+\n\
+示例：\n\
+用户发了一篇日报 → {\"yitu\": \"处理日报，提取关键信息\", \"guanjianci\": [\"日报\", \"标签\", \"提取\", \"实体识别\", \"人名\", \"时间\", \"文本分析\"]}\n\
+用户问天气 → {\"yitu\": \"查询天气信息\", \"guanjianci\": [\"天气\", \"查询\", \"气象\"]}\n\
+用户闲聊 → {\"yitu\": \"日常对话\", \"guanjianci\": []}";
+
+/// 意图分析结果
+struct Yitujieguo {
+    yitu: String,
+    guanjianci: Vec<String>,
+}
+
+/// 第一阶段：调用AI进行意图分析，生成搜索关键词
+async fn fenxi_yitu(peizhi: &Qudaopeizhi, yonghu_xiaoxi: &str) -> Option<Yitujieguo> {
+    let xiaoxilie = serde_json::json!([
+        {"role": "system", "content": yitu_fenxi_tishici},
+        {"role": "user", "content": yonghu_xiaoxi}
+    ]);
+
+    let ti = serde_json::json!({
+        "model": peizhi.moxing,
+        "messages": xiaoxilie,
+        "temperature": 0.1,
+        "max_tokens": 200,
+        "stream": false,
+    });
+
+    let xiangying = reqwest::Client::new()
+        .post(peizhi.goujian_url())
+        .header("Authorization", format!("Bearer {}", peizhi.miyao))
+        .header("Content-Type", "application/json")
+        .timeout(std::time::Duration::from_secs(15))
+        .json(&ti)
+        .send()
+        .await
+        .ok()?;
+
+    let json: serde_json::Value = xiangying.json().await.ok()?;
+    let neirong = json.get("choices")?.get(0)?
+        .get("message")?.get("content")?.as_str()?;
+
+    println!("[AI意图分析] 原始返回: {}", neirong);
+
+    // 解析JSON（兼容markdown代码块包裹）
+    let jinghua = neirong.trim()
+        .trim_start_matches("```json").trim_start_matches("```")
+        .trim_end_matches("```").trim();
+
+    let jieguo: serde_json::Value = serde_json::from_str(jinghua).ok()?;
+    let yitu = jieguo.get("yitu")?.as_str()?.to_string();
+    let guanjianci: Vec<String> = jieguo.get("guanjianci")?
+        .as_array()?
+        .iter()
+        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+        .collect();
+
+    Some(Yitujieguo { yitu, guanjianci })
+}
+
+/// 工具发现阶段：先AI分析意图生成关键词，再用关键词搜索工具
+async fn gongju_faxian(
+    peizhi: &Qudaopeizhi,
+    xiaoxilie: &[serde_json::Value],
+    fasongqi: &mpsc::Sender<Liushishijian>,
+) -> Vec<String> {
+    // 提取用户最后一条消息
+    let yonghu_xiaoxi = xiaoxilie.iter().rev()
+        .find(|x| x.get("role").and_then(|r| r.as_str()) == Some("user"))
+        .and_then(|x| x.get("content").and_then(|c| c.as_str()))
+        .unwrap_or("");
+
+    if yonghu_xiaoxi.is_empty() {
+        return vec![];
+    }
+
+    // 推送：开始分析意图
+    let _ = fasongqi.send(Liushishijian::Sikaoguocheng {
+        neirong: "正在分析用户意图...".to_string(),
+    }).await;
+
+    // 第一步：AI意图分析
+    let yitu_jieguo = match fenxi_yitu(peizhi, yonghu_xiaoxi).await {
+        Some(j) => j,
+        None => {
+            println!("[AI意图分析] 分析失败，跳过工具发现");
+            let _ = fasongqi.send(Liushishijian::Sikaoguocheng {
+                neirong: "意图分析未完成，使用基础能力回答".to_string(),
+            }).await;
+            return vec![];
+        }
+    };
+
+    println!("[AI意图分析] 意图: {}, 关键词: {:?}", yitu_jieguo.yitu, yitu_jieguo.guanjianci);
+
+    // 推送：意图分析结果
+    let _ = fasongqi.send(Liushishijian::Yitufenxi {
+        yitu: yitu_jieguo.yitu.clone(),
+        guanjianci: yitu_jieguo.guanjianci.clone(),
+    }).await;
+
+    // 如果没有关键词，说明不需要工具
+    if yitu_jieguo.guanjianci.is_empty() {
+        let _ = fasongqi.send(Liushishijian::Sikaoguocheng {
+            neirong: "无需专用工具，直接回答".to_string(),
+        }).await;
+        return vec![];
+    }
+
+    // 推送：开始搜索工具
+    let _ = fasongqi.send(Liushishijian::Sikaoguocheng {
+        neirong: format!("根据关键词「{}」搜索可用工具...", yitu_jieguo.guanjianci.join("、")),
+    }).await;
+
+    // 第二步：用AI生成的关键词搜索工具
+    let sousuo_wenben = yitu_jieguo.guanjianci.join(" ");
+    let sousuojieguo = aigongju::sousuo_gongju(&sousuo_wenben, 5);
+
+    if sousuojieguo.is_empty() {
+        let _ = fasongqi.send(Liushishijian::Sikaoguocheng {
+            neirong: "未找到匹配的工具，使用基础能力回答".to_string(),
+        }).await;
+        return vec![];
+    }
+
+    let faxian_lie: Vec<FaxianGongju> = sousuojieguo.iter().map(|s| FaxianGongju {
+        mingcheng: s.gongju.mingcheng.to_string(),
+        miaoshu: s.gongju.miaoshu.to_string(),
+        defen: s.defen,
+        yuanyin: s.yuanyin.clone(),
+    }).collect();
+
+    let gongjuming_lie: Vec<String> = sousuojieguo.iter()
+        .map(|s| s.gongju.mingcheng.to_string())
+        .collect();
+
+    println!("[AI工具发现] 关键词: {:?}, 发现工具: {:?}", yitu_jieguo.guanjianci, gongjuming_lie);
+
+    // 推送：发现了哪些工具
+    let miaoshu_lie: Vec<String> = sousuojieguo.iter()
+        .map(|s| format!("{}({})", s.gongju.mingcheng, s.gongju.miaoshu))
+        .collect();
+    let _ = fasongqi.send(Liushishijian::Sikaoguocheng {
+        neirong: format!("发现{}个相关工具：{}，正在加载...", gongjuming_lie.len(), miaoshu_lie.join("、")),
+    }).await;
+
+    // 推送：工具发现详情
+    let _ = fasongqi.send(Liushishijian::Gongjufaxian {
+        yitu: yitu_jieguo.yitu,
+        jieguo: faxian_lie,
+    }).await;
+
+    // 推送：加载完成
+    let _ = fasongqi.send(Liushishijian::Sikaoguocheng {
+        neirong: "工具已加载完成，开始处理请求".to_string(),
+    }).await;
+
+    gongjuming_lie
+}
+
 async fn zhixing_react_xunhuan(
     peizhi: &Qudaopeizhi,
     mut xiaoxilie: Vec<serde_json::Value>,
     fasongqi: mpsc::Sender<Liushishijian>,
 ) {
+    // 第一阶段：工具发现
+    let faxian_gongjulie = gongju_faxian(peizhi, &xiaoxilie, &fasongqi).await;
+    let ewai_refs: Vec<&str> = faxian_gongjulie.iter().map(|s| s.as_str()).collect();
+
+    // 如果发现了工具，将工具目录追加到系统提示词中
+    if !faxian_gongjulie.is_empty() {
+        let gongjumulu = aigongju::shengcheng_gongjumulu();
+        if !gongjumulu.is_empty() {
+            if let Some(xitong_xiaoxi) = xiaoxilie.first_mut() {
+                if let Some(neirong) = xitong_xiaoxi.get("content").and_then(|c| c.as_str()).map(|s| s.to_string()) {
+                    xitong_xiaoxi["content"] = serde_json::Value::String(format!("{}{}", neirong, gongjumulu));
+                }
+            }
+        }
+    }
+
     for lun in 0..zuida_xunhuancishu {
-        println!("[AI] ReAct第{}轮开始，当前消息数: {}", lun + 1, xiaoxilie.len());
+        println!("[AI] ReAct第{}轮开始，当前消息数: {}, 可用工具: 核心+{:?}", lun + 1, xiaoxilie.len(), faxian_gongjulie);
         
         if peizhi.zuidatoken > 0 && xiaoxilie.len() > 1 {
             let tishici_tokenshu = xiaoxilie.first()
@@ -432,7 +622,8 @@ async fn zhixing_react_xunhuan(
             }
         }
         
-        let ti = goujian_qingqiuti(peizhi, &xiaoxilie);
+        // 第二阶段：使用核心工具 + 发现的工具
+        let ti = goujian_qingqiuti(peizhi, &xiaoxilie, &ewai_refs);
         let xiangying = match fasong_liushiqingqiu(peizhi, &ti).await {
             Some(r) => r,
             None => {

@@ -92,6 +92,10 @@ async fn main() -> std::io::Result<()> {
         println!("Redis 连接成功: {}", shujukupeizhi.redis.fuwuqimingcheng);
     }
     
+    // 初始化AI工具注册表
+    gongju::ai::openai::aigongju::chushihua();
+    println!("AI工具注册表初始化完成");
+    
     if !gongju::wangluogongju::shifangduankou(zongpeizhi.houduanyunxingduankou) {
         tuichu(&format!("释放端口 {} 失败", zongpeizhi.houduanyunxingduankou));
     }

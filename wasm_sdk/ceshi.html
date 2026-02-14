@@ -339,6 +339,12 @@
                     const { leixing } = shijian;
                     
                     const chuliqimap = {
+                        'sikao_guocheng': () => `\n[思考] ${shijian.neirong}\n`,
+                        'yitu_fenxi': () => `\n[意图分析] ${shijian.yitu}\n[关键词] ${shijian.guanjianci.join('、')}\n`,
+                        'gongju_faxian': () => {
+                            const liebiao = shijian.jieguo.map(g => `${g.mingcheng}(${g.miaoshu}, 匹配度:${(g.defen * 100).toFixed(0)}%)`).join('、');
+                            return `\n[发现工具] ${liebiao}\n`;
+                        },
                         'wenben_kuai': () => { dangqian_huifu += shijian.neirong; return shijian.neirong; },
                         'gongju_kaishi': () => `\n[工具调用: ${shijian.gongjuming}]\n`,
                         'gongju_canshu': () => shijian.bufen_json,
