@@ -2,6 +2,7 @@ use crate::gongju::wenjiancaozuo::{wenjiancunzai, duquwenjian, xieruwenjian, lie
 use crate::gongju::neicungongju;
 use super::peizhi_nr::peizhi_zongpeizhi::Zongpeizhi;
 use super::peizhi_nr::peizhi_shujuku::Shujuku;
+use super::peizhi_nr::peizhi_ai::Aipeizhi;
 use serde_json::Value;
 
 #[allow(non_upper_case_globals)]
@@ -88,5 +89,6 @@ pub fn regengxinhuancun() -> bool {
 pub fn chushihua() -> bool {
     tongbupeizhiwenjian::<Zongpeizhi>(Zongpeizhi::wenjianming())
         && tongbupeizhiwenjian::<Shujuku>(Shujuku::wenjianming())
+        && tongbupeizhiwenjian::<Aipeizhi>(Aipeizhi::wenjianming())
         && jiazaisuoyoupeizhi()
 }

@@ -307,7 +307,7 @@
             shuchu.textContent += `\n[你]: ${neirong}\n[AI]: `;
             shuchu.scrollTop = shuchu.scrollHeight;
             rizhi('AI对话请求中...', 'info');
-            await kehu.aiduihua(leixing, xiaoxilie, 'ai_huidiao', xitongtishici, undefined);
+            await kehu.aiduihua(leixing, xiaoxilie, 'ai_huidiao', xitongtishici);
             rizhi('AI对话完成', 'ok');
         });
 

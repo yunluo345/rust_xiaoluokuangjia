@@ -33,21 +33,30 @@ fn goujianshili(peizhi: &Aipeizhi, tishici: Option<&str>) -> Option<Box<dyn LLMP
     if let Some(t) = tishici {
         builder = builder.system(t);
     }
-    builder.build().ok()
+    match builder.build() {
+        Ok(shili) => Some(shili),
+        Err(e) => {
+            println!("[AI] 构建LLM实例失败: {}", e);
+            None
+        }
+    }
 }
 
 async fn daichaoshiqingqiu(peizhi: &Aipeizhi, guanli: &mut Xiaoxiguanli) -> Option<Box<dyn ChatResponse>> {
     guanli.yasuo(peizhi.zuidatoken);
     let chaoshi = std::time::Duration::from_secs(peizhi.chaoshishijian);
-    for _ in 0..=peizhi.chongshicishu {
+    for i in 0..=peizhi.chongshicishu {
         let shili = goujianshili(peizhi, guanli.huoqu_xitongtishici())?;
-        if let Ok(Ok(xiangying)) = actix_web::rt::time::timeout(
+        match actix_web::rt::time::timeout(
             chaoshi,
             shili.chat_with_tools(guanli.huoqu_xiaoxilie(), guanli.huoqu_gongjulie()),
         ).await {
-            return Some(xiangying);
+            Ok(Ok(xiangying)) => return Some(xiangying),
+            Ok(Err(e)) => println!("[AI] 非流式请求失败(第{}次): {}", i + 1, e),
+            Err(_) => println!("[AI] 非流式请求超时(第{}次)", i + 1),
         }
     }
+    println!("[AI] 非流式请求全部失败");
     None
 }
 
@@ -92,15 +101,18 @@ type Liushiliu = Pin<Box<dyn Stream<Item = Result<StreamChunk, llm::error::LLMEr
 async fn daichaoshiliushi(peizhi: &Aipeizhi, guanli: &mut Xiaoxiguanli) -> Option<Liushiliu> {
     guanli.yasuo(peizhi.zuidatoken);
     let chaoshi = std::time::Duration::from_secs(peizhi.chaoshishijian);
-    for _ in 0..=peizhi.chongshicishu {
+    for i in 0..=peizhi.chongshicishu {
         let shili = goujianshili(peizhi, guanli.huoqu_xitongtishici())?;
-        if let Ok(Ok(liu)) = actix_web::rt::time::timeout(
+        match actix_web::rt::time::timeout(
             chaoshi,
             shili.chat_stream_with_tools(guanli.huoqu_xiaoxilie(), guanli.huoqu_gongjulie()),
         ).await {
-            return Some(liu);
+            Ok(Ok(liu)) => return Some(liu),
+            Ok(Err(e)) => println!("[AI] 流式请求失败(第{}次): {}", i + 1, e),
+            Err(_) => println!("[AI] 流式请求超时(第{}次)", i + 1),
         }
     }
+    println!("[AI] 流式请求全部失败");
     None
 }
 
@@ -132,12 +144,27 @@ fn zhuanhuan_liushikuai(kuai: StreamChunk) -> Liushishijian {
 async fn xiaofei_liushi(liu: Liushiliu, fasongqi: &mpsc::Sender<Liushishijian>) -> Vec<ToolCall> {
     let mut gongjulie: Vec<ToolCall> = Vec::new();
     let mut liu = liu;
-    while let Some(Ok(kuai)) = liu.next().await {
-        if let StreamChunk::ToolUseComplete { index: _, ref tool_call } = kuai {
-            gongjulie.push(tool_call.clone());
+    let mut kuaishu: usize = 0;
+    while let Some(jieguo) = liu.next().await {
+        match jieguo {
+            Ok(kuai) => {
+                kuaishu += 1;
+                if let StreamChunk::ToolUseComplete { index: _, ref tool_call } = kuai {
+                    gongjulie.push(tool_call.clone());
+                }
+                let shijian = zhuanhuan_liushikuai(kuai);
+                if fasongqi.send(shijian).await.is_err() {
+                    println!("[AI] 发送通道已关闭，停止消费");
+                    break;
+                }
+            }
+            Err(e) => {
+                println!("[AI] 流式数据读取错误: {}", e);
+                break;
+            }
         }
-        let _ = fasongqi.send(zhuanhuan_liushikuai(kuai)).await;
     }
+    println!("[AI] 流消费完毕，共{}块，工具调用数: {}", kuaishu, gongjulie.len());
     gongjulie
 }
 
@@ -150,7 +177,8 @@ pub async fn liushigongjuxunhuan<F, Fut>(
     F: Fn(Vec<ToolCall>) -> Fut,
     Fut: Future<Output = Vec<ToolCall>>,
 {
-    for _ in 0..zuida_gongjuxunhuancishu {
+    for lun in 0..zuida_gongjuxunhuancishu {
+        println!("[AI] ReAct第{}轮开始", lun + 1);
         let liu = match daichaoshiliushi(peizhi, guanli).await {
             Some(l) => l,
             None => {
@@ -162,11 +190,14 @@ pub async fn liushigongjuxunhuan<F, Fut>(
         };
         let gongjulie = xiaofei_liushi(liu, &fasongqi).await;
         if gongjulie.is_empty() {
+            println!("[AI] ReAct结束，无工具调用");
             return;
         }
+        println!("[AI] 执行{}个工具调用", gongjulie.len());
         guanli.zhuijia_zhushougongjudiaoyong(gongjulie.clone());
         let jieguo = zhixingqi(gongjulie).await;
         for gc in &jieguo {
+            println!("[AI] 工具结果: {} -> {}", gc.function.name, gc.function.arguments);
             let _ = fasongqi.send(Liushishijian::Gongjujieguo {
                 gongjuid: gc.id.clone(),
                 gongjuming: gc.function.name.clone(),
@@ -175,4 +206,5 @@ pub async fn liushigongjuxunhuan<F, Fut>(
         }
         guanli.zhuijia_gongjujieguo(jieguo);
     }
+    println!("[AI] ReAct达到最大循环次数");
 }
