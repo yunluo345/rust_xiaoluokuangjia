@@ -591,6 +591,82 @@ for handle in handles {
 3. **热更新**：`regengxin()` 会重新读取所有文件，不要频繁调用
 4. **缓存大小**：配置文件应保持小巧（< 10KB），避免占用过多内存
 
+
+## 配置文件：ai.json
+
+AI 相关功能的配置文件。
+
+### 配置结构
+
+```json
+{
+  "biaoqiantiqu": {
+    "bixuyou": ["人名", "时间"]
+  },
+  "qudaohuoqu": {
+    "qiyongchongshi": true,
+    "chongshicishu": 3,
+    "chongshijiange": 1000
+  }
+}
+```
+
+### 字段说明
+
+#### biaoqiantiqu（标签提取配置）
+
+- **bixuyou**：必须提取的标签列表
+  - 类型：`Vec<String>`
+  - 默认值：`["人名"]`
+  - 说明：AI 标签提取时必须包含的标签类型
+
+#### qudaohuoqu（渠道获取配置）
+
+- **qiyongchongshi**：是否启用重试机制
+  - 类型：`bool`
+  - 默认值：`true`
+  - 说明：当获取 AI 渠道失败时，是否自动重试
+
+- **chongshicishu**：重试次数
+  - 类型：`u32`
+  - 默认值：`3`
+  - 说明：最多重试的次数（不包括首次尝试）
+
+- **chongshijiange**：重试间隔（毫秒）
+  - 类型：`u64`
+  - 默认值：`1000`
+  - 说明：每次重试之间的等待时间，单位为毫秒
+
+### 使用示例
+
+```rust
+use peizhixt::peizhixitongzhuti;
+use peizhixt::peizhi_nr::peizhi_ai::Aipeizhi;
+
+// 读取 AI 配置
+let peizhi = peizhixitongzhuti::duqupeizhi::<Aipeizhi>(
+    Aipeizhi::wenjianming()
+).unwrap_or_default();
+
+// 使用渠道获取配置
+let qudaopeizhi = &peizhi.qudaohuoqu;
+if qudaopeizhi.qiyongchongshi {
+    println!("重试次数: {}", qudaopeizhi.chongshicishu);
+    println!("重试间隔: {}ms", qudaopeizhi.chongshijiange);
+}
+```
+
+### 应用场景
+
+渠道获取重试机制主要用于以下场景：
+
+1. **数据库临时不可用**：短暂的网络波动或数据库连接问题
+2. **并发竞争**：多个请求同时获取渠道时的资源竞争
+3. **提高可用性**：通过重试机制提升系统的容错能力
+
+---
+
+
 ---
 
 ## 相关文档

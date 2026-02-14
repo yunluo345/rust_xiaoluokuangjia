@@ -93,7 +93,7 @@ pub async fn tongbujiekoulie(jiekoulie: &[Jiekouzhucexinxi]) -> bool {
     for jiekou in jiekoulie {
         let lujing = jiekou.wanzhenglujing();
         let d = jiekou.dinyi;
-        if psqlcaozuo::zhixing(
+        if psqlcaozuo::zhixing_jiuban(
             jiekou_upsert_sql,
             &[&lujing, d.nicheng, d.jieshao, d.fangshi.wenben(), boolzhi(d.jiami), boolzhi(d.xudenglu), boolzhi(d.xuyonghuzu), boolzhi(d.yunxuputong), &shijianchuo],
         ).await.is_none() {

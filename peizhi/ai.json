@@ -4,5 +4,10 @@
       "人名",
       "时间"
     ]
+  },
+  "qudaohuoqu": {
+    "chongshicishu": 3,
+    "chongshijiange": 1000,
+    "qiyongchongshi": true
   }
 }

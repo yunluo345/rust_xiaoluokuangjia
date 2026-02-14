@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>加密传输测试</title>
+    <title>加密传输测试 v2.0 - AbortController</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Noto Sans SC', Inter, sans-serif; background: #F8FAFC; color: #1E293B; padding: 24px; line-height: 1.6; }
@@ -75,6 +75,7 @@
         </div>
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
             <button id="btn_ai_fasong" onclick="aifasong()" disabled>发送</button>
+            <button id="btn_ai_tingzhi" onclick="aitingzhi()" disabled style="background:#EF4444">停止</button>
             <button onclick="aiqingkong()" style="background:#64748B">清空对话</button>
         </div>
         <div id="ai_shuchu" style="background:#0F172A;color:#E2E8F0;border-radius:8px;padding:16px;font-family:'JetBrains Mono',monospace;font-size:13px;max-height:500px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;min-height:60px"></div>
@@ -132,7 +133,7 @@
                 </div>
                 <div class="shuruxiang">
                     <label for="qudao_miyao">密钥 *</label>
-                    <input id="qudao_miyao" type="password" placeholder="API密钥" style="width:100%">
+                    <input id="qudao_miyao" type="text" placeholder="API密钥" style="width:100%">
                 </div>
                 <div class="shuruxiang">
                     <label for="qudao_moxing">模型 *</label>
@@ -172,13 +173,31 @@
     </div>
 
     <script type="module">
-        import init, { Kehuduanjiami } from './pkg/wasm_sdk.js';
-
-        const fuwuqidizhi = 'http://127.0.0.1:8889';
+        // ==================== 常量定义 ====================
+        const FUWUQI_DIZHI = 'http://127.0.0.1:8889';
+        const ZHUANGTAIMA_CHENGGONG = 200;
+        
+        // ==================== 全局状态 ====================
         let kehu = null;
+        let init, Kehuduanjiami;
+        let dangqian_zhongduanqi = null;
+        let qudao_biaodanxianshi = false;
 
+        // ==================== DOM 元素缓存 ====================
+        const DOM = {
+            get: (id) => document.getElementById(id),
+            huoqu: (id) => document.getElementById(id)?.value?.trim() || '',
+        };
+
+        // ==================== 工具函数 ====================
+        const wasmModule = await import('./pkg/wasm_sdk.js?v=' + Date.now());
+        init = wasmModule.default;
+        Kehuduanjiami = wasmModule.Kehuduanjiami;
+
+        // ==================== 工具函数 ====================
+        
         function rizhi(neirong, leixing = '') {
-            const el = document.getElementById('rizhi');
+            const el = DOM.get('rizhi');
             const shijian = new Date().toLocaleTimeString();
             const leixingclass = leixing ? ` class="${leixing}"` : '';
             el.innerHTML += `<span style="color:#64748B">[${shijian}]</span> <span${leixingclass}>${neirong}</span>\n`;
@@ -186,34 +205,24 @@
         }
 
         function gengxinzhuangtai(id, wenben, chenggong) {
-            const el = document.getElementById(id);
+            const el = DOM.get(id);
             el.textContent = wenben;
             el.className = 'zhuangtai ' + (chenggong ? 'lianjiecheng' : 'weilianjiecheng');
         }
 
-        async function zidongchushihua() {
-            try {
-                await init();
-                kehu = new Kehuduanjiami(fuwuqidizhi);
-                gengxinzhuangtai('wasm_zhuangtai', '已就绪', true);
-                rizhi('WASM 自动加载成功，服务器: ' + fuwuqidizhi, 'ok');
-                document.getElementById('btn_jiankang').disabled = false;
-                document.getElementById('btn_jiamiqingqiu').disabled = false;
-                document.getElementById('btn_sseceshi').disabled = false;
-                document.getElementById('btn_jiamisseceshi').disabled = false;
-                document.getElementById('btn_chongzhi').disabled = false;
-                document.getElementById('btn_denglu').disabled = false;
-            } catch (e) {
-                gengxinzhuangtai('wasm_zhuangtai', '加载失败', false);
-                rizhi('WASM 加载失败: ' + e, 'err');
-            }
+        // 统一的响应处理
+        function chulixiangying(jieguo, chenggongxiaoxi = '') {
+            const xiangying = JSON.parse(jieguo);
+            const chenggong = xiangying.zhuangtaima === ZHUANGTAIMA_CHENGGONG;
+            const xiaoxi = chenggongxiaoxi || xiangying.xiaoxi;
+            rizhi(xiaoxi, chenggong ? 'ok' : 'err');
+            return { xiangying, chenggong };
         }
 
-        zidongchushihua();
-
+        // 统一的按钮操作包装
         async function zhixinganniu(anniuid, caozuo) {
             if (!kehu) return rizhi('尚未初始化', 'warn');
-            const btn = document.getElementById(anniuid);
+            const btn = DOM.get(anniuid);
             btn.disabled = true;
             try {
                 await caozuo();
@@ -224,6 +233,44 @@
             }
         }
 
+        // 统一的异步操作错误处理
+        async function anquanzhixing(caozuo, cuowuxiaoxi = '操作失败') {
+            try {
+                return await caozuo();
+            } catch (e) {
+                rizhi(`${cuowuxiaoxi}: ${e}`, 'err');
+                throw e;
+            }
+        }
+
+        // ==================== 初始化 ====================
+        
+        async function zidongchushihua() {
+            try {
+                // 添加时间戳参数强制刷新 WASM
+                await init({ module_or_path: './pkg/wasm_sdk_bg.wasm?v=' + Date.now() });
+                kehu = new Kehuduanjiami(FUWUQI_DIZHI);
+                gengxinzhuangtai('wasm_zhuangtai', '已就绪', true);
+                rizhi('WASM 自动加载成功，服务器: ' + FUWUQI_DIZHI, 'ok');
+                
+                // 批量启用按钮
+                ['btn_jiankang', 'btn_jiamiqingqiu', 'btn_sseceshi', 'btn_jiamisseceshi', 'btn_chongzhi', 'btn_denglu'].forEach(id => {
+                    DOM.get(id).disabled = false;
+                });
+                
+                // 恢复登录状态
+                if (kehu.yidenglu()) {
+                    qudao_qiyonganniu(true);
+                    rizhi('已恢复登录状态（令牌已缓存）', 'ok');
+                }
+            } catch (e) {
+                gengxinzhuangtai('wasm_zhuangtai', '加载失败', false);
+                rizhi('WASM 加载失败: ' + e, 'err');
+            }
+        }
+
+        // ==================== 基础接口测试 ====================
+        
         window.chongzhihuihua = function() {
             if (!kehu) return;
             kehu.chongzhihuihua();
@@ -252,92 +299,154 @@
             rizhi('--- 加密SSE结束 ---', 'info');
         });
 
-        window.dengluqingqiu = () => zhixinganniu('btn_denglu', async () => {
-            const zhanghao = document.getElementById('denglu_zhanghao').value.trim();
-            const mima = document.getElementById('denglu_mima').value;
-            if (!zhanghao || !mima) return rizhi('账号或密码不能为空', 'warn');
-            const jieguo = await kehu.dengluqingqiu(zhanghao, mima);
-            const xiangying = JSON.parse(jieguo);
-            if (xiangying.zhuangtaima === 200) {
-                rizhi('登录成功: ' + jieguo, 'ok');
-                qudao_qiyonganniu(true);
-            } else {
-                rizhi('登录失败: ' + xiangying.xiaoxi, 'err');
-            }
-        });
-
         window.qingkongrizhi = function() {
-            document.getElementById('rizhi').innerHTML = '';
+            DOM.get('rizhi').innerHTML = '';
         };
 
         window.sse_huidiao = function(shuju) {
             rizhi('SSE: ' + shuju, 'info');
         };
 
+        // ==================== 登录功能 ====================
+        
+        window.dengluqingqiu = () => zhixinganniu('btn_denglu', async () => {
+            const zhanghao = DOM.huoqu('denglu_zhanghao');
+            const mima = DOM.get('denglu_mima').value;
+            if (!zhanghao || !mima) return rizhi('账号或密码不能为空', 'warn');
+            
+            const jieguo = await kehu.dengluqingqiu(zhanghao, mima);
+            const xiangying = JSON.parse(jieguo);
+            const chenggong = xiangying.zhuangtaima === ZHUANGTAIMA_CHENGGONG;
+            
+            rizhi(chenggong ? '登录成功' : '登录失败: ' + xiangying.xiaoxi, chenggong ? 'ok' : 'err');
+            
+            if (chenggong) {
+                qudao_qiyonganniu(true);
+            }
+        });
+
+        // ==================== AI 对话功能 ====================
+        
         window.ai_huidiao = function(shuju) {
-            const shuchu = document.getElementById('ai_shuchu');
+            const shuchu = DOM.get('ai_shuchu');
             for (const hang of shuju.split('data: ').filter(s => s.trim())) {
                 try {
                     const shijian = JSON.parse(hang.trim());
-                    if (shijian.leixing === 'wenben_kuai') {
-                        shuchu.textContent += shijian.neirong;
-                    } else if (shijian.leixing === 'gongju_kaishi') {
-                        shuchu.textContent += `\n[工具调用: ${shijian.gongjuming}]\n`;
-                    } else if (shijian.leixing === 'gongju_canshu') {
-                        shuchu.textContent += shijian.bufen_json;
-                    } else if (shijian.leixing === 'gongju_jieguo') {
-                        shuchu.textContent += `\n[工具结果: ${shijian.jieguo}]\n`;
-                    } else if (shijian.leixing === 'wancheng') {
-                        shuchu.textContent += '\n--- 完成 ---\n';
-                    } else if (shijian.leixing === 'cuowu') {
-                        shuchu.textContent += `\n[错误: ${shijian.xinxi}]\n`;
+                    const { leixing } = shijian;
+                    
+                    const chuliqimap = {
+                        'wenben_kuai': () => shijian.neirong,
+                        'gongju_kaishi': () => `\n[工具调用: ${shijian.gongjuming}]\n`,
+                        'gongju_canshu': () => shijian.bufen_json,
+                        'gongju_jieguo': () => `\n[工具结果: ${shijian.jieguo}]\n`,
+                        'wancheng': () => '\n--- 完成 ---\n',
+                        'cuowu': () => `\n[错误: ${shijian.xinxi}]\n`
+                    };
+                    
+                    const chuliqi = chuliqimap[leixing];
+                    if (chuliqi) {
+                        shuchu.textContent += chuliqi();
                     }
                 } catch (_) {}
             }
             shuchu.scrollTop = shuchu.scrollHeight;
         };
 
-        window.aifasong = () => zhixinganniu('btn_ai_fasong', async () => {
-            const neirong = document.getElementById('ai_shuru').value.trim();
+        window.aifasong = async function() {
+            if (!kehu) return rizhi('尚未初始化', 'warn');
+            
+            const neirong = DOM.huoqu('ai_shuru');
             if (!neirong) return rizhi('请输入消息内容', 'warn');
-            const leixing = document.getElementById('ai_leixing').value;
-            const xitongtishici = document.getElementById('ai_xitongtishici').value.trim() || undefined;
-            const xiaoxilie = JSON.stringify([{ jiaose: 'yonghu', neirong }]);
-            const shuchu = document.getElementById('ai_shuchu');
-            shuchu.textContent += `\n[你]: ${neirong}\n[AI]: `;
-            shuchu.scrollTop = shuchu.scrollHeight;
-            rizhi('AI对话请求中...', 'info');
-            await kehu.aiduihua(leixing, xiaoxilie, 'ai_huidiao', xitongtishici);
-            rizhi('AI对话完成', 'ok');
-        });
-
-        window.aiqingkong = function() {
-            document.getElementById('ai_shuchu').textContent = '';
-            document.getElementById('ai_shuru').value = '';
+            
+            const btnFasong = DOM.get('btn_ai_fasong');
+            const btnTingzhi = DOM.get('btn_ai_tingzhi');
+            
+            // 禁用发送按钮，启用停止按钮
+            btnFasong.disabled = true;
+            btnTingzhi.disabled = false;
+            
+            try {
+                const leixing = DOM.get('ai_leixing').value;
+                const xitongtishici = DOM.huoqu('ai_xitongtishici') || undefined;
+                const xiaoxilie = JSON.stringify([{ jiaose: 'yonghu', neirong }]);
+                const shuchu = DOM.get('ai_shuchu');
+                shuchu.textContent += `\n[你]: ${neirong}\n[AI]: `;
+                shuchu.scrollTop = shuchu.scrollHeight;
+                
+                rizhi('AI对话请求中...', 'info');
+                
+                // 先创建 AbortController（同步）
+                dangqian_zhongduanqi = Kehuduanjiami.chuangjian_zhongduanqi();
+                console.log('前端：已创建 AbortController', dangqian_zhongduanqi);
+                
+                // 然后传递给 aiduihua
+                await kehu.aiduihua(leixing, xiaoxilie, 'ai_huidiao', xitongtishici, dangqian_zhongduanqi);
+                dangqian_zhongduanqi = null; // 完成后清除
+                rizhi('AI对话完成', 'ok');
+            } catch (e) {
+                const errMsg = e.toString().toLowerCase();
+                if (errMsg.includes('abort') || errMsg.includes('cancel')) {
+                    rizhi('AI对话已停止', 'warn');
+                } else {
+                    const errorText = e.toString();
+                    rizhi('请求失败: ' + errorText, 'err');
+                    console.error('AI对话错误:', e);
+                    // 在输出区域也显示错误
+                    const shuchu = DOM.get('ai_shuchu');
+                    shuchu.textContent += `❌ ${errorText}\n`;
+                    shuchu.scrollTop = shuchu.scrollHeight;
+                }
+            } finally {
+                dangqian_zhongduanqi = null;
+                // 恢复按钮状态
+                btnFasong.disabled = false;
+                btnTingzhi.disabled = true;
+            }
         };
 
-        let qudao_biaodanxianshi = false;
+        window.aitingzhi = function() {
+            if (dangqian_zhongduanqi) {
+                console.log('前端：调用 AbortController.abort()');
+                dangqian_zhongduanqi.abort();
+                rizhi('正在停止AI输出...', 'warn');
+            } else {
+                console.log('前端：当前没有正在进行的AI对话');
+            }
+        };
 
+        window.aiqingkong = function() {
+            DOM.get('ai_shuchu').textContent = '';
+            DOM.get('ai_shuru').value = '';
+        };
+
+        // ==================== 渠道管理功能 ====================
+
+        // ==================== 渠道管理功能 ====================
+        
+        const QUDAO_ZIDUAN = ['mingcheng', 'leixing', 'jiekoudizhi', 'miyao', 'moxing', 'wendu', 'zuidatoken', 'youxianji', 'beizhu'];
+        
         function qudao_qiyonganniu(kai) {
-            document.getElementById('btn_qudao_liebiao').disabled = !kai;
-            document.getElementById('btn_qudao_xinzeng').disabled = !kai;
-            document.getElementById('btn_ai_fasong').disabled = !kai;
+            ['btn_qudao_liebiao', 'btn_qudao_xinzeng', 'btn_ai_fasong'].forEach(id => {
+                DOM.get(id).disabled = !kai;
+            });
         }
 
         window.qudao_xinzengbiaodanqiehuan = function() {
             qudao_biaodanxianshi = !qudao_biaodanxianshi;
-            document.getElementById('qudao_xinzengqu').style.display = qudao_biaodanxianshi ? 'block' : 'none';
+            DOM.get('qudao_xinzengqu').style.display = qudao_biaodanxianshi ? 'block' : 'none';
             if (!qudao_biaodanxianshi) qudao_qingkongbiaodan();
         };
 
         function qudao_qingkongbiaodan() {
-            ['qudao_mingcheng','qudao_leixing','qudao_jiekoudizhi','qudao_miyao','qudao_moxing','qudao_wendu','qudao_zuidatoken','qudao_youxianji','qudao_beizhu'].forEach(id => document.getElementById(id).value = '');
-            document.getElementById('qudao_bianjid').value = '';
-            document.getElementById('qudao_biaodanbiaoti').textContent = '新增渠道';
+            QUDAO_ZIDUAN.forEach(ziduan => {
+                DOM.get('qudao_' + ziduan).value = '';
+            });
+            DOM.get('qudao_bianjid').value = '';
+            DOM.get('qudao_biaodanbiaoti').textContent = '新增渠道';
         }
 
         function qudao_xuanranbiao(liebiao) {
-            const rongqi = document.getElementById('qudao_liebiaoku');
+            const rongqi = DOM.get('qudao_liebiaoku');
             if (!liebiao || !liebiao.length) {
                 rongqi.innerHTML = '<div style="color:#94A3B8;font-size:13px;padding:20px 0;text-align:center">暂无渠道数据</div>';
                 return;
@@ -367,47 +476,59 @@
 
         window.qudao_liebiao = () => zhixinganniu('btn_qudao_liebiao', async () => {
             const jieguo = await kehu.aiqudao_liebiao();
-            const xiangying = JSON.parse(jieguo);
-            if (xiangying.zhuangtaima === 200) {
+            const { xiangying, chenggong } = chulixiangying(jieguo);
+            if (chenggong) {
                 qudao_xuanranbiao(xiangying.shuju);
                 rizhi('渠道列表刷新成功，共 ' + (xiangying.shuju?.length || 0) + ' 条', 'ok');
-            } else {
-                rizhi('获取渠道列表失败: ' + xiangying.xiaoxi, 'err');
             }
         });
 
         window.qudao_tijiao = async function() {
-            const bianjid = document.getElementById('qudao_bianjid').value;
-            const qu = id => document.getElementById(id).value.trim();
-            const mingcheng = qu('qudao_mingcheng'), leixing = qu('qudao_leixing'), jiekoudizhi = qu('qudao_jiekoudizhi'), miyao = qu('qudao_miyao'), moxing = qu('qudao_moxing');
-            const btn = document.getElementById('btn_qudao_tijiao');
+            const bianjid = DOM.get('qudao_bianjid').value;
+            const huoquzhi = (ziduan) => DOM.huoqu('qudao_' + ziduan);
+            
+            const btn = DOM.get('btn_qudao_tijiao');
             btn.disabled = true;
+            
             try {
                 let jieguo;
                 if (bianjid) {
+                    // 编辑模式：构建更新请求体
                     const gengxinti = { caozuo: 'gengxin', id: bianjid };
-                    if (mingcheng) gengxinti.mingcheng = mingcheng;
-                    if (leixing) gengxinti.leixing = leixing;
-                    if (jiekoudizhi) gengxinti.jiekoudizhi = jiekoudizhi;
-                    if (miyao) gengxinti.miyao = miyao;
-                    if (moxing) gengxinti.moxing = moxing;
-                    if (qu('qudao_wendu')) gengxinti.wendu = qu('qudao_wendu');
-                    if (qu('qudao_beizhu')) gengxinti.beizhu = qu('qudao_beizhu');
-                    if (qu('qudao_zuidatoken')) gengxinti.zuidatoken = qu('qudao_zuidatoken');
-                    if (qu('qudao_youxianji')) gengxinti.youxianji = qu('qudao_youxianji');
+                    QUDAO_ZIDUAN.forEach(ziduan => {
+                        const zhi = huoquzhi(ziduan);
+                        // 备注字段允许为空，其他字段只在有值时添加
+                        if (ziduan === 'beizhu' || zhi) {
+                            gengxinti[ziduan] = zhi || '';
+                        }
+                    });
                     jieguo = await kehu.aiqudao_xiugai(JSON.stringify(gengxinti));
                 } else {
-                    if (!mingcheng || !leixing || !jiekoudizhi || !miyao || !moxing) {
+                    // 新增模式：验证必填字段
+                    const bitian = ['mingcheng', 'leixing', 'jiekoudizhi', 'miyao', 'moxing'];
+                    const queshao = bitian.filter(z => !huoquzhi(z));
+                    if (queshao.length > 0) {
                         rizhi('名称、类型、接口地址、密钥、模型为必填项', 'warn');
                         return;
                     }
-                    jieguo = await kehu.aiqudao_tianjia(mingcheng, leixing, jiekoudizhi, miyao, moxing, qu('qudao_wendu') || undefined, qu('qudao_beizhu') || undefined, qu('qudao_zuidatoken') || undefined, qu('qudao_youxianji') || undefined);
+                    
+                    jieguo = await kehu.aiqudao_tianjia(
+                        huoquzhi('mingcheng'),
+                        huoquzhi('leixing'),
+                        huoquzhi('jiekoudizhi'),
+                        huoquzhi('miyao'),
+                        huoquzhi('moxing'),
+                        huoquzhi('wendu') || undefined,
+                        huoquzhi('beizhu') || undefined,
+                        huoquzhi('zuidatoken') || undefined,
+                        huoquzhi('youxianji') || undefined
+                    );
                 }
-                const xiangying = JSON.parse(jieguo);
-                rizhi((bianjid ? '编辑' : '新增') + '渠道: ' + xiangying.xiaoxi, xiangying.zhuangtaima === 200 ? 'ok' : 'err');
-                if (xiangying.zhuangtaima === 200) {
+                
+                const { chenggong } = chulixiangying(jieguo, (bianjid ? '编辑' : '新增') + '渠道成功');
+                if (chenggong) {
                     qudao_biaodanxianshi = false;
-                    document.getElementById('qudao_xinzengqu').style.display = 'none';
+                    DOM.get('qudao_xinzengqu').style.display = 'none';
                     qudao_qingkongbiaodan();
                     window.qudao_liebiao();
                 }
@@ -420,66 +541,64 @@
 
         window.qudao_shanchu = async function(id) {
             if (!confirm('确认删除渠道 ID=' + id + ' ？')) return;
-            try {
+            await anquanzhixing(async () => {
                 const jieguo = await kehu.aiqudao_shanchu(id);
-                const xiangying = JSON.parse(jieguo);
-                rizhi('删除渠道: ' + xiangying.xiaoxi, xiangying.zhuangtaima === 200 ? 'ok' : 'err');
-                if (xiangying.zhuangtaima === 200) window.qudao_liebiao();
-            } catch (e) {
-                rizhi('删除失败: ' + e, 'err');
-            }
+                const { chenggong } = chulixiangying(jieguo, '删除渠道成功');
+                if (chenggong) window.qudao_liebiao();
+            }, '删除失败');
         };
 
         window.qudao_qiehuanzhuangtai = async function(id) {
-            try {
+            await anquanzhixing(async () => {
                 const ti = JSON.stringify({ caozuo: 'qiehuanzhuangtai', id });
                 const jieguo = await kehu.aiqudao_xiugai(ti);
-                const xiangying = JSON.parse(jieguo);
-                rizhi('切换状态: ' + xiangying.xiaoxi, xiangying.zhuangtaima === 200 ? 'ok' : 'err');
-                if (xiangying.zhuangtaima === 200) window.qudao_liebiao();
-            } catch (e) {
-                rizhi('切换状态失败: ' + e, 'err');
-            }
+                const { chenggong } = chulixiangying(jieguo, '切换状态成功');
+                if (chenggong) window.qudao_liebiao();
+            }, '切换状态失败');
         };
 
         window.qudao_gengxinyouxianji = async function(id, zhi) {
-            try {
+            await anquanzhixing(async () => {
                 const ti = JSON.stringify({ caozuo: 'gengxin', id, youxianji: zhi });
                 const jieguo = await kehu.aiqudao_xiugai(ti);
-                const xiangying = JSON.parse(jieguo);
-                rizhi('优先级更新: ' + xiangying.xiaoxi, xiangying.zhuangtaima === 200 ? 'ok' : 'err');
-            } catch (e) {
-                rizhi('优先级更新失败: ' + e, 'err');
-            }
+                chulixiangying(jieguo, '优先级更新成功');
+            }, '优先级更新失败');
         };
 
         window.qudao_bianji = async function(id) {
-            try {
+            await anquanzhixing(async () => {
                 const ti = JSON.stringify({ caozuo: 'xiangqing', id });
                 const jieguo = await kehu.aiqudao_caozuo(ti);
-                const xiangying = JSON.parse(jieguo);
-                if (xiangying.zhuangtaima !== 200 || !xiangying.shuju) {
+                const { xiangying, chenggong } = chulixiangying(jieguo);
+                
+                if (!chenggong || !xiangying.shuju) {
                     rizhi('查询渠道详情失败: ' + xiangying.xiaoxi, 'err');
                     return;
                 }
+                
                 const q = xiangying.shuju;
-                document.getElementById('qudao_bianjid').value = q.id;
-                document.getElementById('qudao_mingcheng').value = q.mingcheng || '';
-                document.getElementById('qudao_leixing').value = q.leixing || '';
-                document.getElementById('qudao_jiekoudizhi').value = q.jiekoudizhi || '';
-                document.getElementById('qudao_miyao').value = '';
-                document.getElementById('qudao_moxing').value = q.moxing || '';
-                document.getElementById('qudao_wendu').value = q.wendu || '';
-                document.getElementById('qudao_zuidatoken').value = q.zuidatoken || '';
-                document.getElementById('qudao_youxianji').value = q.youxianji ?? '';
-                document.getElementById('qudao_beizhu').value = q.beizhu || '';
-                document.getElementById('qudao_biaodanbiaoti').textContent = '编辑渠道 #' + q.id;
+                DOM.get('qudao_bianjid').value = q.id;
+                QUDAO_ZIDUAN.forEach(ziduan => {
+                    const zhi = q[ziduan] ?? '';
+                    DOM.get('qudao_' + ziduan).value = zhi;
+                });
+                DOM.get('qudao_biaodanbiaoti').textContent = '编辑渠道 #' + q.id;
                 qudao_biaodanxianshi = true;
-                document.getElementById('qudao_xinzengqu').style.display = 'block';
-            } catch (e) {
-                rizhi('查询详情失败: ' + e, 'err');
-            }
+                DOM.get('qudao_xinzengqu').style.display = 'block';
+            }, '查询详情失败');
         };
+
+        // ==================== 动态导入和初始化 ====================
+        (async () => {
+            try {
+                const wasm = await import('./pkg/wasm_sdk.js?v=' + Date.now());
+                init = wasm.default;
+                Kehuduanjiami = wasm.Kehuduanjiami;
+                await zidongchushihua();
+            } catch (e) {
+                rizhi('模块加载失败: ' + e, 'err');
+            }
+        })();
     </script>
 </body>
 </html>

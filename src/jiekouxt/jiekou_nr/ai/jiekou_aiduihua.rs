@@ -10,6 +10,8 @@ use crate::jiekouxt::jiamichuanshu::jiamichuanshuzhongjian;
 use crate::shujuku::psqlshujuku::shujubiao_nr::ai::shujucaozuo_aiqudao as qudaocaozuo;
 use crate::peizhixt::peizhixitongzhuti;
 use crate::peizhixt::peizhi_nr::peizhi_ai;
+use tiktoken_rs::CoreBPE;
+use std::sync::OnceLock;
 
 #[allow(non_upper_case_globals)]
 pub const dinyi: Jiekoudinyi = Jiekoudinyi {
@@ -44,7 +46,16 @@ const quanju_xitongtishici: &str = "你是一个专业的AI日报助手，专注
    - 如果是技术错误（如网络超时、JSON格式错误），可以修正后重试一次。\n\
    - 同一个工具调用，相同参数不得重复调用超过1次。\n\
 5. 不得通过添加、修改或伪造数据来绕过工具的验证失败。\n\
-6. 工具返回失败后，应立即停止调用工具，直接回复用户说明情况，不要继续尝试。";
+6. 工具返回失败后，应立即停止调用工具，直接回复用户说明情况，不要继续尝试。\n\
+\n\
+消息压缩规则：\n\
+- 当对话历史过长时，你会收到提示需要压缩消息。\n\
+- 此时必须立即调用yasuoxiaoxi工具，提供一个简洁的总结，包含：\n\
+  1. 用户的主要问题和需求\n\
+  2. 已完成的操作和结果\n\
+  3. 当前状态和待解决问题\n\
+  4. 重要的上下文信息\n\
+- 总结后，历史消息将被替换为你的总结，然后继续对话。";
 
 #[derive(Deserialize)]
 struct Qingqiuti {
@@ -65,18 +76,36 @@ struct Qudaopeizhi {
     miyao: String,
     moxing: String,
     wendu: f64,
+    zuidatoken: usize,
 }
 
 impl Qudaopeizhi {
     fn cong_shuju(shuju: &serde_json::Value) -> Option<Self> {
+        println!("[AI配置] 原始数据: {}", shuju);
         let qu = |ming: &str| shuju.get(ming).and_then(|v| v.as_str()).unwrap_or("").to_string();
         let jiekoudizhi = qu("jiekoudizhi").trim_end_matches('/').to_string();
         if jiekoudizhi.is_empty() { return None; }
+        
+        let zuidatoken_value = shuju.get("zuidatoken");
+        println!("[AI配置] zuidatoken字段值: {:?}", zuidatoken_value);
+        
+        let zuidatoken = zuidatoken_value
+            .and_then(|v| {
+                let result = v.as_i64().or_else(|| v.as_str()?.parse().ok());
+                println!("[AI配置] zuidatoken解析结果: {:?}", result);
+                result
+            })
+            .unwrap_or(0)
+            .max(0) as usize;
+        
+        println!("[AI配置] 最终zuidatoken: {}", zuidatoken);
+        
         Some(Self {
             jiekoudizhi,
             miyao: qu("miyao"),
             moxing: qu("moxing"),
             wendu: qu("wendu").parse().unwrap_or(0.0),
+            zuidatoken,
         })
     }
 
@@ -89,6 +118,54 @@ struct Gongjudiaoyong {
     id: String,
     mingcheng: String,
     canshu: String,
+}
+
+#[allow(non_upper_case_globals)]
+static fenciqi: OnceLock<CoreBPE> = OnceLock::new();
+
+fn jisuan_tokenshu(wenben: &str) -> usize {
+    fenciqi
+        .get_or_init(|| tiktoken_rs::o200k_base().unwrap_or_else(|_| tiktoken_rs::cl100k_base().unwrap()))
+        .encode_with_special_tokens(wenben)
+        .len()
+}
+
+fn yasuo_xiaoxilie(xiaoxilie: &mut Vec<serde_json::Value>, xitongtishici: &str, zuidatoken: usize) {
+    if zuidatoken == 0 || xiaoxilie.is_empty() {
+        return;
+    }
+    
+    let tishici_tokenshu = jisuan_tokenshu(xitongtishici);
+    let keyong = zuidatoken.saturating_sub(tishici_tokenshu);
+    
+    println!("[AI压缩] 系统提示词token: {}, 可用token: {}, 最大token: {}", tishici_tokenshu, keyong, zuidatoken);
+    
+    let meitian_tokenshu: Vec<usize> = xiaoxilie.iter()
+        .filter_map(|x| x.get("content").and_then(|c| c.as_str()))
+        .map(jisuan_tokenshu)
+        .collect();
+    
+    let zong: usize = meitian_tokenshu.iter().sum();
+    println!("[AI压缩] 当前消息总token: {}, 消息数: {}", zong, xiaoxilie.len());
+    
+    if zong <= keyong {
+        println!("[AI压缩] 无需压缩");
+        return;
+    }
+    
+    let mut yaoshan = 0usize;
+    let mut yishantoken = 0usize;
+    let baoliu_zuishao = 1;
+    
+    while yaoshan < xiaoxilie.len() - baoliu_zuishao && zong - yishantoken > keyong {
+        yishantoken += meitian_tokenshu[yaoshan];
+        yaoshan += 1;
+    }
+    
+    if yaoshan > 0 {
+        println!("[AI压缩] 删除最旧的{}条消息，原始{}条，压缩后{}条", yaoshan, xiaoxilie.len(), xiaoxilie.len() - yaoshan);
+        xiaoxilie.drain(..yaoshan);
+    }
 }
 
 fn jiamissekuai(shijian: &Liushishijian, miyao: &[u8]) -> Option<web::Bytes> {
@@ -108,7 +185,7 @@ fn shengcheng_jiamiliushi(
     })
 }
 
-fn goujian_xiaoxilie(qingqiu: &Qingqiuti) -> Vec<serde_json::Value> {
+fn goujian_xiaoxilie(qingqiu: &Qingqiuti, zuidatoken: usize) -> Vec<serde_json::Value> {
     let mut jieguo: Vec<serde_json::Value> = vec![];
     
     let mut xitong_neirong = match qingqiu.xitongtishici.as_deref() {
@@ -126,14 +203,21 @@ fn goujian_xiaoxilie(qingqiu: &Qingqiuti) -> Vec<serde_json::Value> {
     
     jieguo.push(serde_json::json!({"role": "system", "content": xitong_neirong}));
     
-    jieguo.extend(qingqiu.xiaoxilie.iter().filter_map(|x| {
+    let mut yonghu_xiaoxilie: Vec<serde_json::Value> = qingqiu.xiaoxilie.iter().filter_map(|x| {
         let jiaose = match x.jiaose.as_str() {
             "yonghu" => "user",
             "zhushou" => "assistant",
             _ => return None,
         };
         Some(serde_json::json!({"role": jiaose, "content": x.neirong}))
-    }));
+    }).collect();
+    
+    // 如果设置了token限制，执行压缩
+    if zuidatoken > 0 && !yonghu_xiaoxilie.is_empty() {
+        yasuo_xiaoxilie(&mut yonghu_xiaoxilie, &xitong_neirong, zuidatoken);
+    }
+    
+    jieguo.extend(yonghu_xiaoxilie);
     jieguo
 }
 
@@ -170,7 +254,10 @@ async fn fasong_liushiqingqiu(peizhi: &Qudaopeizhi, ti: &serde_json::Value) -> O
 async fn chuli_wenben(fasongqi: &mpsc::Sender<Liushishijian>, xuanze: &serde_json::Value) -> bool {
     if let Some(neirong) = xuanze.get("delta").and_then(|d| d.get("content")).and_then(|c| c.as_str()) {
         if !neirong.is_empty() {
-            return fasongqi.send(Liushishijian::Wenbenkuai { neirong: neirong.to_string() }).await.is_ok();
+            if fasongqi.send(Liushishijian::Wenbenkuai { neirong: neirong.to_string() }).await.is_err() {
+                println!("[AI] 客户端已断开连接，停止发送文本");
+                return false;
+            }
         }
     }
     true
@@ -201,27 +288,34 @@ fn shouji_gongjudiaoyong(xuanze: &serde_json::Value, huanchong: &mut Vec<Gongjud
     }
 }
 
-async fn tuisong_gongjuguocheng(fasongqi: &mpsc::Sender<Liushishijian>, xuanze: &serde_json::Value) {
+async fn tuisong_gongjuguocheng(fasongqi: &mpsc::Sender<Liushishijian>, xuanze: &serde_json::Value) -> bool {
     let gongjulie = match xuanze.get("delta").and_then(|d| d.get("tool_calls")).and_then(|t| t.as_array()) {
         Some(l) => l,
-        None => return,
+        None => return true,
     };
     for gongju in gongjulie {
         let hanshu = gongju.get("function");
         let suoyin = gongju.get("index").and_then(|i| i.as_u64()).unwrap_or(0) as usize;
         let gongjuming = hanshu.and_then(|f| f.get("name")).and_then(|n| n.as_str()).unwrap_or("");
         if !gongjuming.is_empty() {
-            let _ = fasongqi.send(Liushishijian::Gongjukaishi {
+            if fasongqi.send(Liushishijian::Gongjukaishi {
                 suoyin,
                 gongjuid: gongju.get("id").and_then(|i| i.as_str()).unwrap_or("").to_string(),
                 gongjuming: gongjuming.to_string(),
-            }).await;
+            }).await.is_err() {
+                println!("[AI] 客户端已断开连接，停止发送工具开始事件");
+                return false;
+            }
         }
         let canshu = hanshu.and_then(|f| f.get("arguments")).and_then(|a| a.as_str()).unwrap_or("");
         if !canshu.is_empty() {
-            let _ = fasongqi.send(Liushishijian::Gongjucanshu { suoyin, bufen_json: canshu.to_string() }).await;
+            if fasongqi.send(Liushishijian::Gongjucanshu { suoyin, bufen_json: canshu.to_string() }).await.is_err() {
+                println!("[AI] 客户端已断开连接，停止发送工具参数");
+                return false;
+            }
         }
     }
+    true
 }
 
 fn jiancha_wancheng(xuanze: &serde_json::Value) -> Option<String> {
@@ -279,9 +373,13 @@ async fn xiaofei_liushi(
                 None => continue,
             };
             if !chuli_wenben(fasongqi, xuanze).await {
-                return (gongjulie, Some("stop".to_string()));
+                println!("[AI] 客户端断开，停止消费流");
+                return (gongjulie, Some("client_disconnected".to_string()));
             }
-            tuisong_gongjuguocheng(fasongqi, xuanze).await;
+            if !tuisong_gongjuguocheng(fasongqi, xuanze).await {
+                println!("[AI] 客户端断开，停止消费流");
+                return (gongjulie, Some("client_disconnected".to_string()));
+            }
             shouji_gongjudiaoyong(xuanze, &mut gongjulie);
             if let Some(yuanyin) = jiancha_wancheng(xuanze) {
                 wancheng_yuanyin = Some(yuanyin);
@@ -308,7 +406,33 @@ async fn zhixing_react_xunhuan(
     fasongqi: mpsc::Sender<Liushishijian>,
 ) {
     for lun in 0..zuida_xunhuancishu {
-        println!("[AI] ReAct第{}轮开始", lun + 1);
+        println!("[AI] ReAct第{}轮开始，当前消息数: {}, 最大token限制: {}", lun + 1, xiaoxilie.len(), peizhi.zuidatoken);
+        
+        // 检查是否超过token限制
+        if peizhi.zuidatoken > 0 && xiaoxilie.len() > 1 {
+            let xitongtishici = xiaoxilie.first()
+                .and_then(|x| x.get("content"))
+                .and_then(|c| c.as_str())
+                .unwrap_or("");
+            let tishici_tokenshu = jisuan_tokenshu(xitongtishici);
+            let keyong = peizhi.zuidatoken.saturating_sub(tishici_tokenshu);
+            
+            let yonghu_xiaoxilie: Vec<serde_json::Value> = xiaoxilie.iter().skip(1).cloned().collect();
+            let zong_token: usize = yonghu_xiaoxilie.iter()
+                .filter_map(|x| x.get("content").and_then(|c| c.as_str()))
+                .map(jisuan_tokenshu)
+                .sum();
+            
+            if zong_token > keyong {
+                println!("[AI压缩] 当前消息总token: {}, 超过限制: {}, 需要AI总结压缩", zong_token, keyong);
+                // 添加系统提示，要求AI压缩消息
+                xiaoxilie.push(serde_json::json!({
+                    "role": "system",
+                    "content": format!("⚠️ 对话历史已超过token限制（当前{}，限制{}），请立即调用yasuoxiaoxi工具总结历史对话。", zong_token, keyong)
+                }));
+            }
+        }
+        
         let ti = goujian_qingqiuti(peizhi, &xiaoxilie);
         let xiangying = match fasong_liushiqingqiu(peizhi, &ti).await {
             Some(r) => r,
@@ -320,6 +444,13 @@ async fn zhixing_react_xunhuan(
         };
         let (gongjulie, yuanyin) = xiaofei_liushi(xiangying, &fasongqi).await;
         println!("[AI] 流消费完毕，工具调用数: {}", gongjulie.len());
+        
+        // 检查客户端是否断开
+        if yuanyin.as_deref() == Some("client_disconnected") {
+            println!("[AI] 检测到客户端断开，停止ReAct循环");
+            return;
+        }
+        
         if gongjulie.is_empty() {
             let _ = fasongqi.send(Liushishijian::Wancheng {
                 yuanyin: yuanyin.unwrap_or_else(|| "stop".to_string()),
@@ -328,6 +459,10 @@ async fn zhixing_react_xunhuan(
             return;
         }
         xiaoxilie.push(goujian_gongjuxiaoxi(&gongjulie));
+        
+        // 检查是否有压缩工具调用
+        let mut yasuole = false;
+        
         for d in &gongjulie {
             println!("[AI] 执行工具: {}", d.mingcheng);
             let diaoyong = llm::ToolCall {
@@ -341,22 +476,54 @@ async fn zhixing_react_xunhuan(
             let jieguo = aigongju::zhixing_gongju(&diaoyong);
             println!("[AI] 工具结果: {}", jieguo.function.arguments);
             
-            let _ = fasongqi.send(Liushishijian::Gongjuwancheng {
+            // 如果是压缩工具且成功，提取总结并替换历史消息
+            if d.mingcheng == "yasuoxiaoxi" {
+                if let Ok(jieguo_json) = serde_json::from_str::<serde_json::Value>(&jieguo.function.arguments) {
+                    if jieguo_json.get("chenggong").and_then(|v| v.as_bool()).unwrap_or(false) {
+                        if let Some(zongjie) = jieguo_json.get("zongjie").and_then(|v| v.as_str()) {
+                            println!("[AI压缩] AI总结: {}", zongjie);
+                            // 保留系统提示词，用总结替换所有历史消息
+                            let xitong_xiaoxi = xiaoxilie[0].clone();
+                            xiaoxilie = vec![
+                                xitong_xiaoxi,
+                                serde_json::json!({
+                                    "role": "user",
+                                    "content": format!("【历史对话总结】\n{}", zongjie)
+                                })
+                            ];
+                            yasuole = true;
+                            println!("[AI压缩] 历史消息已替换为总结");
+                        }
+                    }
+                }
+            }
+            
+            if fasongqi.send(Liushishijian::Gongjuwancheng {
                 suoyin: 0,
                 gongjuid: d.id.clone(),
                 gongjuming: d.mingcheng.clone(),
                 canshu: d.canshu.clone(),
-            }).await;
-            let _ = fasongqi.send(Liushishijian::Gongjujieguo {
+            }).await.is_err() {
+                println!("[AI] 客户端已断开，停止发送工具完成事件");
+                return;
+            }
+            if fasongqi.send(Liushishijian::Gongjujieguo {
                 gongjuid: d.id.clone(),
                 gongjuming: d.mingcheng.clone(),
                 jieguo: jieguo.function.arguments.clone(),
-            }).await;
-            xiaoxilie.push(serde_json::json!({
-                "role": "tool",
-                "tool_call_id": d.id,
-                "content": jieguo.function.arguments,
-            }));
+            }).await.is_err() {
+                println!("[AI] 客户端已断开，停止发送工具结果");
+                return;
+            }
+            
+            // 如果已经压缩，不再添加工具结果到消息列表
+            if !yasuole {
+                xiaoxilie.push(serde_json::json!({
+                    "role": "tool",
+                    "tool_call_id": d.id,
+                    "content": jieguo.function.arguments,
+                }));
+            }
         }
     }
     println!("[AI] ReAct达到最大循环次数");
@@ -364,19 +531,26 @@ async fn zhixing_react_xunhuan(
 }
 
 fn jiamicuowu(zhuangtaima: u16, xinxi: &str, miyao: &[u8]) -> HttpResponse {
-    jiamichuanshuzhongjian::jiamixiangying(jiekouxtzhuti::shibai(zhuangtaima, xinxi), miyao)
+    println!("[加密错误] 准备加密错误响应: 状态码={}, 消息={}", zhuangtaima, xinxi);
+    let xiangying = jiekouxtzhuti::shibai(zhuangtaima, xinxi);
+    let jiami_xiangying = jiamichuanshuzhongjian::jiamixiangying(xiangying, miyao);
+    println!("[加密错误] 错误响应已加密并返回");
+    jiami_xiangying
 }
 
 async fn zhixing_duihua(qingqiu: Qingqiuti, miyao: Vec<u8>) -> HttpResponse {
-    let qudaoshuju = match qudaocaozuo::lunxun(&qingqiu.leixing).await {
-        Some(s) => s,
-        None => return jiamicuowu(404, "没有可用的AI渠道", &miyao),
+    let qudaoshuju = match qudaocaozuo::lunxun_daichongshi(&qingqiu.leixing).await {
+        Ok(s) => s,
+        Err(e) => {
+            println!("[接口层] 渠道获取失败，返回错误: {} (状态码: {})", e.xiaoxi(), e.zhuangtaima());
+            return jiamicuowu(e.zhuangtaima(), e.xiaoxi(), &miyao);
+        }
     };
     let peizhi = match Qudaopeizhi::cong_shuju(&qudaoshuju) {
         Some(p) => p,
         None => return jiamicuowu(500, "渠道配置解析失败", &miyao),
     };
-    let xiaoxilie = goujian_xiaoxilie(&qingqiu);
+    let xiaoxilie = goujian_xiaoxilie(&qingqiu, peizhi.zuidatoken);
     let (fasongqi, jieshouqi) = mpsc::channel::<Liushishijian>(64);
     let miyao_clone = miyao.clone();
     actix_web::rt::spawn(async move {

@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-pub const lujing: &str = "/jiekou/yonghu/aiqudao";
+pub const lujing: &str = "/jiekou/ai/aiqudao";
 pub const fangshi: &str = "POST";
 
 #[allow(non_upper_case_globals)]

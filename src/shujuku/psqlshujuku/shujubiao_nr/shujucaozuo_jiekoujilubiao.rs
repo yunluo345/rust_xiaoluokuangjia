@@ -6,7 +6,7 @@ const biaoming: &str = "jiekoujilubiao";
 
 /// 查询不允许普通用户访问的接口路径列表
 pub async fn chaxun_jinyongputong() -> Option<Vec<String>> {
-    let jieguo = psqlcaozuo::chaxun(
+    let jieguo = psqlcaozuo::chaxun_jiuban(
         &format!("SELECT lujing FROM {} WHERE yunxuputong = '0'", biaoming),
         &[],
     ).await?;
@@ -15,7 +15,7 @@ pub async fn chaxun_jinyongputong() -> Option<Vec<String>> {
 
 /// 查询所有接口记录
 pub async fn chaxun_quanbu() -> Option<Vec<Value>> {
-    psqlcaozuo::chaxun(
+    psqlcaozuo::chaxun_jiuban(
         &format!("SELECT * FROM {} ORDER BY lujing ASC", biaoming),
         &[],
     ).await

@@ -9,7 +9,7 @@ const biaoming: &str = "yonghu";
 pub async fn xinzeng(zhanghao: &str, mima: &str, nicheng: &str, yonghuzuid: &str, beizhu: Option<&str>) -> Option<String> {
     let shijian = jichugongju::huoqushijianchuo().to_string();
     let beizhu_zhi = beizhu.unwrap_or("");
-    let jieguo = psqlcaozuo::chaxun(
+    let jieguo = psqlcaozuo::chaxun_jiuban(
         &format!("INSERT INTO {} (zhanghao, mima, nicheng, yonghuzuid, beizhu, chuangjianshijian, gengxinshijian) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id::TEXT", biaoming),
         &[zhanghao, mima, nicheng, yonghuzuid, beizhu_zhi, &shijian, &shijian],
     ).await?;
@@ -18,7 +18,7 @@ pub async fn xinzeng(zhanghao: &str, mima: &str, nicheng: &str, yonghuzuid: &str
 
 /// 根据ID删除用户
 pub async fn shanchu(id: &str) -> Option<u64> {
-    psqlcaozuo::zhixing(
+    psqlcaozuo::zhixing_jiuban(
         &format!("DELETE FROM {} WHERE id = $1::BIGINT", biaoming),
         &[id],
     ).await
@@ -38,12 +38,12 @@ pub async fn gengxin(id: &str, ziduanlie: &[(&str, &str)]) -> Option<u64> {
     let mut canshu: Vec<&str> = vec![id];
     canshu.extend(ziduanlie.iter().map(|(_, zhi)| *zhi));
     canshu.push(&shijian);
-    psqlcaozuo::zhixing(&sql, &canshu).await
+    psqlcaozuo::zhixing_jiuban(&sql, &canshu).await
 }
 
 /// 根据ID查询单个用户
 pub async fn chaxun_id(id: &str) -> Option<Value> {
-    let jieguo = psqlcaozuo::chaxun(
+    let jieguo = psqlcaozuo::chaxun_jiuban(
         &format!("SELECT * FROM {} WHERE id = $1::BIGINT", biaoming),
         &[id],
     ).await?;
@@ -52,7 +52,7 @@ pub async fn chaxun_id(id: &str) -> Option<Value> {
 
 /// 根据账号查询用户
 pub async fn chaxun_zhanghao(zhanghao: &str) -> Option<Value> {
-    let jieguo = psqlcaozuo::chaxun(
+    let jieguo = psqlcaozuo::chaxun_jiuban(
         &format!("SELECT * FROM {} WHERE zhanghao = $1", biaoming),
         &[zhanghao],
     ).await?;
@@ -61,7 +61,7 @@ pub async fn chaxun_zhanghao(zhanghao: &str) -> Option<Value> {
 
 /// 查询所有用户（按创建时间升序）
 pub async fn chaxun_quanbu() -> Option<Vec<Value>> {
-    psqlcaozuo::chaxun(
+    psqlcaozuo::chaxun_jiuban(
         &format!("SELECT * FROM {} ORDER BY chuangjianshijian ASC", biaoming),
         &[],
     ).await
@@ -69,7 +69,7 @@ pub async fn chaxun_quanbu() -> Option<Vec<Value>> {
 
 /// 根据用户组ID查询用户列表
 pub async fn chaxun_yonghuzuid(yonghuzuid: &str) -> Option<Vec<Value>> {
-    psqlcaozuo::chaxun(
+    psqlcaozuo::chaxun_jiuban(
         &format!("SELECT * FROM {} WHERE yonghuzuid = $1 ORDER BY chuangjianshijian ASC", biaoming),
         &[yonghuzuid],
     ).await
@@ -79,7 +79,7 @@ pub async fn chaxun_yonghuzuid(yonghuzuid: &str) -> Option<Vec<Value>> {
 pub async fn fengjin(id: &str, yuanyin: &str, jieshu: Option<&str>) -> Option<u64> {
     let shijian = jichugongju::huoqushijianchuo().to_string();
     let jieshu_zhi = jieshu.unwrap_or("");
-    psqlcaozuo::zhixing(
+    psqlcaozuo::zhixing_jiuban(
         &format!("UPDATE {} SET fengjin = '1', fengjinyuanyin = $2, fengjinjieshu = $3, gengxinshijian = $4 WHERE id = $1::BIGINT", biaoming),
         &[id, yuanyin, jieshu_zhi, &shijian],
     ).await
@@ -88,7 +88,7 @@ pub async fn fengjin(id: &str, yuanyin: &str, jieshu: Option<&str>) -> Option<u6
 /// 解封用户
 pub async fn jiefeng(id: &str) -> Option<u64> {
     let shijian = jichugongju::huoqushijianchuo().to_string();
-    psqlcaozuo::zhixing(
+    psqlcaozuo::zhixing_jiuban(
         &format!("UPDATE {} SET fengjin = '0', fengjinyuanyin = NULL, fengjinjieshu = NULL, gengxinshijian = $2 WHERE id = $1::BIGINT", biaoming),
         &[id, &shijian],
     ).await
@@ -97,7 +97,7 @@ pub async fn jiefeng(id: &str) -> Option<u64> {
 /// 更新最后登录时间
 pub async fn gengxindenglu(id: &str) -> Option<u64> {
     let shijian = jichugongju::huoqushijianchuo().to_string();
-    psqlcaozuo::zhixing(
+    psqlcaozuo::zhixing_jiuban(
         &format!("UPDATE {} SET zuihoudenglu = $2, gengxinshijian = $2 WHERE id = $1::BIGINT", biaoming),
         &[id, &shijian],
     ).await
@@ -105,7 +105,7 @@ pub async fn gengxindenglu(id: &str) -> Option<u64> {
 
 /// 检查账号是否已存在
 pub async fn zhanghaocunzai(zhanghao: &str) -> bool {
-    psqlcaozuo::chaxun(
+    psqlcaozuo::chaxun_jiuban(
         &format!("SELECT 1 FROM {} WHERE zhanghao = $1 LIMIT 1", biaoming),
         &[zhanghao],
     ).await
@@ -114,7 +114,7 @@ pub async fn zhanghaocunzai(zhanghao: &str) -> bool {
 
 /// 分页查询用户
 pub async fn chaxun_fenye(pianyi: &str, shuliang: &str) -> Option<Vec<Value>> {
-    psqlcaozuo::chaxun(
+    psqlcaozuo::chaxun_jiuban(
         &format!("SELECT * FROM {} ORDER BY chuangjianshijian ASC LIMIT $1 OFFSET $2", biaoming),
         &[shuliang, pianyi],
     ).await
@@ -122,7 +122,7 @@ pub async fn chaxun_fenye(pianyi: &str, shuliang: &str) -> Option<Vec<Value>> {
 
 /// 查询用户总数
 pub async fn chaxun_zongshu() -> Option<Value> {
-    let jieguo = psqlcaozuo::chaxun(
+    let jieguo = psqlcaozuo::chaxun_jiuban(
         &format!("SELECT COUNT(*) as shuliang FROM {}", biaoming),
         &[],
     ).await?;

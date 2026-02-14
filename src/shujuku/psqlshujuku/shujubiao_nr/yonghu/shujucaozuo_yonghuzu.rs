@@ -9,7 +9,7 @@ const biaoming: &str = "yonghuzu";
 pub async fn xinzeng(mingcheng: &str, beizhu: Option<&str>) -> Option<String> {
     let shijian = jichugongju::huoqushijianchuo().to_string();
     let beizhu_zhi = beizhu.unwrap_or("");
-    let jieguo = psqlcaozuo::chaxun(
+    let jieguo = psqlcaozuo::chaxun_jiuban(
         &format!("INSERT INTO {} (mingcheng, beizhu, chuangjianshijian, gengxinshijian) VALUES ($1,$2,$3,$4) RETURNING id::TEXT", biaoming),
         &[mingcheng, beizhu_zhi, &shijian, &shijian],
     ).await?;
@@ -18,7 +18,7 @@ pub async fn xinzeng(mingcheng: &str, beizhu: Option<&str>) -> Option<String> {
 
 /// 根据ID删除用户组
 pub async fn shanchu(id: &str) -> Option<u64> {
-    psqlcaozuo::zhixing(
+    psqlcaozuo::zhixing_jiuban(
         &format!("DELETE FROM {} WHERE id = $1::BIGINT", biaoming),
         &[id],
     ).await
@@ -38,12 +38,12 @@ pub async fn gengxin(id: &str, ziduanlie: &[(&str, &str)]) -> Option<u64> {
     let mut canshu: Vec<&str> = vec![id];
     canshu.extend(ziduanlie.iter().map(|(_, zhi)| *zhi));
     canshu.push(&shijian);
-    psqlcaozuo::zhixing(&sql, &canshu).await
+    psqlcaozuo::zhixing_jiuban(&sql, &canshu).await
 }
 
 /// 根据ID查询单个用户组
 pub async fn chaxun_id(id: &str) -> Option<Value> {
-    let jieguo = psqlcaozuo::chaxun(
+    let jieguo = psqlcaozuo::chaxun_jiuban(
         &format!("SELECT * FROM {} WHERE id = $1::BIGINT", biaoming),
         &[id],
     ).await?;
@@ -52,7 +52,7 @@ pub async fn chaxun_id(id: &str) -> Option<Value> {
 
 /// 查询所有用户组
 pub async fn chaxun_quanbu() -> Option<Vec<Value>> {
-    psqlcaozuo::chaxun(
+    psqlcaozuo::chaxun_jiuban(
         &format!("SELECT * FROM {} ORDER BY chuangjianshijian ASC", biaoming),
         &[],
     ).await
@@ -61,11 +61,11 @@ pub async fn chaxun_quanbu() -> Option<Vec<Value>> {
 /// 设置默认用户组（先清除旧的，再设置新的）
 pub async fn shezhimorenzhu(id: &str) -> Option<u64> {
     let shijian = jichugongju::huoqushijianchuo().to_string();
-    psqlcaozuo::zhixing(
+    psqlcaozuo::zhixing_jiuban(
         &format!("UPDATE {} SET morenzhu = '0', gengxinshijian = $1", biaoming),
         &[&shijian],
     ).await?;
-    psqlcaozuo::zhixing(
+    psqlcaozuo::zhixing_jiuban(
         &format!("UPDATE {} SET morenzhu = '1', gengxinshijian = $2 WHERE id = $1::BIGINT", biaoming),
         &[id, &shijian],
     ).await
@@ -73,7 +73,7 @@ pub async fn shezhimorenzhu(id: &str) -> Option<u64> {
 
 /// 查询默认用户组
 pub async fn chaxunmorenzhu() -> Option<Value> {
-    let jieguo = psqlcaozuo::chaxun(
+    let jieguo = psqlcaozuo::chaxun_jiuban(
         &format!("SELECT * FROM {} WHERE morenzhu = '1' LIMIT 1", biaoming),
         &[],
     ).await?;
@@ -83,7 +83,7 @@ pub async fn chaxunmorenzhu() -> Option<Value> {
 /// 更新禁用接口列表
 pub async fn gengxinjinjiekou(id: &str, jinjiekou: &str) -> Option<u64> {
     let shijian = jichugongju::huoqushijianchuo().to_string();
-    psqlcaozuo::zhixing(
+    psqlcaozuo::zhixing_jiuban(
         &format!("UPDATE {} SET jinjiekou = $2, gengxinshijian = $3 WHERE id = $1::BIGINT", biaoming),
         &[id, jinjiekou, &shijian],
     ).await
@@ -91,7 +91,7 @@ pub async fn gengxinjinjiekou(id: &str, jinjiekou: &str) -> Option<u64> {
 
 /// 检查组名称是否已存在
 pub async fn mingchengcunzai(mingcheng: &str) -> bool {
-    psqlcaozuo::chaxun(
+    psqlcaozuo::chaxun_jiuban(
         &format!("SELECT 1 FROM {} WHERE mingcheng = $1 LIMIT 1", biaoming),
         &[mingcheng],
     ).await
@@ -100,7 +100,7 @@ pub async fn mingchengcunzai(mingcheng: &str) -> bool {
 
 /// 根据名称查询用户组
 pub async fn chaxun_mingcheng(mingcheng: &str) -> Option<Value> {
-    let jieguo = psqlcaozuo::chaxun(
+    let jieguo = psqlcaozuo::chaxun_jiuban(
         &format!("SELECT * FROM {} WHERE mingcheng = $1", biaoming),
         &[mingcheng],
     ).await?;
@@ -109,7 +109,7 @@ pub async fn chaxun_mingcheng(mingcheng: &str) -> Option<Value> {
 
 /// 查询该用户组下的用户数量
 pub async fn yonghushuliang(id: &str) -> Option<Value> {
-    let jieguo = psqlcaozuo::chaxun(
+    let jieguo = psqlcaozuo::chaxun_jiuban(
         "SELECT COUNT(*) as shuliang FROM yonghu WHERE yonghuzuid = $1",
         &[id],
     ).await?;

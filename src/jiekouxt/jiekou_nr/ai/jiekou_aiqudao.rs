@@ -17,7 +17,7 @@ pub const dinyi: Jiekoudinyi = Jiekoudinyi {
 };
 
 #[allow(non_upper_case_globals)]
-const wanzhenglujing: &str = "/jiekou/yonghu/aiqudao";
+const wanzhenglujing: &str = "/jiekou/ai/aiqudao";
 
 #[derive(Deserialize)]
 struct Qingqiuti {
@@ -116,7 +116,14 @@ async fn chuli_gengxin(qingqiu: &Qingqiuti, yao: &[u8]) -> HttpResponse {
         ("youxianji", &qingqiu.youxianji),
     ];
     let ziduanlie: Vec<(&str, &str)> = duiying.iter()
-        .filter_map(|(ming, zhi)| zhi.as_deref().filter(|s| !s.is_empty()).map(|v| (*ming, v)))
+        .filter_map(|(ming, zhi)| {
+            // 备注字段允许为空字符串，其他字段必须非空
+            if *ming == "beizhu" {
+                zhi.as_deref().map(|v| (*ming, v))
+            } else {
+                zhi.as_deref().filter(|s| !s.is_empty()).map(|v| (*ming, v))
+            }
+        })
         .collect();
     if ziduanlie.is_empty() {
         return jiamishibai(400, "没有需要更新的字段", yao);
