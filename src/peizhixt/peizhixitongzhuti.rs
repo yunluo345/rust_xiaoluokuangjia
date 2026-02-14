@@ -21,6 +21,8 @@ fn hebing(moren: &mut Value, xianyou: &Value) {
                 } else {
                     *moren_zhi = zhi.clone();
                 }
+            } else {
+                moren_obj.insert(jian.clone(), zhi.clone());
             }
         }
     }

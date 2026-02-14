@@ -1,4 +1,4 @@
-pub mod tiqubiaoqian;
+pub mod ribao;
 pub mod yasuoxiaoxi;
 pub mod gongjuzhuce;
 pub mod gongjusousuo;
@@ -23,13 +23,33 @@ pub fn chushihua() {
         },
         // ===== 可发现工具（通过搜索发现后动态加载） =====
         Gongjuyuanshuju {
-            mingcheng: tiqubiaoqian::mingcheng(),
+            mingcheng: ribao::tiqubiaoqian::mingcheng(),
             miaoshu: "从文本中提取关键信息标签，如人名、地名、时间等实体",
             fenzu: "wenben",
             guanjianci: &["标签", "提取", "实体", "人名", "地名", "时间", "NER", "信息提取"],
             changjingci: &["日报", "周报", "工作汇报", "会议纪要", "文本分析", "提取信息", "提取标签", "关键信息", "实体识别"],
-            goujianqi: tiqubiaoqian::goujian_gongju,
-            zhixingqi: tiqubiaoqian::zhixing,
+            goujianqi: ribao::tiqubiaoqian::goujian_gongju,
+            zhixingqi: ribao::tiqubiaoqian::zhixing,
+            hexingongju: false,
+        },
+        Gongjuyuanshuju {
+            mingcheng: ribao::xieribao::mingcheng(),
+            miaoshu: "帮助用户撰写工作日报并审查日报内容，收集人名、地名、时间、对话内容等必需信息后生成日报，同时审查日报是否符合要求",
+            fenzu: "wenben",
+            guanjianci: &["日报", "写日报", "工作日报", "工作汇报", "每日总结", "今日工作", "审查日报", "日报审核"],
+            changjingci: &["写日报", "帮我写日报", "生成日报", "今天的工作日报", "工作总结", "每日汇报", "日报撰写", "审查日报", "检查日报"],
+            goujianqi: ribao::xieribao::goujian_gongju,
+            zhixingqi: ribao::xieribao::zhixing,
+            hexingongju: false,
+        },
+        Gongjuyuanshuju {
+            mingcheng: ribao::ribaozhiyin::mingcheng(),
+            miaoshu: "日报处理流程指南，当用户发来日报相关内容时必须首先调用此工具，按步骤指导完成审查、标签提取等完整流程",
+            fenzu: "wenben",
+            guanjianci: &["日报", "日报流程", "日报指南", "日报处理", "工作日报", "工作汇报"],
+            changjingci: &["写日报", "帮我写日报", "日报", "工作日报", "今天的日报", "日报相关", "每日汇报", "工作总结", "日报审查"],
+            goujianqi: ribao::ribaozhiyin::goujian_gongju,
+            zhixingqi: ribao::ribaozhiyin::zhixing,
             hexingongju: false,
         },
     ]);

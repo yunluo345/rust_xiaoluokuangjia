@@ -1,13 +1,20 @@
 {
-  "biaoqiantiqu": {
-    "bixuyou": [
-      "人名",
-      "时间"
-    ]
-  },
   "qudaohuoqu": {
     "chongshicishu": 3,
     "chongshijiange": 1000,
     "qiyongchongshi": true
+  },
+  "ribaoshengcheng": {
+    "shuchu_moban": "## 工作日报\n\n**日期**：{riqi}\n**姓名**：{zijimingcheng}\n**客户**：{kehumingcheng}\n**地点**：{didian}\n\n### 今日工作内容\n{gongzuoneirong}\n\n### 关键对话记录\n{duihuaneirong}\n\n### 后续计划\n{houxujihua}\n\n### 备注\n{beizhu}",
+    "xinxi_yingshe": {
+      "后续计划": "houxujihua",
+      "地名": "didian",
+      "备注": "beizhu",
+      "客户名称": "kehumingcheng",
+      "对话内容": "duihuaneirong",
+      "工作内容": "gongzuoneirong",
+      "时间": "riqi",
+      "自己名称": "zijimingcheng"
+    }
   }
 }

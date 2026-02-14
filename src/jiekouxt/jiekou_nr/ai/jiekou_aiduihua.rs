@@ -48,8 +48,9 @@ const quanju_xitongtishici: &str = "你是一个专业的AI助手，擅长日报
 5. 工具返回失败后，应立即停止调用工具，直接回复用户说明情况，不要继续尝试。\n\
 \n\
 消息压缩规则：\n\
-- 当对话历史过长时，你会收到提示需要压缩消息。\n\
-- 此时必须立即调用yasuoxiaoxi工具，提供一个简洁的总结，包含：\n\
+- 只有当你收到以\"⚠️\"开头的系统消息明确要求压缩时，才可以调用yasuoxiaoxi工具。\n\
+- 在没有收到⚠️压缩指令的情况下，严禁主动调用yasuoxiaoxi工具。\n\
+- 收到压缩指令后，必须立即调用yasuoxiaoxi工具，提供一个简洁的总结，包含：\n\
   1. 用户的主要问题和需求\n\
   2. 已完成的操作和结果\n\
   3. 当前状态和待解决问题\n\
@@ -197,9 +198,10 @@ fn goujian_xiaoxilie(qingqiu: &Qingqiuti, zuidatoken: usize) -> Vec<serde_json::
     
     // 读取AI配置，添加标签提取的类别限制
     if let Some(aipeizhi) = peizhixitongzhuti::duqupeizhi::<peizhi_ai::Aipeizhi>(peizhi_ai::Aipeizhi::wenjianming()) {
-        if !aipeizhi.biaoqiantiqu.bixuyou.is_empty() {
-            let yunxu_leibie = aipeizhi.biaoqiantiqu.bixuyou.join("、");
-            xitong_neirong.push_str(&format!("\n\n工具使用规则：\n调用tiqubiaoqian工具时，只允许提取以下类别的标签：{}。严禁提取其他类别的标签。", yunxu_leibie));
+        let yunxu_leibie: Vec<&str> = aipeizhi.ribaoshengcheng.xinxi_yingshe.keys().map(|s| s.as_str()).collect();
+        if !yunxu_leibie.is_empty() {
+            let yunxu_leibie_str = yunxu_leibie.join("、");
+            xitong_neirong.push_str(&format!("\n\n工具使用规则：\n调用tiqubiaoqian工具时，只允许提取以下类别的标签：{}。严禁提取其他类别的标签。", yunxu_leibie_str));
         }
     }
     
@@ -706,6 +708,7 @@ async fn zhixing_react_xunhuan(
             let _ = fasongqi.send(Liushishijian::Yasuowancheng {
                 zongjie: zongjie.clone(),
             }).await;
+            continue; // 压缩完成后直接进入下一轮正常对话，避免重复压缩
         } else {
             for (id, jieguo_str) in &gongjujieguo_lie {
                 xiaoxilie.push(serde_json::json!({

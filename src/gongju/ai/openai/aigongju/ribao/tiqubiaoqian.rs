@@ -34,27 +34,47 @@ pub struct Tiqujieguo {
 
 /// 构建标签提取工具定义
 pub fn goujian_gongju() -> Tool {
+    let peizhi = duqu_aipeizhi();
+    let leibie_miaoshu = match &peizhi {
+        Some(p) => {
+            let suoyou: Vec<&str> = p.ribaoshengcheng.xinxi_yingshe.keys().map(|s| s.as_str()).collect();
+            suoyou.join("、")
+        }
+        None => "人名、地名、时间、对话内容".to_string(),
+    };
+
     Tool {
         tool_type: "function".to_string(),
         function: FunctionTool {
             name: gongju_mingcheng.to_string(),
-            description: "从文本中提取关键信息标签。严格按照系统提示词中的全局引导执行，只提取指定类别的实体。".to_string(),
+            description: format!(
+                "从文本中提取关键信息标签。必需的标签类别：{}。\n\
+                提取规则：\n\
+                1. 提取内容不限于专有名词，也包括描述性文本、段落摘要。\n\
+                2. 需要语义理解：用户的表述可能与类别名称不完全一致，要根据语义匹配到正确的类别。\n\
+                   例如：\"沟通内容\"→\"对话内容\"，\"明日工作计划\"→\"后续计划\"，文末补充说明→\"备注\"。\n\
+                3. 每个必需类别至少提取一个标签，否则校验会失败。\n\
+                4. 标签的 leibie 必须使用标准类别名称（{}），不要使用用户原文中的表述。\n\
+                5. 注意人际关系和角色区分：根据上下文语境准确判断人物的身份和角色，将其归入正确的类别。\
+                例如，文中提到的人物可能是作者本人、内部协作者、外部客户等不同角色，需根据语境判断，不要混淆。",
+                leibie_miaoshu, leibie_miaoshu
+            ),
             parameters: json!({
                 "type": "object",
                 "properties": {
                     "biaoqianlie": {
                         "type": "array",
-                        "description": "提取出的标签列表，严格遵循系统提示词中的全局引导，只提取允许的类别",
+                        "description": format!("提取出的标签列表。必须覆盖所有必需类别：{}", leibie_miaoshu),
                         "items": {
                             "type": "object",
                             "properties": {
                                 "mingcheng": {
                                     "type": "string",
-                                    "description": "标签名称，必须是文本中真实存在的专有名词"
+                                    "description": "标签内容，从文本中提取的关键信息（可以是名词、短语或描述性文本）"
                                 },
                                 "leibie": {
                                     "type": "string",
-                                    "description": "标签类别，必须符合系统提示词中允许的类别"
+                                    "description": format!("标签类别，必须是以下标准名称之一：{}", leibie_miaoshu)
                                 }
                             },
                             "required": ["mingcheng", "leibie"]
@@ -137,20 +157,34 @@ fn duqu_aipeizhi() -> Option<Aipeizhiwenjian> {
 
 /// 构建系统提示词
 fn goujian_xitongtishici(peizhi: &Aipeizhiwenjian) -> String {
-    let yunxu_leibie = peizhi.biaoqiantiqu.bixuyou.join("、");
+    let yunxu_leibie: Vec<&str> = peizhi.ribaoshengcheng.xinxi_yingshe.keys().map(|s| s.as_str()).collect();
+    let yunxu_leibie_str = yunxu_leibie.join("、");
     
     format!(
-        "提取规则：只提取文本中真实存在的专有名词实体。\n\
-        允许的类别：{}。严禁提取其他类别的标签。\n\
-        必需类别：{}。如果文本中确实没有这些类别的实体，不要伪造、编造或使用占位符（如无、暂无、N/A等），应直接返回空列表。\n\
+        "你是一个信息提取助手，从文本中提取与指定类别相关的关键信息。\n\
+        \n\
+        提取规则：\n\
+        1. 允许的类别：{}。严禁提取其他类别的标签。\n\
+        2. 必需类别：{}。每个必需类别至少提取一个标签。\n\
+        3. 提取内容不限于专有名词，也包括描述性文本。例如：\n\
+           - \"时间\"类别：提取日期、时间段等（如\"2026年2月14日\"）\n\
+           - \"工作内容\"类别：提取具体的工作事项描述\n\
+           - \"对话内容\"类别：提取沟通、交流、讨论等相关内容（用户可能写作\"沟通内容\"、\"交流记录\"等）\n\
+           - \"后续计划\"类别：提取计划、安排等内容（用户可能写作\"明日计划\"、\"下一步\"等）\n\
+           - \"备注\"类别：提取备注、附注、补充说明等内容\n\
+        4. 需要语义理解：用户的表述可能与类别名称不完全一致，要根据语义匹配到正确的类别。\n\
+        5. 标签的 leibie 字段必须使用标准类别名称（即上述允许的类别名），不要使用用户原文中的表述。\n\
+        6. 注意人际关系和角色区分：根据上下文语境准确判断人物的身份和角色，将其归入正确的类别。\
+        例如，文中提到的人物可能是作者本人、内部协作者、外部客户等不同角色，需根据语境判断，不要混淆。\n\
+        \n\
         标签合并规则：\n\
-        1. 对于同一类别的多个标签，先进行语义检查，判断它们是否可以合并。\n\
-        2. 如果多个标签在语义上属于同一实体的不同部分（如\"2026年2月14日\"和\"下午2点\"都是描述同一时间），应合并为一个完整标签（如\"2026年2月14日下午2点\"）。\n\
-        3. 如果多个标签在语义上是独立的实体（如\"张三\"和\"李四\"是不同的人），则不应合并，保持独立。\n\
-        4. 合并时要确保语义完整性和准确性，不要强行拼接无关内容。\n\
-        严禁伪造数据：不得编造、捏造或使用占位符来满足验证要求。",
-        yunxu_leibie,
-        yunxu_leibie
+        1. 同一类别的多个标签，如果语义上属于同一实体的不同部分，应合并为一个完整标签。\n\
+        2. 如果语义上是独立的实体，则保持独立。\n\
+        3. 合并时确保语义完整性和准确性。\n\
+        \n\
+        严禁伪造数据：不得编造、捏造或使用占位符（如无、暂无、N/A等）来满足验证要求。如果文本中确实没有某类别的信息，不要伪造。",
+        yunxu_leibie_str,
+        yunxu_leibie_str
     )
 }
 
@@ -199,7 +233,8 @@ fn yanzheng_biaoqian(biaoqianlie: &[Biaoqian], peizhi: &Aipeizhiwenjian) -> Opti
     }
     
     // 检查必需类别
-    if let Some(queshi) = jiancha_bixu_leibie(biaoqianlie, &peizhi.biaoqiantiqu.bixuyou) {
+    let bixu_leibie: Vec<String> = peizhi.ribaoshengcheng.xinxi_yingshe.keys().cloned().collect();
+    if let Some(queshi) = jiancha_bixu_leibie(biaoqianlie, &bixu_leibie) {
         return Some(Tiqujieguo {
             chenggong: false,
             xiaoxi: format!("缺少必需的标签类别：{}", queshi),

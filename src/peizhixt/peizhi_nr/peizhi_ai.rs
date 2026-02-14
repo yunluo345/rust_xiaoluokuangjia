@@ -1,16 +1,21 @@
 #![allow(non_upper_case_globals)]
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Aipeizhi {
-    pub biaoqiantiqu: Biaoqiantiqu,
+    pub ribaoshengcheng: Ribaoshengcheng,
     pub qudaohuoqu: Qudaohuoqu,
 }
 
+/// 日报生成配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Biaoqiantiqu {
-    pub bixuyou: Vec<String>,
+pub struct Ribaoshengcheng {
+    /// 信息类别到模板占位符的映射（如："时间" -> "riqi"），key 即为必须信息
+    pub xinxi_yingshe: HashMap<String, String>,
+    /// 日报输出格式模板
+    pub shuchu_moban: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,16 +31,17 @@ pub struct Qudaohuoqu {
 impl Default for Aipeizhi {
     fn default() -> Self {
         Self {
-            biaoqiantiqu: Biaoqiantiqu::default(),
+            ribaoshengcheng: Ribaoshengcheng::default(),
             qudaohuoqu: Qudaohuoqu::default(),
         }
     }
 }
 
-impl Default for Biaoqiantiqu {
+impl Default for Ribaoshengcheng {
     fn default() -> Self {
         Self {
-            bixuyou: vec!["人名".to_string()],
+            xinxi_yingshe: HashMap::new(),
+            shuchu_moban: String::new(),
         }
     }
 }
