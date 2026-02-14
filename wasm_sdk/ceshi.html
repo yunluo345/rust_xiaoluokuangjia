@@ -327,20 +327,34 @@
 
         // ==================== AI 对话功能 ====================
         
+        let duihua_lishi = [];
+        let dangqian_huifu = '';
+        
         window.ai_huidiao = function(shuju) {
             const shuchu = DOM.get('ai_shuchu');
-            for (const hang of shuju.split('data: ').filter(s => s.trim())) {
+            const qianzhui = 'data: ';
+            for (const hang of shuju.split('\n').filter(s => s.startsWith(qianzhui))) {
                 try {
-                    const shijian = JSON.parse(hang.trim());
+                    const shijian = JSON.parse(hang.slice(qianzhui.length));
                     const { leixing } = shijian;
                     
                     const chuliqimap = {
-                        'wenben_kuai': () => shijian.neirong,
+                        'wenben_kuai': () => { dangqian_huifu += shijian.neirong; return shijian.neirong; },
                         'gongju_kaishi': () => `\n[工具调用: ${shijian.gongjuming}]\n`,
                         'gongju_canshu': () => shijian.bufen_json,
                         'gongju_jieguo': () => `\n[工具结果: ${shijian.jieguo}]\n`,
-                        'wancheng': () => '\n--- 完成 ---\n',
-                        'cuowu': () => `\n[错误: ${shijian.xinxi}]\n`
+                        'yasuo_wancheng': () => {
+                            duihua_lishi = [{ jiaose: 'yonghu', neirong: `【历史对话总结】\n${shijian.zongjie}` }];
+                            return '\n[对话已压缩]\n';
+                        },
+                        'wancheng': () => {
+                            if (dangqian_huifu) {
+                                duihua_lishi.push({ jiaose: 'zhushou', neirong: dangqian_huifu });
+                                dangqian_huifu = '';
+                            }
+                            return '\n--- 完成 ---\n';
+                        },
+                        'cuowu': () => { dangqian_huifu = ''; return `\n[错误: ${shijian.xinxi}]\n`; }
                     };
                     
                     const chuliqi = chuliqimap[leixing];
@@ -368,7 +382,8 @@
             try {
                 const leixing = DOM.get('ai_leixing').value;
                 const xitongtishici = DOM.huoqu('ai_xitongtishici') || undefined;
-                const xiaoxilie = JSON.stringify([{ jiaose: 'yonghu', neirong }]);
+                duihua_lishi.push({ jiaose: 'yonghu', neirong });
+                const xiaoxilie = JSON.stringify(duihua_lishi);
                 const shuchu = DOM.get('ai_shuchu');
                 shuchu.textContent += `\n[你]: ${neirong}\n[AI]: `;
                 shuchu.scrollTop = shuchu.scrollHeight;
@@ -417,6 +432,8 @@
         window.aiqingkong = function() {
             DOM.get('ai_shuchu').textContent = '';
             DOM.get('ai_shuru').value = '';
+            duihua_lishi = [];
+            dangqian_huifu = '';
         };
 
         // ==================== 渠道管理功能 ====================

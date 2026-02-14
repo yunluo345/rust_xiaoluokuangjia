@@ -35,18 +35,17 @@ const chaoshi_miao: u64 = 120;
 const zuida_xunhuancishu: usize = 10;
 
 #[allow(non_upper_case_globals)]
-const quanju_xitongtishici: &str = "你是一个专业的AI日报助手，专注于帮助用户完成日报相关工作。\n\
+const quanju_xitongtishici: &str = "你是一个专业的AI助手，擅长日报相关工作，同时也能回答用户的其他合理问题。\n\
 \n\
-严格规则：\n\
-1. 只接受与日报相关的工作请求，拒绝任何闲聊、娱乐、无关话题。\n\
-2. 当用户提出非日报相关的问题时，礼貌地提醒：\"我是日报助手，只能处理日报相关工作。\"\n\
-3. 严禁伪造、编造或捏造任何数据。\n\
-4. 当工具调用返回失败（chenggong=false）时，必须仔细分析失败原因：\n\
+基本规则：\n\
+1. 优先处理日报相关工作，但也可以回答用户的其他问题，保持友好和耐心。\n\
+2. 严禁伪造、编造或捏造任何数据。\n\
+3. 当工具调用返回失败（chenggong=false）时，必须仔细分析失败原因：\n\
    - 如果是验证失败（如\"缺少必需的标签类别\"、\"检测到占位符标签\"），说明数据本身不符合要求，不得重试，应直接向用户说明原因。\n\
    - 如果是技术错误（如网络超时、JSON格式错误），可以修正后重试一次。\n\
    - 同一个工具调用，相同参数不得重复调用超过1次。\n\
-5. 不得通过添加、修改或伪造数据来绕过工具的验证失败。\n\
-6. 工具返回失败后，应立即停止调用工具，直接回复用户说明情况，不要继续尝试。\n\
+4. 不得通过添加、修改或伪造数据来绕过工具的验证失败。\n\
+5. 工具返回失败后，应立即停止调用工具，直接回复用户说明情况，不要继续尝试。\n\
 \n\
 消息压缩规则：\n\
 - 当对话历史过长时，你会收到提示需要压缩消息。\n\
@@ -54,7 +53,7 @@ const quanju_xitongtishici: &str = "你是一个专业的AI日报助手，专注
   1. 用户的主要问题和需求\n\
   2. 已完成的操作和结果\n\
   3. 当前状态和待解决问题\n\
-  4. 重要的上下文信息\n\
+  4. 重要的上下文信息\n
 - 总结后，历史消息将被替换为你的总结，然后继续对话。";
 
 #[derive(Deserialize)]
@@ -130,6 +129,13 @@ fn jisuan_tokenshu(wenben: &str) -> usize {
         .len()
 }
 
+fn guji_xiaoxi_token(xiaoxi: &serde_json::Value) -> usize {
+    xiaoxi.get("content")
+        .and_then(|c| c.as_str())
+        .map(jisuan_tokenshu)
+        .unwrap_or_else(|| jisuan_tokenshu(&xiaoxi.to_string()))
+}
+
 fn yasuo_xiaoxilie(xiaoxilie: &mut Vec<serde_json::Value>, xitongtishici: &str, zuidatoken: usize) {
     if zuidatoken == 0 || xiaoxilie.is_empty() {
         return;
@@ -138,14 +144,10 @@ fn yasuo_xiaoxilie(xiaoxilie: &mut Vec<serde_json::Value>, xitongtishici: &str, 
     let tishici_tokenshu = jisuan_tokenshu(xitongtishici);
     let keyong = zuidatoken.saturating_sub(tishici_tokenshu);
     
-    println!("[AI压缩] 系统提示词token: {}, 可用token: {}, 最大token: {}", tishici_tokenshu, keyong, zuidatoken);
-    
-    let meitian_tokenshu: Vec<usize> = xiaoxilie.iter()
-        .filter_map(|x| x.get("content").and_then(|c| c.as_str()))
-        .map(jisuan_tokenshu)
-        .collect();
-    
+    let meitian_tokenshu: Vec<usize> = xiaoxilie.iter().map(guji_xiaoxi_token).collect();
     let zong: usize = meitian_tokenshu.iter().sum();
+    
+    println!("[AI压缩] 系统提示词token: {}, 可用token: {}, 最大token: {}", tishici_tokenshu, keyong, zuidatoken);
     println!("[AI压缩] 当前消息总token: {}, 消息数: {}", zong, xiaoxilie.len());
     
     if zong <= keyong {
@@ -406,26 +408,23 @@ async fn zhixing_react_xunhuan(
     fasongqi: mpsc::Sender<Liushishijian>,
 ) {
     for lun in 0..zuida_xunhuancishu {
-        println!("[AI] ReAct第{}轮开始，当前消息数: {}, 最大token限制: {}", lun + 1, xiaoxilie.len(), peizhi.zuidatoken);
+        println!("[AI] ReAct第{}轮开始，当前消息数: {}", lun + 1, xiaoxilie.len());
         
-        // 检查是否超过token限制
         if peizhi.zuidatoken > 0 && xiaoxilie.len() > 1 {
-            let xitongtishici = xiaoxilie.first()
+            let tishici_tokenshu = xiaoxilie.first()
                 .and_then(|x| x.get("content"))
                 .and_then(|c| c.as_str())
-                .unwrap_or("");
-            let tishici_tokenshu = jisuan_tokenshu(xitongtishici);
-            let keyong = peizhi.zuidatoken.saturating_sub(tishici_tokenshu);
-            
-            let yonghu_xiaoxilie: Vec<serde_json::Value> = xiaoxilie.iter().skip(1).cloned().collect();
-            let zong_token: usize = yonghu_xiaoxilie.iter()
-                .filter_map(|x| x.get("content").and_then(|c| c.as_str()))
                 .map(jisuan_tokenshu)
-                .sum();
+                .unwrap_or(0);
+            let keyong = peizhi.zuidatoken.saturating_sub(tishici_tokenshu);
+            let zong_token: usize = xiaoxilie.iter().skip(1).map(guji_xiaoxi_token).sum();
             
             if zong_token > keyong {
-                println!("[AI压缩] 当前消息总token: {}, 超过限制: {}, 需要AI总结压缩", zong_token, keyong);
-                // 添加系统提示，要求AI压缩消息
+                println!("[AI压缩] ReAct轮次token超限: 当前{}, 可用{}, 需要AI总结压缩", zong_token, keyong);
+                xiaoxilie.retain(|x| {
+                    x.get("role").and_then(|r| r.as_str()) != Some("system")
+                        || x.get("content").and_then(|c| c.as_str()).map_or(true, |s| !s.starts_with("⚠️"))
+                });
                 xiaoxilie.push(serde_json::json!({
                     "role": "system",
                     "content": format!("⚠️ 对话历史已超过token限制（当前{}，限制{}），请立即调用yasuoxiaoxi工具总结历史对话。", zong_token, keyong)
@@ -460,8 +459,8 @@ async fn zhixing_react_xunhuan(
         }
         xiaoxilie.push(goujian_gongjuxiaoxi(&gongjulie));
         
-        // 检查是否有压缩工具调用
-        let mut yasuole = false;
+        let mut gongjujieguo_lie: Vec<(String, String)> = Vec::new();
+        let mut yasuo_zongjie: Option<String> = None;
         
         for d in &gongjulie {
             println!("[AI] 执行工具: {}", d.mingcheng);
@@ -475,25 +474,12 @@ async fn zhixing_react_xunhuan(
             };
             let jieguo = aigongju::zhixing_gongju(&diaoyong);
             println!("[AI] 工具结果: {}", jieguo.function.arguments);
+            gongjujieguo_lie.push((d.id.clone(), jieguo.function.arguments.clone()));
             
-            // 如果是压缩工具且成功，提取总结并替换历史消息
             if d.mingcheng == "yasuoxiaoxi" {
-                if let Ok(jieguo_json) = serde_json::from_str::<serde_json::Value>(&jieguo.function.arguments) {
-                    if jieguo_json.get("chenggong").and_then(|v| v.as_bool()).unwrap_or(false) {
-                        if let Some(zongjie) = jieguo_json.get("zongjie").and_then(|v| v.as_str()) {
-                            println!("[AI压缩] AI总结: {}", zongjie);
-                            // 保留系统提示词，用总结替换所有历史消息
-                            let xitong_xiaoxi = xiaoxilie[0].clone();
-                            xiaoxilie = vec![
-                                xitong_xiaoxi,
-                                serde_json::json!({
-                                    "role": "user",
-                                    "content": format!("【历史对话总结】\n{}", zongjie)
-                                })
-                            ];
-                            yasuole = true;
-                            println!("[AI压缩] 历史消息已替换为总结");
-                        }
+                if let Ok(j) = serde_json::from_str::<serde_json::Value>(&jieguo.function.arguments) {
+                    if j.get("chenggong").and_then(|v| v.as_bool()).unwrap_or(false) {
+                        yasuo_zongjie = j.get("zongjie").and_then(|v| v.as_str()).map(|s| s.to_string());
                     }
                 }
             }
@@ -504,7 +490,6 @@ async fn zhixing_react_xunhuan(
                 gongjuming: d.mingcheng.clone(),
                 canshu: d.canshu.clone(),
             }).await.is_err() {
-                println!("[AI] 客户端已断开，停止发送工具完成事件");
                 return;
             }
             if fasongqi.send(Liushishijian::Gongjujieguo {
@@ -512,16 +497,30 @@ async fn zhixing_react_xunhuan(
                 gongjuming: d.mingcheng.clone(),
                 jieguo: jieguo.function.arguments.clone(),
             }).await.is_err() {
-                println!("[AI] 客户端已断开，停止发送工具结果");
                 return;
             }
-            
-            // 如果已经压缩，不再添加工具结果到消息列表
-            if !yasuole {
+        }
+        
+        if let Some(zongjie) = &yasuo_zongjie {
+            println!("[AI压缩] AI总结: {}", zongjie);
+            let xitong_xiaoxi = xiaoxilie[0].clone();
+            xiaoxilie = vec![
+                xitong_xiaoxi,
+                serde_json::json!({
+                    "role": "user",
+                    "content": format!("【历史对话总结】\n{}", zongjie)
+                })
+            ];
+            println!("[AI压缩] 历史消息已替换为总结，当前消息数: {}", xiaoxilie.len());
+            let _ = fasongqi.send(Liushishijian::Yasuowancheng {
+                zongjie: zongjie.clone(),
+            }).await;
+        } else {
+            for (id, jieguo_str) in &gongjujieguo_lie {
                 xiaoxilie.push(serde_json::json!({
                     "role": "tool",
-                    "tool_call_id": d.id,
-                    "content": jieguo.function.arguments,
+                    "tool_call_id": id,
+                    "content": jieguo_str,
                 }));
             }
         }

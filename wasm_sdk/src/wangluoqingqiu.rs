@@ -77,6 +77,7 @@ async fn duquliugushu(
     let liuti = xiangying.body().ok_or_else(|| cuowu("无响应体"))?;
     let duquqi: ReadableStreamDefaultReader = liuti.get_reader().dyn_into()?;
     let jiemaqi = web_sys::TextDecoder::new().map_err(|_| cuowu("创建解码器失败"))?;
+    let mut huanchongqu = String::new();
     loop {
         if let Some(ref biaozhi) = zhongduan_biaozhi {
             if biaozhi.get() {
@@ -90,6 +91,9 @@ async fn duquliugushu(
         if js_sys::Reflect::get(&jieguo, &JsValue::from_str("done"))
             .unwrap_or(JsValue::TRUE)
             .is_truthy() {
+            if !huanchongqu.trim().is_empty() {
+                chuli(&huanchongqu)?;
+            }
             break;
         }
         if let Some(shuzhu) = js_sys::Reflect::get(&jieguo, &JsValue::from_str("value"))
@@ -97,7 +101,14 @@ async fn duquliugushu(
             .filter(|v| !v.is_undefined()) {
             let wenben = jiemaqi.decode_with_buffer_source(&Uint8Array::new(&shuzhu))
                 .unwrap_or_default();
-            chuli(&wenben)?;
+            huanchongqu.push_str(&wenben);
+            while let Some(weizhi) = huanchongqu.find("\n\n") {
+                let wanzhengxiaoxi = huanchongqu[..weizhi].to_string();
+                huanchongqu = huanchongqu[weizhi + 2..].to_string();
+                if !wanzhengxiaoxi.trim().is_empty() {
+                    chuli(&format!("{}\n\n", wanzhengxiaoxi))?;
+                }
+            }
         }
     }
     Ok(())

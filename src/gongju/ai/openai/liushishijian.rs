@@ -18,6 +18,9 @@ pub enum Liushishijian {
     #[serde(rename = "gongju_jieguo")]
     Gongjujieguo { gongjuid: String, gongjuming: String, jieguo: String },
 
+    #[serde(rename = "yasuo_wancheng")]
+    Yasuowancheng { zongjie: String },
+
     #[serde(rename = "wancheng")]
     Wancheng { yuanyin: String },
 
