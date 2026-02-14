@@ -42,6 +42,34 @@
         .btn-bian:hover { background: #4F46E5; }
         .btn-qie { background: #8B5CF6; }
         .btn-qie:hover { background: #7C3AED; }
+        .ai-sikao { background:#1E293B; border-left:3px solid #8B5CF6; padding:8px 12px; margin:6px 0; border-radius:4px; color:#C4B5FD; font-size:12px; }
+        .ai-yitu { background:#1E293B; border-left:3px solid #3B82F6; padding:8px 12px; margin:6px 0; border-radius:4px; color:#93C5FD; font-size:12px; }
+        .ai-gongju-faxian { background:#1E293B; border-left:3px solid #F59E0B; padding:8px 12px; margin:6px 0; border-radius:4px; color:#FCD34D; font-size:12px; }
+        .ai-gongju-kuai { background:#0c1425; border:1px solid #334155; border-radius:8px; margin:8px 0; overflow:hidden; }
+        .ai-gongju-tou { background:#1E293B; padding:6px 12px; font-size:12px; font-weight:600; display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none; }
+        .ai-gongju-tou:hover { background:#263348; }
+        .ai-gongju-tou .mingcheng { color:#F59E0B; }
+        .ai-gongju-tou .zhuangtai-deng { display:inline-block; width:8px; height:8px; border-radius:50%; }
+        .ai-gongju-tou .deng-yunxing { background:#F59E0B; box-shadow:0 0 6px #F59E0B; animation:deng-shanshuo 1.2s ease-in-out infinite; }
+        @keyframes deng-shanshuo { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        .ai-gongju-tou .deng-chenggong { background:#10B981; box-shadow:0 0 6px #10B981; }
+        .ai-gongju-tou .deng-shibai { background:#EF4444; box-shadow:0 0 6px #EF4444; }
+        .ai-gongju-tou .zhedie-jiantou { margin-left:auto; color:#64748B; transition:transform 200ms; font-size:10px; }
+        .ai-gongju-tou .zhedie-jiantou.shouqi { transform:rotate(-90deg); }
+        .ai-gongju-neirong { overflow:hidden; transition:max-height 300ms ease, opacity 200ms ease; max-height:500px; opacity:1; }
+        .ai-gongju-neirong.yincang { max-height:0; opacity:0; }
+        .ai-gongju-canshu { padding:8px 12px; font-size:12px; color:#94A3B8; white-space:pre-wrap; word-break:break-all; max-height:150px; overflow-y:auto; }
+        .ai-gongju-jieguo { padding:8px 12px; font-size:12px; color:#6EE7B7; border-top:1px solid #334155; white-space:pre-wrap; word-break:break-all; max-height:200px; overflow-y:auto; }
+        .ai-gongju-canshu::-webkit-scrollbar, .ai-gongju-jieguo::-webkit-scrollbar, #ai_shuchu::-webkit-scrollbar { width:6px; }
+        .ai-gongju-canshu::-webkit-scrollbar-track, .ai-gongju-jieguo::-webkit-scrollbar-track, #ai_shuchu::-webkit-scrollbar-track { background:transparent; }
+        .ai-gongju-canshu::-webkit-scrollbar-thumb, .ai-gongju-jieguo::-webkit-scrollbar-thumb, #ai_shuchu::-webkit-scrollbar-thumb { background:#334155; border-radius:3px; }
+        .ai-gongju-canshu::-webkit-scrollbar-thumb:hover, .ai-gongju-jieguo::-webkit-scrollbar-thumb:hover, #ai_shuchu::-webkit-scrollbar-thumb:hover { background:#475569; }
+        .ai-wenben { color:#E2E8F0; }
+        .ai-wancheng { color:#10B981; text-align:center; padding:8px; margin:8px 0; border-top:1px solid #334155; font-size:12px; }
+        .ai-cuowu { color:#EF4444; background:#1E293B; border-left:3px solid #EF4444; padding:8px 12px; margin:6px 0; border-radius:4px; font-size:12px; }
+        .ai-yasuo { color:#F59E0B; background:#1E293B; border-left:3px solid #F59E0B; padding:8px 12px; margin:6px 0; border-radius:4px; font-size:12px; }
+        .ai-yonghu { color:#3B82F6; font-weight:600; margin:10px 0 4px 0; }
+        .ai-zhushou-biaoji { color:#10B981; font-weight:600; margin:10px 0 4px 0; }
         .zt-qi { color: #065F46; background: #D1FAE5; padding: 2px 10px; border-radius: 12px; font-size: 12px; }
         .zt-jin { color: #991B1B; background: #FEE2E2; padding: 2px 10px; border-radius: 12px; font-size: 12px; }
     </style>
@@ -75,10 +103,11 @@
         </div>
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
             <button id="btn_ai_fasong" onclick="aifasong()" disabled>发送</button>
-            <button id="btn_ai_tingzhi" onclick="aitingzhi()" disabled style="background:#EF4444">停止</button>
+            <button id="btn_ai_tingzhi" onclick="aitingzhi()" disabled>停止</button>
+            <button id="btn_ai_jixu" onclick="aijixu()" style="background:#10B981">继续</button>
             <button onclick="aiqingkong()" style="background:#64748B">清空对话</button>
         </div>
-        <div id="ai_shuchu" style="background:#0F172A;color:#E2E8F0;border-radius:8px;padding:16px;font-family:'JetBrains Mono',monospace;font-size:13px;max-height:500px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;min-height:60px"></div>
+        <div id="ai_shuchu" style="background:#0F172A;color:#E2E8F0;border-radius:8px;padding:16px;font-family:'JetBrains Mono',monospace;font-size:13px;max-height:800px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;min-height:60px"></div>
     </div>
 
     <div class="card">
@@ -330,6 +359,42 @@
         let duihua_lishi = [];
         let dangqian_huifu = '';
         
+        // 工具调用DOM映射：gongjuid -> DOM id后缀
+        let gongju_jishu = 0;
+        // 暂存每个工具的原始参数字符串（流式拼接），key为suoyin
+        let gongju_canshu_map = {};
+        // suoyin -> gongjuid 映射
+        let suoyin_id_map = {};
+        // gongjuid -> DOM计数器 映射
+        let id_dom_map = {};
+
+        function zhuanyiHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // 尝试格式化JSON，失败则原样返回（已转义）
+        function geshihuaJSON(str) {
+            try {
+                const obj = JSON.parse(str);
+                return zhuanyiHTML(JSON.stringify(obj, null, 2));
+            } catch (_) {
+                return zhuanyiHTML(str);
+            }
+        }
+
+        function tianjiaHTML(html) {
+            DOM.get('ai_shuchu').insertAdjacentHTML('beforeend', html);
+        }
+
+        window.gongju_zhedie = function(id) {
+            const nrEl = document.getElementById(`gongju_nr_${id}`);
+            const jiantou = document.querySelector(`#gongju_${id} .zhedie-jiantou`);
+            if (nrEl) nrEl.classList.toggle('yincang');
+            if (jiantou) jiantou.classList.toggle('shouqi');
+        };
+
         window.ai_huidiao = function(shuju) {
             const shuchu = DOM.get('ai_shuchu');
             const qianzhui = 'data: ';
@@ -338,52 +403,134 @@
                     const shijian = JSON.parse(hang.slice(qianzhui.length));
                     const { leixing } = shijian;
                     
-                    const chuliqimap = {
-                        'sikao_guocheng': () => `\n[思考] ${shijian.neirong}\n`,
-                        'yitu_fenxi': () => `\n[意图分析] ${shijian.yitu}\n[关键词] ${shijian.guanjianci.join('、')}\n`,
-                        'gongju_faxian': () => {
-                            const liebiao = shijian.jieguo.map(g => `${g.mingcheng}(${g.miaoshu}, 匹配度:${(g.defen * 100).toFixed(0)}%)`).join('、');
-                            return `\n[发现工具] ${liebiao}\n`;
-                        },
-                        'wenben_kuai': () => { dangqian_huifu += shijian.neirong; return shijian.neirong; },
-                        'gongju_kaishi': () => `\n[工具调用: ${shijian.gongjuming}]\n`,
-                        'gongju_canshu': () => shijian.bufen_json,
-                        'gongju_jieguo': () => `\n[工具结果: ${shijian.jieguo}]\n`,
-                        'yasuo_wancheng': () => {
+                    switch (leixing) {
+                        case 'sikao_guocheng':
+                            tianjiaHTML(`<div class="ai-sikao">💭 ${zhuanyiHTML(shijian.neirong)}</div>`);
+                            break;
+                        case 'yitu_fenxi':
+                            tianjiaHTML(`<div class="ai-yitu">🎯 意图：${zhuanyiHTML(shijian.yitu)}<br>🔑 关键词：${shijian.guanjianci.map(k => zhuanyiHTML(k)).join('、')}</div>`);
+                            break;
+                        case 'gongju_faxian': {
+                            const liebiao = shijian.jieguo.map(g =>
+                                `<span style="color:#FCD34D">${zhuanyiHTML(g.mingcheng)}</span><span style="color:#94A3B8">(${zhuanyiHTML(g.miaoshu)}, ${(g.defen * 100).toFixed(0)}%)</span>`
+                            ).join('、');
+                            tianjiaHTML(`<div class="ai-gongju-faxian">🔍 发现工具：${liebiao}</div>`);
+                            break;
+                        }
+                        case 'wenben_kuai':
+                            dangqian_huifu += shijian.neirong;
+                            tianjiaHTML(`<span class="ai-wenben">${zhuanyiHTML(shijian.neirong)}</span>`);
+                            break;
+                        case 'gongju_kaishi': {
+                            gongju_jishu++;
+                            const domId = gongju_jishu;
+                            const sy = shijian.suoyin;
+                            suoyin_id_map[sy] = shijian.gongjuid;
+                            id_dom_map[shijian.gongjuid] = domId;
+                            gongju_canshu_map[sy] = '';
+                            dangqian_huifu += `\n[工具调用: ${shijian.gongjuming}]\n参数: `;
+                            tianjiaHTML(
+                                `<div class="ai-gongju-kuai" id="gongju_${domId}">` +
+                                    `<div class="ai-gongju-tou" onclick="gongju_zhedie(${domId})">` +
+                                        `<span class="zhuangtai-deng deng-yunxing"></span>` +
+                                        `<span class="mingcheng">⚙️ ${zhuanyiHTML(shijian.gongjuming)}</span>` +
+                                        `<span class="gongju-tishi" style="color:#64748B;font-weight:400">参数接收中...</span>` +
+                                        `<span class="zhedie-jiantou">▼</span>` +
+                                    `</div>` +
+                                    `<div class="ai-gongju-neirong" id="gongju_nr_${domId}">` +
+                                        `<div class="ai-gongju-canshu" id="gongju_cs_${domId}"><span style="color:#64748B">参数加载中...</span></div>` +
+                                    `</div>` +
+                                `</div>`
+                            );
+                            break;
+                        }
+                        case 'gongju_canshu': {
+                            const sy = shijian.suoyin;
+                            dangqian_huifu += shijian.bufen_json;
+                            if (gongju_canshu_map[sy] !== undefined) {
+                                gongju_canshu_map[sy] += shijian.bufen_json;
+                            }
+                            break;
+                        }
+                        case 'gongju_wancheng': {
+                            // 参数流结束，格式化显示参数，更新状态为"执行中"
+                            const domId = id_dom_map[shijian.gongjuid];
+                            if (domId) {
+                                const csEl = document.getElementById(`gongju_cs_${domId}`);
+                                const sy = shijian.suoyin;
+                                if (csEl && gongju_canshu_map[sy] !== undefined) {
+                                    csEl.innerHTML = geshihuaJSON(gongju_canshu_map[sy]);
+                                    delete gongju_canshu_map[sy];
+                                }
+                                const tishi = document.querySelector(`#gongju_${domId} .gongju-tishi`);
+                                if (tishi) tishi.textContent = '执行中...';
+                            }
+                            break;
+                        }
+                        case 'gongju_jieguo': {
+                            dangqian_huifu += `\n结果: ${shijian.jieguo}\n`;
+                            const domId = id_dom_map[shijian.gongjuid];
+                            if (domId) {
+                                const kuaiEl = document.getElementById(`gongju_${domId}`);
+                                if (kuaiEl) {
+                                    const deng = kuaiEl.querySelector('.zhuangtai-deng');
+                                    const tishi = kuaiEl.querySelector('.gongju-tishi');
+                                    if (deng) { deng.classList.remove('deng-yunxing'); deng.classList.add('deng-chenggong'); }
+                                    if (tishi) tishi.textContent = '完成';
+                                    const nrEl = document.getElementById(`gongju_nr_${domId}`);
+                                    if (nrEl) nrEl.insertAdjacentHTML('beforeend', `<div class="ai-gongju-jieguo">${geshihuaJSON(shijian.jieguo)}</div>`);
+                                }
+                            }
+                            break;
+                        }
+                        case 'yasuo_wancheng':
                             duihua_lishi = [{ jiaose: 'yonghu', neirong: `【历史对话总结】\n${shijian.zongjie}` }];
-                            return '\n[对话已压缩]\n';
-                        },
-                        'wancheng': () => {
+                            tianjiaHTML(`<div class="ai-yasuo">📦 对话已压缩</div>`);
+                            break;
+                        case 'wancheng':
                             if (dangqian_huifu) {
                                 duihua_lishi.push({ jiaose: 'zhushou', neirong: dangqian_huifu });
                                 dangqian_huifu = '';
                             }
-                            return '\n--- 完成 ---\n';
-                        },
-                        'cuowu': () => { dangqian_huifu = ''; return `\n[错误: ${shijian.xinxi}]\n`; }
-                    };
-                    
-                    const chuliqi = chuliqimap[leixing];
-                    if (chuliqi) {
-                        shuchu.textContent += chuliqi();
+                            dangqian_zhongduanqi = null;
+                            ai_anniuzhuangtai(false);
+                            tianjiaHTML(`<div class="ai-wancheng">✅ 完成</div>`);
+                            break;
+                        case 'cuowu':
+                            dangqian_huifu = '';
+                            dangqian_zhongduanqi = null;
+                            ai_anniuzhuangtai(false);
+                            tianjiaHTML(`<div class="ai-cuowu">❌ ${zhuanyiHTML(shijian.xinxi)}</div>`);
+                            break;
                     }
                 } catch (_) {}
             }
             shuchu.scrollTop = shuchu.scrollHeight;
         };
 
-        window.aifasong = async function() {
+        let ai_zhengzaichuli = false; // 状态锁，防止重复发送
+
+        function ai_anniuzhuangtai(zhengzai) {
+            ai_zhengzaichuli = zhengzai;
+            const btnFasong = DOM.get('btn_ai_fasong');
+            const btnTingzhi = DOM.get('btn_ai_tingzhi');
+            btnFasong.disabled = zhengzai;
+            btnTingzhi.disabled = !zhengzai;
+            // 强制样式，防止外部覆盖
+            btnFasong.style.background = zhengzai ? '#94A3B8' : '#3B82F6';
+            btnFasong.style.cursor = zhengzai ? 'not-allowed' : 'pointer';
+            btnTingzhi.style.background = zhengzai ? '#EF4444' : '#94A3B8';
+            btnTingzhi.style.cursor = zhengzai ? 'pointer' : 'not-allowed';
+        }
+
+        window.aifasong = function() {
             if (!kehu) return rizhi('尚未初始化', 'warn');
+            if (ai_zhengzaichuli) return rizhi('正在处理中，请等待或点击停止', 'warn');
             
             const neirong = DOM.huoqu('ai_shuru');
             if (!neirong) return rizhi('请输入消息内容', 'warn');
             
-            const btnFasong = DOM.get('btn_ai_fasong');
-            const btnTingzhi = DOM.get('btn_ai_tingzhi');
-            
-            // 禁用发送按钮，启用停止按钮
-            btnFasong.disabled = true;
-            btnTingzhi.disabled = false;
+            ai_anniuzhuangtai(true);
             
             try {
                 const leixing = DOM.get('ai_leixing').value;
@@ -391,55 +538,56 @@
                 duihua_lishi.push({ jiaose: 'yonghu', neirong });
                 const xiaoxilie = JSON.stringify(duihua_lishi);
                 const shuchu = DOM.get('ai_shuchu');
-                shuchu.textContent += `\n[你]: ${neirong}\n[AI]: `;
+                shuchu.insertAdjacentHTML('beforeend', `<div class="ai-yonghu">👤 你：${zhuanyiHTML(neirong)}</div><div class="ai-zhushou-biaoji">🤖 AI：</div>`);
                 shuchu.scrollTop = shuchu.scrollHeight;
                 
                 rizhi('AI对话请求中...', 'info');
                 
-                // 先创建 AbortController（同步）
                 dangqian_zhongduanqi = Kehuduanjiami.chuangjian_zhongduanqi();
                 console.log('前端：已创建 AbortController', dangqian_zhongduanqi);
                 
-                // 然后传递给 aiduihua
-                await kehu.aiduihua(leixing, xiaoxilie, 'ai_huidiao', xitongtishici, dangqian_zhongduanqi);
-                dangqian_zhongduanqi = null; // 完成后清除
-                rizhi('AI对话完成', 'ok');
+                // aiduihua 内部用 spawn_local，不返回 Promise，状态由回调的 wancheng/cuowu 事件恢复
+                kehu.aiduihua(leixing, xiaoxilie, 'ai_huidiao', xitongtishici, dangqian_zhongduanqi);
             } catch (e) {
-                const errMsg = e.toString().toLowerCase();
-                if (errMsg.includes('abort') || errMsg.includes('cancel')) {
-                    rizhi('AI对话已停止', 'warn');
-                } else {
-                    const errorText = e.toString();
-                    rizhi('请求失败: ' + errorText, 'err');
-                    console.error('AI对话错误:', e);
-                    // 在输出区域也显示错误
-                    const shuchu = DOM.get('ai_shuchu');
-                    shuchu.textContent += `❌ ${errorText}\n`;
-                    shuchu.scrollTop = shuchu.scrollHeight;
-                }
-            } finally {
+                const errorText = e.toString();
+                rizhi('请求失败: ' + errorText, 'err');
+                console.error('AI对话错误:', e);
+                const shuchu = DOM.get('ai_shuchu');
+                shuchu.insertAdjacentHTML('beforeend', `<div class="ai-cuowu">❌ ${zhuanyiHTML(errorText)}</div>`);
+                shuchu.scrollTop = shuchu.scrollHeight;
                 dangqian_zhongduanqi = null;
-                // 恢复按钮状态
-                btnFasong.disabled = false;
-                btnTingzhi.disabled = true;
+                ai_anniuzhuangtai(false);
             }
         };
 
         window.aitingzhi = function() {
+            if (!ai_zhengzaichuli) return;
             if (dangqian_zhongduanqi) {
                 console.log('前端：调用 AbortController.abort()');
                 dangqian_zhongduanqi.abort();
+                dangqian_zhongduanqi = null;
                 rizhi('正在停止AI输出...', 'warn');
-            } else {
-                console.log('前端：当前没有正在进行的AI对话');
             }
+            // 强制恢复按钮状态，即使 abort 没有触发 catch
+            ai_anniuzhuangtai(false);
+        };
+
+        window.aijixu = function() {
+            if (!kehu) return rizhi('尚未初始化', 'warn');
+            if (ai_zhengzaichuli) return rizhi('正在处理中，请等待', 'warn');
+            DOM.get('ai_shuru').value = '继续';
+            aifasong();
         };
 
         window.aiqingkong = function() {
-            DOM.get('ai_shuchu').textContent = '';
+            DOM.get('ai_shuchu').innerHTML = '';
             DOM.get('ai_shuru').value = '';
             duihua_lishi = [];
             dangqian_huifu = '';
+            gongju_jishu = 0;
+            gongju_canshu_map = {};
+            suoyin_id_map = {};
+            id_dom_map = {};
         };
 
         // ==================== 渠道管理功能 ====================
