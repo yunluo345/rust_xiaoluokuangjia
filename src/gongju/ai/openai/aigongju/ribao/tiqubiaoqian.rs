@@ -49,15 +49,15 @@ pub fn goujian_gongju() -> Tool {
             name: gongju_mingcheng.to_string(),
             description: format!(
                 "从日报原文中提取关键信息标签。调用时必须通过 yuanwen 参数传入日报原文，并通过 biaoqianlie 参数传入提取的标签。\n\
-                必需的标签类别：{}。\n\
+                必需的标签类别：{}。所有类别都必须存在才能通过验证。\n\
                 提取规则：\n\
-                1. 优先从 yuanwen 中提取标签。如果某些必需类别在原文中缺失，但用户在后续对话中补充了相关信息，可通过 buchongxinxi 参数传入用户补充的原始内容。\n\
+                1. 优先从 yuanwen 中提取标签。如果用户在后续对话中补充了相关信息，可通过 buchongxinxi 参数传入用户补充的原始内容。\n\
                 2. 提取内容不限于专有名词，也包括描述性文本、段落摘要。\n\
-                3. 需要语义理解：用户的表述可能与类别名称不完全一致，要根据语义匹配到正确的类别。\n\
+                3. 需要语义匹配：用户表述可能与类别名不一致，需映射到标准类别名。\n\
                    例如：\"沟通内容\"→\"对话内容\"，\"明日工作计划\"→\"后续计划\"，文末补充说明→\"备注\"。\n\
-                4. 每个必需类别至少提取一个标签，否则校验会失败。\n\
-                5. 标签的 leibie 必须使用标准类别名称（{}），不要使用用户原文中的表述。\n\
-                6. 注意人际关系和角色区分：根据 yuanwen 语境准确判断人物的身份和角色，将其归入正确的类别。\n\
+                4. 标签的 leibie 必须使用标准类别名称（{}），不要使用用户原文中的表述。\n\
+                5. 人员关系判断：\"对方派遣人员\"仅指外部客户方/合作方/甲方派遣来的人员，本公司内部同事、领导、协作人员一律不算。\"客户公司\"仅指外部客户/甲方/合作方的公司名称。\"自己名称\"仅指日报作者本人的姓名。\n\
+                6. 严禁伪造（最高优先级）：如果原文中确实没有某个类别的信息，严禁编造、捏造或使用任何占位内容（如\"无\"、\"暂无\"、\"文中未明确提及...\"等）。正确做法是：如实提取原文中存在的类别，对于缺失的类别，在对话中告知用户需要补充哪些信息，等用户提供后再通过 buchongxinxi 传入。\n\
                 7. buchongxinxi 仅用于传入用户明确补充的信息，严禁自行编造补充内容。",
                 leibie_miaoshu, leibie_miaoshu
             ),
@@ -74,7 +74,7 @@ pub fn goujian_gongju() -> Tool {
                     },
                     "biaoqianlie": {
                         "type": "array",
-                        "description": format!("从 yuanwen 和 buchongxinxi 中提取出的标签列表。必须覆盖所有必需类别：{}", leibie_miaoshu),
+                        "description": format!("从 yuanwen 和 buchongxinxi 中提取出的标签列表。必需类别：{}。所有类别都必须存在才能通过验证，但严禁伪造不存在的内容，缺失的类别应告知用户补充", leibie_miaoshu),
                         "items": {
                             "type": "object",
                             "properties": {
@@ -97,32 +97,20 @@ pub fn goujian_gongju() -> Tool {
     }
 }
 
-/// 从文本中提取标签（异步接口）
-/// 
-/// # 参数
-/// - `peizhi`: OpenAI配置
-/// - `wenben`: 待提取的文本内容
-/// 
-/// # 返回
-/// - `Some(Tiqujieguo)`: 提取成功或验证失败
-/// - `None`: 配置读取失败或AI调用失败
+/// 从文本中提取标签（异步接口，两次提取去重合并）
 pub async fn tiqu(peizhi: &Aipeizhi, wenben: &str) -> Option<Tiqujieguo> {
     let aipeizhi = duqu_aipeizhi()?;
     let xitongtishici = goujian_xitongtishici(&aipeizhi);
-    
-    let mut guanli = Xiaoxiguanli::xingjian()
-        .shezhi_xitongtishici(&xitongtishici)
-        .tianjia_gongju(goujian_gongju());
-    guanli.zhuijia_yonghuxiaoxi(wenben);
-    
-    let jieguo = openaizhuti::gongjuqingqiu(peizhi, &mut guanli).await?;
-    match jieguo {
-        openaizhuti::Aijieguo::Gongjudiaoyong(diaoyonglie) => {
-            let biaoqianlie = jiexi_gongjujieguo(&diaoyonglie)?;
-            yanzheng_biaoqian(&biaoqianlie, &aipeizhi)
-        }
-        openaizhuti::Aijieguo::Wenben(_) => None,
+    let gongju = goujian_gongju();
+
+    let diyi = danci_tiqu(peizhi, &xitongtishici, wenben, gongju.clone()).await;
+    let dier = danci_tiqu(peizhi, &xitongtishici, wenben, gongju).await;
+
+    let hebing = quchong_hebing(diyi.unwrap_or_default(), dier.unwrap_or_default());
+    if hebing.is_empty() {
+        return None;
     }
+    yanzheng_biaoqian(&hebing, &aipeizhi)
 }
 
 /// 执行标签提取工具（同步接口，用于ReAct循环）
@@ -146,7 +134,6 @@ pub fn zhixing(canshu_json: &str) -> String {
         .and_then(|v| v.as_str())
         .unwrap_or("");
 
-    // 合并原文和补充信息作为验证来源
     let yanzheng_wenben = if buchongxinxi.trim().is_empty() {
         yuanwen.to_string()
     } else {
@@ -179,6 +166,30 @@ pub fn mingcheng() -> &'static str {
 
 // ==================== 私有辅助函数 ====================
 
+/// 两次提取结果按 (mingcheng, leibie) 去重合并
+fn quchong_hebing(diyi: Vec<Biaoqian>, dier: Vec<Biaoqian>) -> Vec<Biaoqian> {
+    let mut jieguo = diyi;
+    for b in dier {
+        if !jieguo.iter().any(|y| y.mingcheng == b.mingcheng && y.leibie == b.leibie) {
+            jieguo.push(b);
+        }
+    }
+    jieguo
+}
+
+/// 单次AI标签提取
+async fn danci_tiqu(peizhi: &Aipeizhi, xitongtishici: &str, wenben: &str, gongju: Tool) -> Option<Vec<Biaoqian>> {
+    let mut guanli = Xiaoxiguanli::xingjian()
+        .shezhi_xitongtishici(xitongtishici)
+        .tianjia_gongju(gongju);
+    guanli.zhuijia_yonghuxiaoxi(wenben);
+    let jieguo = openaizhuti::gongjuqingqiu(peizhi, &mut guanli).await?;
+    match jieguo {
+        openaizhuti::Aijieguo::Gongjudiaoyong(diaoyonglie) => jiexi_gongjujieguo(&diaoyonglie),
+        openaizhuti::Aijieguo::Wenben(_) => None,
+    }
+}
+
 /// 读取AI配置文件
 fn duqu_aipeizhi() -> Option<Aipeizhiwenjian> {
     peizhixitongzhuti::duqupeizhi::<Aipeizhiwenjian>(Aipeizhiwenjian::wenjianming())
@@ -192,27 +203,33 @@ fn goujian_xitongtishici(peizhi: &Aipeizhiwenjian) -> String {
     format!(
         "你是一个信息提取助手，从提供的原文中提取与指定类别相关的关键信息。\n\
         \n\
+        允许的类别：{}。严禁提取其他类别的标签。\n\
+        \n\
+        各类别语义定义：\n\
+        - \"时间\"：日期、时间段等（如\"2026年2月14日\"）\n\
+        - \"地名\"：工作地点、办公地址等\n\
+        - \"工作内容\"：今日实际完成的具体工作事项描述\n\
+        - \"对话内容\"：沟通、交流、讨论等相关内容（用户可能写作\"沟通内容\"、\"交流记录\"等）\n\
+        - \"后续计划\"：计划、安排等内容（用户可能写作\"明日计划\"、\"下一步\"等）\n\
+        - \"备注\"：备注、附注、补充说明等内容\n\
+        - \"对方派遣人员\"：仅指外部客户方/合作方/甲方派遣来的人员。本公司内部的同事、领导、协作人员一律不算。判断依据：原文中出现\"客户\"、\"甲方\"、\"对方\"、\"外部\"等明确外部归属线索时才提取\n\
+        - \"客户公司\"：外部客户/甲方/合作方的公司名称。本公司名称不算\n\
+        - \"自己名称\"：日报作者本人的姓名。仅当原文中明确出现作者自称时才提取\n\
+        \n\
         提取规则：\n\
-        1. 允许的类别：{}。严禁提取其他类别的标签。\n\
-        2. 必需类别：{}。每个必需类别至少提取一个标签。\n\
-        3. 只能从提供的原文中提取信息，严禁使用原文以外的任何信息。\n\
-        4. 提取内容不限于专有名词，也包括描述性文本。例如：\n\
-           - \"时间\"类别：提取日期、时间段等（如\"2026年2月14日\"）\n\
-           - \"工作内容\"类别：提取具体的工作事项描述\n\
-           - \"对话内容\"类别：提取沟通、交流、讨论等相关内容（用户可能写作\"沟通内容\"、\"交流记录\"等）\n\
-           - \"后续计划\"类别：提取计划、安排等内容（用户可能写作\"明日计划\"、\"下一步\"等）\n\
-           - \"备注\"类别：提取备注、附注、补充说明等内容\n\
-        5. 需要语义理解：用户的表述可能与类别名称不完全一致，要根据语义匹配到正确的类别。\n\
-        6. 标签的 leibie 字段必须使用标准类别名称（即上述允许的类别名），不要使用用户原文中的表述。\n\
-        7. 注意人际关系和角色区分：根据原文语境准确判断人物的身份和角色，将其归入正确的类别。\n\
+        1. 只能从提供的原文中提取信息，严禁使用原文以外的任何信息。\n\
+        2. 提取内容不限于专有名词，也包括描述性文本。\n\
+        3. 需要语义理解：用户的表述可能与类别名称不完全一致，要根据语义匹配到正确的类别。\n\
+        4. 标签的 leibie 字段必须使用标准类别名称（即上述允许的类别名），不要使用用户原文中的表述。\n\
+        5. 人员关系判断：根据上下文语境（如\"同事\"、\"我方\"、\"团队\"、\"部门\"等线索）判断人物归属。与作者属于同一组织的人员是内部同事，不归入\"对方派遣人员\"。\n\
+        \n\
+        无则不提取规则（最高优先级）：\n\
+        如果原文中确实没有某个类别的信息，该类别不要出现在结果中。严禁输出任何形式的占位内容，包括但不限于\"无\"、\"暂无\"、\"未提及\"、\"文中未明确提及...\"、\"N/A\"等。找不到就不提取，宁缺毋滥。\n\
         \n\
         标签合并规则：\n\
         1. 同一类别的多个标签，如果语义上属于同一实体的不同部分，应合并为一个完整标签。\n\
         2. 如果语义上是独立的实体，则保持独立。\n\
-        3. 合并时确保语义完整性和准确性。\n\
-        \n\
-        严禁伪造数据：不得编造、捏造或使用占位符（如无、暂无、N/A等）来满足验证要求。如果原文中确实没有某类别的信息，不要伪造。",
-        yunxu_leibie_str,
+        3. 合并时确保语义完整性和准确性。",
         yunxu_leibie_str
     )
 }
@@ -311,17 +328,24 @@ fn yanzheng_biaoqian(biaoqianlie: &[Biaoqian], peizhi: &Aipeizhiwenjian) -> Opti
     if let Some(zhanweifu) = jiancha_zhanweifu(biaoqianlie) {
         return Some(Tiqujieguo {
             chenggong: false,
-            xiaoxi: format!("检测到占位符标签：{}，请勿伪造数据", zhanweifu),
+            xiaoxi: format!("检测到占位符标签：{}，请勿伪造数据。如果原文中确实没有该类别的信息，请不要提取该类别，而是告知用户需要补充哪些类别的信息", zhanweifu),
             biaoqianlie: vec![],
         });
     }
-    
+
+    // 过滤掉不在允许类别中的标签
+    let yunxu_leibie: Vec<&str> = peizhi.ribaoshengcheng.xinxi_yingshe.keys().map(|s| s.as_str()).collect();
+    let youxiao_biaoqian: Vec<Biaoqian> = biaoqianlie.iter()
+        .filter(|b| yunxu_leibie.contains(&b.leibie.as_str()))
+        .cloned()
+        .collect();
+
     // 检查必需类别
     let bixu_leibie: Vec<String> = peizhi.ribaoshengcheng.xinxi_yingshe.keys().cloned().collect();
-    if let Some(queshi) = jiancha_bixu_leibie(biaoqianlie, &bixu_leibie) {
+    if let Some(queshi) = jiancha_bixu_leibie(&youxiao_biaoqian, &bixu_leibie) {
         return Some(Tiqujieguo {
             chenggong: false,
-            xiaoxi: format!("缺少必需的标签类别：{}", queshi),
+            xiaoxi: format!("缺少必需的标签类别：{}。请不要伪造这些类别的内容，而是询问用户补充这些信息", queshi),
             biaoqianlie: vec![],
         });
     }
@@ -329,7 +353,7 @@ fn yanzheng_biaoqian(biaoqianlie: &[Biaoqian], peizhi: &Aipeizhiwenjian) -> Opti
     Some(Tiqujieguo {
         chenggong: true,
         xiaoxi: "标签提取成功".to_string(),
-        biaoqianlie: biaoqianlie.to_vec(),
+        biaoqianlie: youxiao_biaoqian,
     })
 }
 
@@ -344,7 +368,15 @@ fn jiancha_zhanweifu(biaoqianlie: &[Biaoqian]) -> Option<String> {
     ];
     
     biaoqianlie.iter()
-        .find(|b| zhanweifu.contains(&b.mingcheng.as_str()))
+        .find(|b| {
+            let mc = b.mingcheng.as_str();
+            zhanweifu.contains(&mc)
+                || mc.contains("未明确提及")
+                || mc.contains("未提及")
+                || mc.contains("文中未")
+                || mc.contains("原文未")
+                || mc.contains("未出现")
+        })
         .map(|b| b.mingcheng.clone())
 }
 

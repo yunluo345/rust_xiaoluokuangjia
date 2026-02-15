@@ -3,53 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>加密传输测试 v2.0 - AbortController</title>
+    <title>AI日报系统-SDK</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Noto Sans SC', Inter, sans-serif; background: #F8FAFC; color: #1E293B; padding: 24px; line-height: 1.6; }
-        h1 { font-size: 20px; margin-bottom: 20px; color: #0F172A; }
-        .card { background: rgba(255,255,255,0.9); border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
-        .card h2 { font-size: 15px; color: #475569; margin-bottom: 12px; }
-        button { background: #3B82F6; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; cursor: pointer; transition: background-color 200ms; min-height: 44px; margin-right: 8px; margin-bottom: 8px; }
-        button:hover { background: #2563EB; }
-        button:focus { outline: none; box-shadow: 0 0 0 2px #3B82F6; }
-        button:disabled { background: #94A3B8; cursor: not-allowed; }
-        .log { background: #0F172A; color: #E2E8F0; border-radius: 8px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; margin-top: 12px; }
+        body { font-family: 'Inter', 'Noto Sans SC', sans-serif; background: linear-gradient(135deg, #F0F4FF 0%, #F8FAFC 50%, #F0FDF4 100%); color: #1E293B; padding: 24px; line-height: 1.6; min-height: 100vh; max-width: 100%; overflow-x: hidden; }
+        @media (max-width: 768px) { body { padding: 12px; } }
+        .biaoti-qu { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #E2E8F0; }
+        .biaoti-qu h1 { font-size: 22px; font-weight: 700; color: #0F172A; letter-spacing: -0.02em; }
+        .biaoti-qu .banbenhao { font-size: 12px; color: #64748B; background: #F1F5F9; padding: 2px 10px; border-radius: 20px; font-weight: 500; }
+        .card { background: rgba(255,255,255,0.85); backdrop-filter: blur(8px); border: 1px solid #E2E8F0; border-radius: 14px; padding: 22px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02); transition: box-shadow 200ms; }
+        .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+        .card h2 { font-size: 14px; font-weight: 600; color: #475569; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.04em; display: flex; align-items: center; gap: 8px; }
+        .card h2::before { content: ''; display: inline-block; width: 3px; height: 16px; border-radius: 2px; background: #3B82F6; }
+        button { background: #3B82F6; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background-color 200ms, opacity 200ms, box-shadow 200ms; min-height: 44px; margin-right: 8px; margin-bottom: 8px; }
+        button:hover { background: #2563EB; box-shadow: 0 2px 8px rgba(59,130,246,0.25); }
+        button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(59,130,246,0.4); }
+        button:disabled { background: #CBD5E1; cursor: not-allowed; opacity: 0.7; box-shadow: none; }
+        .log { background: #0F172A; color: #E2E8F0; border-radius: 10px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; margin-top: 12px; border: 1px solid #1E293B; }
         .ok { color: #10B981; }
         .err { color: #EF4444; }
-        .info { color: #3B82F6; }
-        .warn { color: #F59E0B; }
-        .zhuangtai { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .info { color: #60A5FA; }
+        .warn { color: #FBBF24; }
+        .zhuangtai { display: inline-flex; align-items: center; gap: 6px; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; }
         .zhuangtai.lianjiecheng { background: #D1FAE5; color: #065F46; }
         .zhuangtai.weilianjiecheng { background: #FEE2E2; color: #991B1B; }
-        input { border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px; font-size: 14px; min-height: 44px; outline: none; transition: border-color 200ms; color: #1E293B; background: #fff; }
-        input:focus { border-color: #3B82F6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
-        select { border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px; font-size: 14px; min-height: 44px; outline: none; transition: border-color 200ms; color: #1E293B; background: #fff; cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
-        select:focus { border-color: #3B82F6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
-        label { font-size: 13px; color: #475569; margin-bottom: 4px; display: block; }
+        input { border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px; font-size: 14px; min-height: 44px; outline: none; transition: border-color 200ms, box-shadow 200ms; color: #1E293B; background: #fff; }
+        input:focus { border-color: #3B82F6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+        select { border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px; font-size: 14px; min-height: 44px; outline: none; transition: border-color 200ms, box-shadow 200ms; color: #1E293B; background: #fff; cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+        select:focus { border-color: #3B82F6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+        label { font-size: 13px; color: #64748B; margin-bottom: 4px; display: block; font-weight: 500; }
         .shurukuang { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 8px; }
         .shuruxiang { display: flex; flex-direction: column; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th { background: #F1F5F9; color: #475569; font-weight: 600; text-align: left; padding: 10px 12px; white-space: nowrap; }
-        td { padding: 10px 12px; border-bottom: 1px solid #E2E8F0; color: #1E293B; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        td { padding: 10px 12px; border-bottom: 1px solid #F1F5F9; color: #1E293B; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         tr:hover td { background: #F8FAFC; }
-        .btn-sm { font-size: 12px; padding: 5px 12px; min-height: 32px; margin: 0 2px; }
-        .btn-wei { background: #F59E0B; }
-        .btn-wei:hover { background: #D97706; }
+        .btn-sm { font-size: 12px; padding: 5px 12px; min-height: 32px; margin: 0 2px; border-radius: 6px; }
         .btn-shan { background: #EF4444; }
-        .btn-shan:hover { background: #DC2626; }
+        .btn-shan:hover { background: #DC2626; box-shadow: 0 2px 8px rgba(239,68,68,0.25); }
         .btn-bian { background: #6366F1; }
-        .btn-bian:hover { background: #4F46E5; }
+        .btn-bian:hover { background: #4F46E5; box-shadow: 0 2px 8px rgba(99,102,241,0.25); }
         .btn-qie { background: #8B5CF6; }
-        .btn-qie:hover { background: #7C3AED; }
-        .ai-sikao { background:#1E293B; border-left:3px solid #8B5CF6; padding:8px 12px; margin:6px 0; border-radius:4px; color:#C4B5FD; font-size:12px; }
-        .ai-yitu { background:#1E293B; border-left:3px solid #3B82F6; padding:8px 12px; margin:6px 0; border-radius:4px; color:#93C5FD; font-size:12px; }
-        .ai-gongju-faxian { background:#1E293B; border-left:3px solid #F59E0B; padding:8px 12px; margin:6px 0; border-radius:4px; color:#FCD34D; font-size:12px; }
+        .btn-qie:hover { background: #7C3AED; box-shadow: 0 2px 8px rgba(139,92,246,0.25); }
+        .ai-sikao { background:#1E293B; border-left:3px solid #8B5CF6; padding:10px 14px; margin:6px 0; border-radius:6px; color:#C4B5FD; font-size:12px; line-height:1.6; }
+        .ai-yitu { background:#1E293B; border-left:3px solid #3B82F6; padding:10px 14px; margin:6px 0; border-radius:6px; color:#93C5FD; font-size:12px; line-height:1.6; }
+        .ai-gongju-faxian { background:#1E293B; border-left:3px solid #F59E0B; padding:10px 14px; margin:6px 0; border-radius:6px; color:#FCD34D; font-size:12px; }
         .ai-gongju-kuai { background:#0c1425; border:1px solid #334155; border-radius:8px; margin:8px 0; overflow:hidden; }
-        .ai-gongju-tou { background:#1E293B; padding:6px 12px; font-size:12px; font-weight:600; display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none; }
+        .ai-gongju-tou { background:#1E293B; padding:8px 14px; font-size:12px; font-weight:600; display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; transition:background-color 200ms; }
         .ai-gongju-tou:hover { background:#263348; }
         .ai-gongju-tou .mingcheng { color:#F59E0B; }
-        .ai-gongju-tou .zhuangtai-deng { display:inline-block; width:8px; height:8px; border-radius:50%; }
+        .ai-gongju-tou .zhuangtai-deng { display:inline-block; width:8px; height:8px; border-radius:50%; flex-shrink:0; }
         .ai-gongju-tou .deng-yunxing { background:#F59E0B; box-shadow:0 0 6px #F59E0B; animation:deng-shanshuo 1.2s ease-in-out infinite; }
         @keyframes deng-shanshuo { 0%,100%{opacity:1} 50%{opacity:0.4} }
         .ai-gongju-tou .deng-chenggong { background:#10B981; box-shadow:0 0 6px #10B981; }
@@ -58,28 +64,34 @@
         .ai-gongju-tou .zhedie-jiantou.shouqi { transform:rotate(-90deg); }
         .ai-gongju-neirong { overflow:hidden; transition:max-height 300ms ease, opacity 200ms ease; max-height:500px; opacity:1; }
         .ai-gongju-neirong.yincang { max-height:0; opacity:0; }
-        .ai-gongju-canshu { padding:8px 12px; font-size:12px; color:#94A3B8; white-space:pre-wrap; word-break:break-all; max-height:150px; overflow-y:auto; }
-        .ai-gongju-jieguo { padding:8px 12px; font-size:12px; color:#6EE7B7; border-top:1px solid #334155; white-space:pre-wrap; word-break:break-all; max-height:200px; overflow-y:auto; }
-        .ai-gongju-canshu::-webkit-scrollbar, .ai-gongju-jieguo::-webkit-scrollbar, #ai_shuchu::-webkit-scrollbar { width:6px; }
-        .ai-gongju-canshu::-webkit-scrollbar-track, .ai-gongju-jieguo::-webkit-scrollbar-track, #ai_shuchu::-webkit-scrollbar-track { background:transparent; }
-        .ai-gongju-canshu::-webkit-scrollbar-thumb, .ai-gongju-jieguo::-webkit-scrollbar-thumb, #ai_shuchu::-webkit-scrollbar-thumb { background:#334155; border-radius:3px; }
-        .ai-gongju-canshu::-webkit-scrollbar-thumb:hover, .ai-gongju-jieguo::-webkit-scrollbar-thumb:hover, #ai_shuchu::-webkit-scrollbar-thumb:hover { background:#475569; }
+        .ai-gongju-canshu { padding:10px 14px; font-size:12px; color:#94A3B8; white-space:pre-wrap; word-break:break-all; max-height:150px; overflow-y:auto; }
+        .ai-gongju-jieguo { padding:10px 14px; font-size:12px; color:#6EE7B7; border-top:1px solid #334155; white-space:pre-wrap; word-break:break-all; max-height:200px; overflow-y:auto; }
+        .ai-gongju-canshu::-webkit-scrollbar, .ai-gongju-jieguo::-webkit-scrollbar, #ai_shuchu::-webkit-scrollbar, .log::-webkit-scrollbar { width:6px; }
+        .ai-gongju-canshu::-webkit-scrollbar-track, .ai-gongju-jieguo::-webkit-scrollbar-track, #ai_shuchu::-webkit-scrollbar-track, .log::-webkit-scrollbar-track { background:transparent; }
+        .ai-gongju-canshu::-webkit-scrollbar-thumb, .ai-gongju-jieguo::-webkit-scrollbar-thumb, #ai_shuchu::-webkit-scrollbar-thumb, .log::-webkit-scrollbar-thumb { background:#334155; border-radius:3px; }
+        .ai-gongju-canshu::-webkit-scrollbar-thumb:hover, .ai-gongju-jieguo::-webkit-scrollbar-thumb:hover, #ai_shuchu::-webkit-scrollbar-thumb:hover, .log::-webkit-scrollbar-thumb:hover { background:#475569; }
         .ai-wenben { color:#E2E8F0; }
-        .ai-wancheng { color:#10B981; text-align:center; padding:8px; margin:8px 0; border-top:1px solid #334155; font-size:12px; }
-        .ai-cuowu { color:#EF4444; background:#1E293B; border-left:3px solid #EF4444; padding:8px 12px; margin:6px 0; border-radius:4px; font-size:12px; }
-        .ai-yasuo { color:#F59E0B; background:#1E293B; border-left:3px solid #F59E0B; padding:8px 12px; margin:6px 0; border-radius:4px; font-size:12px; }
-        .ai-yonghu { color:#3B82F6; font-weight:600; margin:10px 0 4px 0; }
-        .ai-zhushou-biaoji { color:#10B981; font-weight:600; margin:10px 0 4px 0; }
-        .zt-qi { color: #065F46; background: #D1FAE5; padding: 2px 10px; border-radius: 12px; font-size: 12px; }
-        .zt-jin { color: #991B1B; background: #FEE2E2; padding: 2px 10px; border-radius: 12px; font-size: 12px; }
+        .ai-wancheng { color:#10B981; text-align:center; padding:10px; margin:8px 0; border-top:1px solid #334155; font-size:12px; }
+        .ai-cuowu { color:#EF4444; background:#1E293B; border-left:3px solid #EF4444; padding:10px 14px; margin:6px 0; border-radius:6px; font-size:12px; }
+        .ai-yasuo { color:#F59E0B; background:#1E293B; border-left:3px solid #F59E0B; padding:10px 14px; margin:6px 0; border-radius:6px; font-size:12px; }
+        .ai-yonghu { color:#3B82F6; font-weight:600; margin:12px 0 4px 0; }
+        .ai-zhushou-biaoji { color:#10B981; font-weight:600; margin:12px 0 4px 0; }
+        .zt-qi { color: #065F46; background: #D1FAE5; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+        .zt-jin { color: #991B1B; background: #FEE2E2; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
     </style>
 </head>
 <body>
-    <h1>加密传输测试面板</h1>
+    <div class="biaoti-qu">
+        <h1>AI日报系统-SDK</h1>
+        <span class="banbenhao">v2.0</span>
+    </div>
 
     <div class="card">
         <h2>连接状态</h2>
-        <p>WASM: <span id="wasm_zhuangtai" class="zhuangtai weilianjiecheng">加载中...</span></p>
+<p>SDK: <span id="sdk_zhuangtai" class="zhuangtai weilianjiecheng">加载中...</span></p>
     </div>
 
     <div class="card">
@@ -201,575 +213,6 @@
         <div id="rizhi" class="log"></div>
     </div>
 
-    <script type="module">
-        // ==================== 常量定义 ====================
-        const FUWUQI_DIZHI = 'http://127.0.0.1:8889';
-        const ZHUANGTAIMA_CHENGGONG = 200;
-        
-        // ==================== 全局状态 ====================
-        let kehu = null;
-        let init, Kehuduanjiami;
-        let dangqian_zhongduanqi = null;
-        let qudao_biaodanxianshi = false;
-
-        // ==================== DOM 元素缓存 ====================
-        const DOM = {
-            get: (id) => document.getElementById(id),
-            huoqu: (id) => document.getElementById(id)?.value?.trim() || '',
-        };
-
-        // ==================== 工具函数 ====================
-        const wasmModule = await import('./pkg/wasm_sdk.js?v=' + Date.now());
-        init = wasmModule.default;
-        Kehuduanjiami = wasmModule.Kehuduanjiami;
-
-        // ==================== 工具函数 ====================
-        
-        function rizhi(neirong, leixing = '') {
-            const el = DOM.get('rizhi');
-            const shijian = new Date().toLocaleTimeString();
-            const leixingclass = leixing ? ` class="${leixing}"` : '';
-            el.innerHTML += `<span style="color:#64748B">[${shijian}]</span> <span${leixingclass}>${neirong}</span>\n`;
-            el.scrollTop = el.scrollHeight;
-        }
-
-        function gengxinzhuangtai(id, wenben, chenggong) {
-            const el = DOM.get(id);
-            el.textContent = wenben;
-            el.className = 'zhuangtai ' + (chenggong ? 'lianjiecheng' : 'weilianjiecheng');
-        }
-
-        // 统一的响应处理
-        function chulixiangying(jieguo, chenggongxiaoxi = '') {
-            const xiangying = JSON.parse(jieguo);
-            const chenggong = xiangying.zhuangtaima === ZHUANGTAIMA_CHENGGONG;
-            const xiaoxi = chenggongxiaoxi || xiangying.xiaoxi;
-            rizhi(xiaoxi, chenggong ? 'ok' : 'err');
-            return { xiangying, chenggong };
-        }
-
-        // 统一的按钮操作包装
-        async function zhixinganniu(anniuid, caozuo) {
-            if (!kehu) return rizhi('尚未初始化', 'warn');
-            const btn = DOM.get(anniuid);
-            btn.disabled = true;
-            try {
-                await caozuo();
-            } catch (e) {
-                rizhi('请求失败: ' + e, 'err');
-            } finally {
-                btn.disabled = false;
-            }
-        }
-
-        // 统一的异步操作错误处理
-        async function anquanzhixing(caozuo, cuowuxiaoxi = '操作失败') {
-            try {
-                return await caozuo();
-            } catch (e) {
-                rizhi(`${cuowuxiaoxi}: ${e}`, 'err');
-                throw e;
-            }
-        }
-
-        // ==================== 初始化 ====================
-        
-        async function zidongchushihua() {
-            try {
-                // 添加时间戳参数强制刷新 WASM
-                await init({ module_or_path: './pkg/wasm_sdk_bg.wasm?v=' + Date.now() });
-                kehu = new Kehuduanjiami(FUWUQI_DIZHI);
-                gengxinzhuangtai('wasm_zhuangtai', '已就绪', true);
-                rizhi('WASM 自动加载成功，服务器: ' + FUWUQI_DIZHI, 'ok');
-                
-                // 批量启用按钮
-                ['btn_jiankang', 'btn_jiamiqingqiu', 'btn_sseceshi', 'btn_jiamisseceshi', 'btn_chongzhi', 'btn_denglu'].forEach(id => {
-                    DOM.get(id).disabled = false;
-                });
-                
-                // 恢复登录状态
-                if (kehu.yidenglu()) {
-                    qudao_qiyonganniu(true);
-                    rizhi('已恢复登录状态（令牌已缓存）', 'ok');
-                }
-            } catch (e) {
-                gengxinzhuangtai('wasm_zhuangtai', '加载失败', false);
-                rizhi('WASM 加载失败: ' + e, 'err');
-            }
-        }
-
-        // ==================== 基础接口测试 ====================
-        
-        window.chongzhihuihua = function() {
-            if (!kehu) return;
-            kehu.chongzhihuihua();
-            rizhi('会话已重置，下次加密请求将自动重新协商', 'warn');
-        };
-
-        window.jiankangqingqiu = () => zhixinganniu('btn_jiankang', async () => {
-            const jieguo = await kehu.jiankangqingqiu();
-            rizhi('健康检查: ' + jieguo, 'ok');
-        });
-
-        window.jiamijiankangqingqiu = () => zhixinganniu('btn_jiamiqingqiu', async () => {
-            const jieguo = await kehu.jiamijiankangqingqiu("你好加密传输");
-            rizhi('加密响应: ' + jieguo, 'ok');
-        });
-
-        window.sseceshiqingqiu = () => zhixinganniu('btn_sseceshi', async () => {
-            rizhi('--- 普通SSE开始 ---', 'info');
-            await kehu.sseceshiqingqiu('sse_huidiao');
-            rizhi('--- 普通SSE结束 ---', 'info');
-        });
-
-        window.jiamisseceshiqingqiu = () => zhixinganniu('btn_jiamisseceshi', async () => {
-            rizhi('--- 加密SSE开始 ---', 'info');
-            await kehu.jiamisseceshiqingqiu('sse_huidiao');
-            rizhi('--- 加密SSE结束 ---', 'info');
-        });
-
-        window.qingkongrizhi = function() {
-            DOM.get('rizhi').innerHTML = '';
-        };
-
-        window.sse_huidiao = function(shuju) {
-            rizhi('SSE: ' + shuju, 'info');
-        };
-
-        // ==================== 登录功能 ====================
-        
-        window.dengluqingqiu = () => zhixinganniu('btn_denglu', async () => {
-            const zhanghao = DOM.huoqu('denglu_zhanghao');
-            const mima = DOM.get('denglu_mima').value;
-            if (!zhanghao || !mima) return rizhi('账号或密码不能为空', 'warn');
-            
-            const jieguo = await kehu.dengluqingqiu(zhanghao, mima);
-            const xiangying = JSON.parse(jieguo);
-            const chenggong = xiangying.zhuangtaima === ZHUANGTAIMA_CHENGGONG;
-            
-            rizhi(chenggong ? '登录成功' : '登录失败: ' + xiangying.xiaoxi, chenggong ? 'ok' : 'err');
-            
-            if (chenggong) {
-                qudao_qiyonganniu(true);
-            }
-        });
-
-        // ==================== AI 对话功能 ====================
-        
-        let duihua_lishi = [];
-        let dangqian_huifu = '';
-        
-        // 工具调用DOM映射：gongjuid -> DOM id后缀
-        let gongju_jishu = 0;
-        // 暂存每个工具的原始参数字符串（流式拼接），key为suoyin
-        let gongju_canshu_map = {};
-        // suoyin -> gongjuid 映射
-        let suoyin_id_map = {};
-        // gongjuid -> DOM计数器 映射
-        let id_dom_map = {};
-
-        function zhuanyiHTML(str) {
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
-        }
-
-        // 尝试格式化JSON，失败则原样返回（已转义）
-        function geshihuaJSON(str) {
-            try {
-                const obj = JSON.parse(str);
-                return zhuanyiHTML(JSON.stringify(obj, null, 2));
-            } catch (_) {
-                return zhuanyiHTML(str);
-            }
-        }
-
-        function tianjiaHTML(html) {
-            DOM.get('ai_shuchu').insertAdjacentHTML('beforeend', html);
-        }
-
-        window.gongju_zhedie = function(id) {
-            const nrEl = document.getElementById(`gongju_nr_${id}`);
-            const jiantou = document.querySelector(`#gongju_${id} .zhedie-jiantou`);
-            if (nrEl) nrEl.classList.toggle('yincang');
-            if (jiantou) jiantou.classList.toggle('shouqi');
-        };
-
-        window.ai_huidiao = function(shuju) {
-            const shuchu = DOM.get('ai_shuchu');
-            const qianzhui = 'data: ';
-            for (const hang of shuju.split('\n').filter(s => s.startsWith(qianzhui))) {
-                try {
-                    const shijian = JSON.parse(hang.slice(qianzhui.length));
-                    const { leixing } = shijian;
-                    
-                    switch (leixing) {
-                        case 'sikao_guocheng':
-                            tianjiaHTML(`<div class="ai-sikao">💭 ${zhuanyiHTML(shijian.neirong)}</div>`);
-                            break;
-                        case 'yitu_fenxi':
-                            tianjiaHTML(`<div class="ai-yitu">🎯 意图：${zhuanyiHTML(shijian.yitu)}<br>🔑 关键词：${shijian.guanjianci.map(k => zhuanyiHTML(k)).join('、')}</div>`);
-                            break;
-                        case 'gongju_faxian': {
-                            const liebiao = shijian.jieguo.map(g =>
-                                `<span style="color:#FCD34D">${zhuanyiHTML(g.mingcheng)}</span><span style="color:#94A3B8">(${zhuanyiHTML(g.miaoshu)}, ${(g.defen * 100).toFixed(0)}%)</span>`
-                            ).join('、');
-                            tianjiaHTML(`<div class="ai-gongju-faxian">🔍 发现工具：${liebiao}</div>`);
-                            break;
-                        }
-                        case 'wenben_kuai':
-                            dangqian_huifu += shijian.neirong;
-                            tianjiaHTML(`<span class="ai-wenben">${zhuanyiHTML(shijian.neirong)}</span>`);
-                            break;
-                        case 'gongju_kaishi': {
-                            gongju_jishu++;
-                            const domId = gongju_jishu;
-                            const sy = shijian.suoyin;
-                            suoyin_id_map[sy] = shijian.gongjuid;
-                            id_dom_map[shijian.gongjuid] = domId;
-                            gongju_canshu_map[sy] = '';
-                            dangqian_huifu += `\n[工具调用: ${shijian.gongjuming}]\n参数: `;
-                            tianjiaHTML(
-                                `<div class="ai-gongju-kuai" id="gongju_${domId}">` +
-                                    `<div class="ai-gongju-tou" onclick="gongju_zhedie(${domId})">` +
-                                        `<span class="zhuangtai-deng deng-yunxing"></span>` +
-                                        `<span class="mingcheng">⚙️ ${zhuanyiHTML(shijian.gongjuming)}</span>` +
-                                        `<span class="gongju-tishi" style="color:#64748B;font-weight:400">参数接收中...</span>` +
-                                        `<span class="zhedie-jiantou">▼</span>` +
-                                    `</div>` +
-                                    `<div class="ai-gongju-neirong" id="gongju_nr_${domId}">` +
-                                        `<div class="ai-gongju-canshu" id="gongju_cs_${domId}"><span style="color:#64748B">参数加载中...</span></div>` +
-                                    `</div>` +
-                                `</div>`
-                            );
-                            break;
-                        }
-                        case 'gongju_canshu': {
-                            const sy = shijian.suoyin;
-                            dangqian_huifu += shijian.bufen_json;
-                            if (gongju_canshu_map[sy] !== undefined) {
-                                gongju_canshu_map[sy] += shijian.bufen_json;
-                            }
-                            break;
-                        }
-                        case 'gongju_wancheng': {
-                            // 参数流结束，格式化显示参数，更新状态为"执行中"
-                            const domId = id_dom_map[shijian.gongjuid];
-                            if (domId) {
-                                const csEl = document.getElementById(`gongju_cs_${domId}`);
-                                const sy = shijian.suoyin;
-                                if (csEl && gongju_canshu_map[sy] !== undefined) {
-                                    csEl.innerHTML = geshihuaJSON(gongju_canshu_map[sy]);
-                                    delete gongju_canshu_map[sy];
-                                }
-                                const tishi = document.querySelector(`#gongju_${domId} .gongju-tishi`);
-                                if (tishi) tishi.textContent = '执行中...';
-                            }
-                            break;
-                        }
-                        case 'gongju_jieguo': {
-                            dangqian_huifu += `\n结果: ${shijian.jieguo}\n`;
-                            const domId = id_dom_map[shijian.gongjuid];
-                            if (domId) {
-                                const kuaiEl = document.getElementById(`gongju_${domId}`);
-                                if (kuaiEl) {
-                                    const deng = kuaiEl.querySelector('.zhuangtai-deng');
-                                    const tishi = kuaiEl.querySelector('.gongju-tishi');
-                                    if (deng) { deng.classList.remove('deng-yunxing'); deng.classList.add('deng-chenggong'); }
-                                    if (tishi) tishi.textContent = '完成';
-                                    const nrEl = document.getElementById(`gongju_nr_${domId}`);
-                                    if (nrEl) nrEl.insertAdjacentHTML('beforeend', `<div class="ai-gongju-jieguo">${geshihuaJSON(shijian.jieguo)}</div>`);
-                                }
-                            }
-                            break;
-                        }
-                        case 'yasuo_wancheng':
-                            duihua_lishi = [{ jiaose: 'yonghu', neirong: `【历史对话总结】\n${shijian.zongjie}` }];
-                            tianjiaHTML(`<div class="ai-yasuo">📦 对话已压缩</div>`);
-                            break;
-                        case 'wancheng':
-                            if (dangqian_huifu) {
-                                duihua_lishi.push({ jiaose: 'zhushou', neirong: dangqian_huifu });
-                                dangqian_huifu = '';
-                            }
-                            dangqian_zhongduanqi = null;
-                            ai_anniuzhuangtai(false);
-                            tianjiaHTML(`<div class="ai-wancheng">✅ 完成</div>`);
-                            break;
-                        case 'cuowu':
-                            dangqian_huifu = '';
-                            dangqian_zhongduanqi = null;
-                            ai_anniuzhuangtai(false);
-                            tianjiaHTML(`<div class="ai-cuowu">❌ ${zhuanyiHTML(shijian.xinxi)}</div>`);
-                            break;
-                    }
-                } catch (_) {}
-            }
-            shuchu.scrollTop = shuchu.scrollHeight;
-        };
-
-        let ai_zhengzaichuli = false; // 状态锁，防止重复发送
-
-        function ai_anniuzhuangtai(zhengzai) {
-            ai_zhengzaichuli = zhengzai;
-            const btnFasong = DOM.get('btn_ai_fasong');
-            const btnTingzhi = DOM.get('btn_ai_tingzhi');
-            btnFasong.disabled = zhengzai;
-            btnTingzhi.disabled = !zhengzai;
-            // 强制样式，防止外部覆盖
-            btnFasong.style.background = zhengzai ? '#94A3B8' : '#3B82F6';
-            btnFasong.style.cursor = zhengzai ? 'not-allowed' : 'pointer';
-            btnTingzhi.style.background = zhengzai ? '#EF4444' : '#94A3B8';
-            btnTingzhi.style.cursor = zhengzai ? 'pointer' : 'not-allowed';
-        }
-
-        window.aifasong = function() {
-            if (!kehu) return rizhi('尚未初始化', 'warn');
-            if (ai_zhengzaichuli) return rizhi('正在处理中，请等待或点击停止', 'warn');
-            
-            const neirong = DOM.huoqu('ai_shuru');
-            if (!neirong) return rizhi('请输入消息内容', 'warn');
-            
-            ai_anniuzhuangtai(true);
-            
-            try {
-                const leixing = DOM.get('ai_leixing').value;
-                const xitongtishici = DOM.huoqu('ai_xitongtishici') || undefined;
-                duihua_lishi.push({ jiaose: 'yonghu', neirong });
-                const xiaoxilie = JSON.stringify(duihua_lishi);
-                const shuchu = DOM.get('ai_shuchu');
-                shuchu.insertAdjacentHTML('beforeend', `<div class="ai-yonghu">👤 你：${zhuanyiHTML(neirong)}</div><div class="ai-zhushou-biaoji">🤖 AI：</div>`);
-                shuchu.scrollTop = shuchu.scrollHeight;
-                
-                rizhi('AI对话请求中...', 'info');
-                
-                dangqian_zhongduanqi = Kehuduanjiami.chuangjian_zhongduanqi();
-                console.log('前端：已创建 AbortController', dangqian_zhongduanqi);
-                
-                // aiduihua 内部用 spawn_local，不返回 Promise，状态由回调的 wancheng/cuowu 事件恢复
-                kehu.aiduihua(leixing, xiaoxilie, 'ai_huidiao', xitongtishici, dangqian_zhongduanqi);
-            } catch (e) {
-                const errorText = e.toString();
-                rizhi('请求失败: ' + errorText, 'err');
-                console.error('AI对话错误:', e);
-                const shuchu = DOM.get('ai_shuchu');
-                shuchu.insertAdjacentHTML('beforeend', `<div class="ai-cuowu">❌ ${zhuanyiHTML(errorText)}</div>`);
-                shuchu.scrollTop = shuchu.scrollHeight;
-                dangqian_zhongduanqi = null;
-                ai_anniuzhuangtai(false);
-            }
-        };
-
-        window.aitingzhi = function() {
-            if (!ai_zhengzaichuli) return;
-            if (dangqian_zhongduanqi) {
-                console.log('前端：调用 AbortController.abort()');
-                dangqian_zhongduanqi.abort();
-                dangqian_zhongduanqi = null;
-                rizhi('正在停止AI输出...', 'warn');
-            }
-            // 强制恢复按钮状态，即使 abort 没有触发 catch
-            ai_anniuzhuangtai(false);
-        };
-
-        window.aijixu = function() {
-            if (!kehu) return rizhi('尚未初始化', 'warn');
-            if (ai_zhengzaichuli) return rizhi('正在处理中，请等待', 'warn');
-            DOM.get('ai_shuru').value = '继续';
-            aifasong();
-        };
-
-        window.aiqingkong = function() {
-            DOM.get('ai_shuchu').innerHTML = '';
-            DOM.get('ai_shuru').value = '';
-            duihua_lishi = [];
-            dangqian_huifu = '';
-            gongju_jishu = 0;
-            gongju_canshu_map = {};
-            suoyin_id_map = {};
-            id_dom_map = {};
-        };
-
-        // ==================== 渠道管理功能 ====================
-
-        // ==================== 渠道管理功能 ====================
-        
-        const QUDAO_ZIDUAN = ['mingcheng', 'leixing', 'jiekoudizhi', 'miyao', 'moxing', 'wendu', 'zuidatoken', 'youxianji', 'beizhu'];
-        
-        function qudao_qiyonganniu(kai) {
-            ['btn_qudao_liebiao', 'btn_qudao_xinzeng', 'btn_ai_fasong'].forEach(id => {
-                DOM.get(id).disabled = !kai;
-            });
-        }
-
-        window.qudao_xinzengbiaodanqiehuan = function() {
-            qudao_biaodanxianshi = !qudao_biaodanxianshi;
-            DOM.get('qudao_xinzengqu').style.display = qudao_biaodanxianshi ? 'block' : 'none';
-            if (!qudao_biaodanxianshi) qudao_qingkongbiaodan();
-        };
-
-        function qudao_qingkongbiaodan() {
-            QUDAO_ZIDUAN.forEach(ziduan => {
-                DOM.get('qudao_' + ziduan).value = '';
-            });
-            DOM.get('qudao_bianjid').value = '';
-            DOM.get('qudao_biaodanbiaoti').textContent = '新增渠道';
-        }
-
-        function qudao_xuanranbiao(liebiao) {
-            const rongqi = DOM.get('qudao_liebiaoku');
-            if (!liebiao || !liebiao.length) {
-                rongqi.innerHTML = '<div style="color:#94A3B8;font-size:13px;padding:20px 0;text-align:center">暂无渠道数据</div>';
-                return;
-            }
-            const tou = '<tr><th>ID</th><th>名称</th><th>类型</th><th>模型</th><th>接口地址</th><th>温度</th><th>最大Token</th><th>优先级</th><th>状态</th><th>备注</th><th>操作</th></tr>';
-            const hang = liebiao.map(q => {
-                const zt = q.zhuangtai === '1';
-                return `<tr>
-                    <td>${q.id}</td>
-                    <td title="${q.mingcheng || ''}">${q.mingcheng || ''}</td>
-                    <td>${q.leixing || ''}</td>
-                    <td title="${q.moxing || ''}">${q.moxing || ''}</td>
-                    <td title="${q.jiekoudizhi || ''}">${q.jiekoudizhi || ''}</td>
-                    <td>${q.wendu || '0'}</td>
-                    <td>${q.zuidatoken || '0'}</td>
-                    <td><input type="number" class="youxianji-input" value="${q.youxianji ?? 0}" onchange="qudao_gengxinyouxianji('${q.id}',this.value)" style="width:64px;padding:4px 8px;min-height:32px;font-size:13px;text-align:center"></td>
-                    <td><span class="${zt ? 'zt-qi' : 'zt-jin'}">${zt ? '启用' : '禁用'}</span></td>
-                    <td title="${q.beizhu || ''}">${q.beizhu || '-'}</td>
-                    <td style="white-space:nowrap">
-                        <button class="btn-sm btn-bian" onclick="qudao_bianji('${q.id}')">编辑</button>
-                        <button class="btn-sm btn-qie" onclick="qudao_qiehuanzhuangtai('${q.id}')">${zt ? '禁用' : '启用'}</button>
-                        <button class="btn-sm btn-shan" onclick="qudao_shanchu('${q.id}')">删除</button>
-                    </td></tr>`;
-            }).join('');
-            rongqi.innerHTML = `<table><thead>${tou}</thead><tbody>${hang}</tbody></table>`;
-        }
-
-        window.qudao_liebiao = () => zhixinganniu('btn_qudao_liebiao', async () => {
-            const jieguo = await kehu.aiqudao_liebiao();
-            const { xiangying, chenggong } = chulixiangying(jieguo);
-            if (chenggong) {
-                qudao_xuanranbiao(xiangying.shuju);
-                rizhi('渠道列表刷新成功，共 ' + (xiangying.shuju?.length || 0) + ' 条', 'ok');
-            }
-        });
-
-        window.qudao_tijiao = async function() {
-            const bianjid = DOM.get('qudao_bianjid').value;
-            const huoquzhi = (ziduan) => DOM.huoqu('qudao_' + ziduan);
-            
-            const btn = DOM.get('btn_qudao_tijiao');
-            btn.disabled = true;
-            
-            try {
-                let jieguo;
-                if (bianjid) {
-                    // 编辑模式：构建更新请求体
-                    const gengxinti = { caozuo: 'gengxin', id: bianjid };
-                    QUDAO_ZIDUAN.forEach(ziduan => {
-                        const zhi = huoquzhi(ziduan);
-                        // 备注字段允许为空，其他字段只在有值时添加
-                        if (ziduan === 'beizhu' || zhi) {
-                            gengxinti[ziduan] = zhi || '';
-                        }
-                    });
-                    jieguo = await kehu.aiqudao_xiugai(JSON.stringify(gengxinti));
-                } else {
-                    // 新增模式：验证必填字段
-                    const bitian = ['mingcheng', 'leixing', 'jiekoudizhi', 'miyao', 'moxing'];
-                    const queshao = bitian.filter(z => !huoquzhi(z));
-                    if (queshao.length > 0) {
-                        rizhi('名称、类型、接口地址、密钥、模型为必填项', 'warn');
-                        return;
-                    }
-                    
-                    jieguo = await kehu.aiqudao_tianjia(
-                        huoquzhi('mingcheng'),
-                        huoquzhi('leixing'),
-                        huoquzhi('jiekoudizhi'),
-                        huoquzhi('miyao'),
-                        huoquzhi('moxing'),
-                        huoquzhi('wendu') || undefined,
-                        huoquzhi('beizhu') || undefined,
-                        huoquzhi('zuidatoken') || undefined,
-                        huoquzhi('youxianji') || undefined
-                    );
-                }
-                
-                const { chenggong } = chulixiangying(jieguo, (bianjid ? '编辑' : '新增') + '渠道成功');
-                if (chenggong) {
-                    qudao_biaodanxianshi = false;
-                    DOM.get('qudao_xinzengqu').style.display = 'none';
-                    qudao_qingkongbiaodan();
-                    window.qudao_liebiao();
-                }
-            } catch (e) {
-                rizhi('提交失败: ' + e, 'err');
-            } finally {
-                btn.disabled = false;
-            }
-        };
-
-        window.qudao_shanchu = async function(id) {
-            if (!confirm('确认删除渠道 ID=' + id + ' ？')) return;
-            await anquanzhixing(async () => {
-                const jieguo = await kehu.aiqudao_shanchu(id);
-                const { chenggong } = chulixiangying(jieguo, '删除渠道成功');
-                if (chenggong) window.qudao_liebiao();
-            }, '删除失败');
-        };
-
-        window.qudao_qiehuanzhuangtai = async function(id) {
-            await anquanzhixing(async () => {
-                const ti = JSON.stringify({ caozuo: 'qiehuanzhuangtai', id });
-                const jieguo = await kehu.aiqudao_xiugai(ti);
-                const { chenggong } = chulixiangying(jieguo, '切换状态成功');
-                if (chenggong) window.qudao_liebiao();
-            }, '切换状态失败');
-        };
-
-        window.qudao_gengxinyouxianji = async function(id, zhi) {
-            await anquanzhixing(async () => {
-                const ti = JSON.stringify({ caozuo: 'gengxin', id, youxianji: zhi });
-                const jieguo = await kehu.aiqudao_xiugai(ti);
-                chulixiangying(jieguo, '优先级更新成功');
-            }, '优先级更新失败');
-        };
-
-        window.qudao_bianji = async function(id) {
-            await anquanzhixing(async () => {
-                const ti = JSON.stringify({ caozuo: 'xiangqing', id });
-                const jieguo = await kehu.aiqudao_caozuo(ti);
-                const { xiangying, chenggong } = chulixiangying(jieguo);
-                
-                if (!chenggong || !xiangying.shuju) {
-                    rizhi('查询渠道详情失败: ' + xiangying.xiaoxi, 'err');
-                    return;
-                }
-                
-                const q = xiangying.shuju;
-                DOM.get('qudao_bianjid').value = q.id;
-                QUDAO_ZIDUAN.forEach(ziduan => {
-                    const zhi = q[ziduan] ?? '';
-                    DOM.get('qudao_' + ziduan).value = zhi;
-                });
-                DOM.get('qudao_biaodanbiaoti').textContent = '编辑渠道 #' + q.id;
-                qudao_biaodanxianshi = true;
-                DOM.get('qudao_xinzengqu').style.display = 'block';
-            }, '查询详情失败');
-        };
-
-        // ==================== 动态导入和初始化 ====================
-        (async () => {
-            try {
-                const wasm = await import('./pkg/wasm_sdk.js?v=' + Date.now());
-                init = wasm.default;
-                Kehuduanjiami = wasm.Kehuduanjiami;
-                await zidongchushihua();
-            } catch (e) {
-                rizhi('模块加载失败: ' + e, 'err');
-            }
-        })();
-    </script>
+    <script type="module" src="./js/chushihua.js"></script>
 </body>
 </html>
