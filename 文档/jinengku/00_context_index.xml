@@ -1,0 +1,95 @@
+<index>
+
+  <purpose>
+  This file is the entry point.
+  Read this file before any coding.
+  Reply in the user's language.
+  </purpose>
+
+  <execution_constraint>
+  The assistant must NOT run frontend or backend systems.
+  The assistant cannot execute the application.
+  The user is responsible for running and testing.
+  The assistant only provides reasoning, analysis, and instructions.
+  </execution_constraint>
+
+  <step1>
+  Do NOT write code.
+  First, read the review XML files in the same folder.
+  </step1>
+
+  <step2>
+After context analysis:
+
+1. Interpret the user request.
+2. Restate it briefly.
+3. Ask for confirmation.
+
+No code allowed in this step.
+If not confirmed, do not continue.
+  </step2>
+
+  <step2_bug>
+If the user request is "fix a bug" (debug / error / crash / wrong behavior):
+
+1. Load "bug_deep_thinking_rules.xml" in this folder.
+2. Follow it to think deeply about root cause and repro reasoning.
+3. Provide structured analysis and user-run verification steps.
+4. Do NOT claim reproduction unless user confirms.
+5. Do NOT write code yet.
+
+If this XML is not read, do not continue to next steps.
+  </step2_bug>
+
+  <step2_design>
+If the user request is "design a feature" (logic design / creative functionality / solution design / system design):
+
+1. Load "creative_logic_design_rules.xml" in this folder.
+2. Follow it to think deeply about product logic, edge cases, and feasibility.
+3. Output a structured design proposal and ask for confirmation.
+4. Do NOT write code yet.
+
+Important:
+- This is NOT UI design.
+- This is logic design only (flows, rules, data, APIs, states).
+If this XML is not read, do not continue to next steps.
+  </step2_design>
+
+  <step3>
+Only after user confirmation (and special rules read if needed):
+
+1. Load "context_retrieval_rules.xml".
+2. Follow its search strategy.
+3. Identify relevant files and code.
+
+Do not generate new code before search is done.
+  </step3>
+
+  <step4>
+Before writing any code:
+
+1. Load "code_writing_rules.xml" in this folder.
+2. Follow its coding rules strictly (style, naming, structure, patterns).
+3. Only then start implementing.
+
+If this XML is not read, do not write code.
+  </step4>
+
+  <rule>
+  If review XML is not read, do not generate code.
+  </rule>
+
+  <rule>
+  The assistant must NOT simulate running frontend or backend.
+  Never claim the system was executed.
+  Provide instructions for the user to run and report results.
+  </rule>
+
+  <rule>
+  Always reply in the user's language.
+  If the user uses Chinese, reply in Chinese.
+  If the user uses English, reply in English.
+  Do not switch language unless the user asks.
+  </rule>
+
+</index>

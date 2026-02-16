@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<code_search_policy>
+
+  <purpose>
+    This XML defines how to collect enough context to solve a task.
+    It tells you how to search, read, compare, and reuse existing code before writing new code.
+  </purpose>
+
+  <core_principle>
+    Context first. Reuse first. Match existing style. Then implement.
+  </core_principle>
+
+  <workflow>
+
+    <phase1_context_check>
+      <rule>Do not write new code yet.</rule>
+      <rule>Ensure you have enough surrounding context for the task.</rule>
+      <actions>
+        <action>Identify the feature area (module / folder / layer) related to the request.</action>
+        <action>Locate entry points (routes, controllers, pages, main components, service endpoints).</action>
+        <action>Collect nearby files (same folder + direct dependencies + shared utilities).</action>
+      </actions>
+    </phase1_context_check>
+
+    <phase2_breezell_search>
+      <rule>Use Breezell tools to search for similar code before implementing anything new.</rule>
+
+      <actions>
+        <action>Search by keywords from the request (names, endpoints, UI labels, domain terms).</action>
+        <action>Search by patterns (same hooks/services/controllers/DTOs/components).</action>
+        <action>Search for existing utilities, helpers, validators, mappers, and error handlers.</action>
+        <action>Search for existing types/interfaces and naming conventions.</action>
+      </actions>
+
+      <external_search>
+        <rule>If internal context is insufficient or unclear, use Breezell web search.</rule>
+        <actions>
+          <action>Search official framework documentation.</action>
+          <action>Search best practice references.</action>
+          <action>Search similar architecture implementations.</action>
+        </actions>
+        <note>
+          External search is for clarification only.
+          Do not override project style with external style.
+          Always prioritize existing project conventions.
+        </note>
+      </external_search>
+
+      <decision>
+        <if_found>
+          Prefer reuse. Extend existing code if consistent with current architecture.
+        </if_found>
+        <if_not_found>
+          Create new code that follows the closest existing patterns and folder rules.
+        </if_not_found>
+      </decision>
+
+    </phase2_breezell_search>
+
+    <phase3_style_absorption>
+      <rule>Deeply understand the existing style before writing code.</rule>
+      <observe>
+        <item>Folder structure and layering</item>
+        <item>Naming style (files, functions, classes, components, types)</item>
+        <item>API / data-flow style (request, response, mapping)</item>
+        <item>Error handling and logging style</item>
+        <item>Type style and validation style</item>
+        <item>Comments and formatting style</item>
+      </observe>
+      <requirement>
+        Output a short explanation to the user:
+        what style you observed, what patterns you will follow,
+        and confirm you will keep it in future work.
+      </requirement>
+      <rule>No new code in this phase.</rule>
+    </phase3_style_absorption>
+
+    <phase4_context_sufficiency_gate>
+      <rule>Before implementing, confirm you have:</rule>
+      <checklist>
+        <item>Relevant files loaded (core + neighbors)</item>
+        <item>Similar implementations found (or confirmed none exist)</item>
+        <item>Reusable utilities identified</item>
+        <item>Required tools available (including Breezell search/index/web search)</item>
+        <item>Clear task understanding confirmed by user</item>
+      </checklist>
+      <decision>
+        <if_missing_context>
+          Ask targeted questions.
+          Use Breezell search (internal or web).
+          Do not guess.
+        </if_missing_context>
+      </decision>
+    </phase4_context_sufficiency_gate>
+
+    <phase5_implementation_rule>
+      <rule>Only after all gates pass, write code.</rule>
+      <requirements>
+        <item>Match existing architecture and folder conventions</item>
+        <item>Match naming and code style</item>
+        <item>Reuse existing utilities whenever possible</item>
+        <item>Do not introduce new conventions without explicit instruction</item>
+      </requirements>
+    </phase5_implementation_rule>
+
+  </workflow>
+
+  <return_to_index>
+    <instruction>
+      When the above is clear and completed,
+      return to "00_context_index.xml" and continue the next steps there.
+    </instruction>
+  </return_to_index>
+
+</code_search_policy>

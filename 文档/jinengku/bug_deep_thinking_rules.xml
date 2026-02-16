@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bug_deep_thinking_rules>
+
+  <purpose>
+    This XML defines a deep debugging workflow.
+    It enforces careful reasoning, strong evidence, and clear communication.
+    The assistant must show the thinking process to the user as structured reasoning output.
+    Note: The assistant may not be able to run the app. Use "repro reasoning" and "auditability".
+  </purpose>
+
+  <core_principles>
+    <principle>Clarify expected vs actual first. Evidence first. Fix second.</principle>
+    <principle>Do not claim "reproduced" unless the user confirms results.</principle>
+    <principle>Prefer the simplest root cause consistent with evidence.</principle>
+    <principle>Generate multiple hypotheses and eliminate them with minimal checks.</principle>
+    <principle>Keep changes minimal and localized. Do not refactor unrelated code.</principle>
+    <principle>Reuse existing project utilities and patterns whenever possible.</principle>
+    <principle>Show the thinking process in a clear, short structure the user can follow.</principle>
+  </core_principles>
+
+  <reply_style>
+    <rule>Reply in the user's language.</rule>
+    <rule>Use the required output sections in the template below.</rule>
+    <rule>Be concise but complete. Prefer bullets and checklists.</rule>
+    <rule>No code until intent is confirmed and context gates are satisfied.</rule>
+  </reply_style>
+
+  <workflow>
+
+    <phase1_intent_and_scope>
+      <goal>Confirm what the bug is and what correct behavior means.</goal>
+      <actions>
+        <action>Restate the bug in 1-2 sentences.</action>
+        <action>State expected behavior vs actual behavior.</action>
+        <action>Clarify scope: where it happens, who is affected, frequency, severity.</action>
+        <action>Identify constraints: cannot run app, needs user testing, environment-specific, etc.</action>
+      </actions>
+      <output_required>
+        <section_name>Bug Summary</section_name>
+        <fields>
+          <field>Expected</field>
+          <field>Actual</field>
+          <field>Impact</field>
+          <field>Scope</field>
+          <field>Constraints</field>
+        </fields>
+      </output_required>
+    </phase1_intent_and_scope>
+
+    <phase2_repro_reasoning>
+      <goal>
+        The assistant may not be able to execute the app.
+        Provide a reproducible thinking plan and an audit checklist for user/testing to run.
+      </goal>
+      <actions>
+        <action>Infer the most likely reproduction path from code context (entry -> flow -> state).</action>
+        <action>Propose a minimal user-run repro script (steps + inputs + expected checkpoints).</action>
+        <action>List environment to verify (browser/device/version/flags/config/account/permissions).</action>
+        <action>List evidence to collect (console logs, network HAR, screenshots, timestamps, stack traces).</action>
+        <action>Define decision points: observations that confirm/reject suspected causes.</action>
+        <action>If not reproducible, propose alternative paths or toggles to increase signal.</action>
+      </actions>
+      <output_required>
+        <section_name>Repro Reasoning</section_name>
+        <fields>
+          <field>User-run Steps</field>
+          <field>Checkpoints (what to observe)</field>
+          <field>Environment to verify</field>
+          <field>Evidence to collect</field>
+          <field>Decision points</field>
+        </fields>
+      </output_required>
+      <rules>
+        <rule>Do not claim "reproduced" unless user confirms results.</rule>
+        <rule>If user cannot provide evidence, ask for the smallest useful evidence.</rule>
+      </rules>
+    </phase2_repro_reasoning>
+
+    <phase3_context_collection>
+      <goal>Collect the smallest set of code context that explains the bug.</goal>
+      <actions>
+        <action>Identify entry points (UI page/route, controller endpoint, job handler, etc.).</action>
+        <action>Map data flow (caller -> service -> utils -> persistence/external).</action>
+        <action>Locate configuration/feature flags affecting the path.</action>
+        <action>Use Breezell index/search to find similar implementations and shared utilities.</action>
+        <action>Find existing error handling/logging patterns used in this area.</action>
+      </actions>
+      <output_required>
+        <section_name>Context Map</section_name>
+        <fields>
+          <field>Entry Points</field>
+          <field>Key Files</field>
+          <field>Data Flow</field>
+          <field>Config/Flags</field>
+          <field>Similar Code Found (reuse candidates)</field>
+        </fields>
+      </output_required>
+      <rule>No code changes in this phase.</rule>
+    </phase3_context_collection>
+
+    <phase4_hypotheses>
+      <goal>Form multiple hypotheses and rank them by likelihood and evidence.</goal>
+      <actions>
+        <action>Generate 2-5 plausible root-cause hypotheses.</action>
+        <action>For each hypothesis: list supporting evidence and missing evidence.</action>
+        <action>Rank hypotheses by likelihood and coverage of symptoms.</action>
+        <action>Prefer hypotheses that explain all observed symptoms with minimal assumptions.</action>
+      </actions>
+      <output_required>
+        <section_name>Hypotheses</section_name>
+        <format>
+          For each hypothesis:
+          - Claim
+          - Evidence For
+          - Evidence Against / Missing
+          - Quick Check (user-run or read-only)
+        </format>
+      </output_required>
+    </phase4_hypotheses>
+
+    <phase5_audit_tests>
+      <goal>Design minimal checks that user/testing can run to validate hypotheses.</goal>
+      <actions>
+        <action>Propose the smallest observable checks (console, network, state snapshots, UI markers).</action>
+        <action>Prefer read-only instrumentation (logs/metrics) over behavior-changing edits.</action>
+        <action>For each hypothesis define: If see X -> likely true; if see Y -> likely false.</action>
+        <action>Provide a short checklist the user can execute and report back.</action>
+        <action>If needed, propose minimal safe debug toggles consistent with project style.</action>
+      </actions>
+      <output_required>
+        <section_name>Audit Tests</section_name>
+        <fields>
+          <field>Hypothesis -> Check</field>
+          <field>Expected observation</field>
+          <field>Interpretation rule</field>
+          <field>What to report back</field>
+        </fields>
+      </output_required>
+      <rule>If results are missing, ask for specific evidence, not guesses.</rule>
+    </phase5_audit_tests>
+
+    <phase6_fix_strategy>
+      <goal>Plan a safe, minimal fix aligned with project conventions.</goal>
+      <actions>
+        <action>Select the most likely confirmed root cause (or top ranked with best evidence).</action>
+        <action>Propose minimal fix location(s) and why.</action>
+        <action>Check reuse: prefer existing utilities/patterns instead of inventing new ones.</action>
+        <action>Describe risks and blast radius (what else may break).</action>
+        <action>Propose rollback/safety (feature flag, fallback, guard) if relevant.</action>
+      </actions>
+      <output_required>
+        <section_name>Fix Plan</section_name>
+        <fields>
+          <field>Root Cause</field>
+          <field>Fix Approach</field>
+          <field>Files to Change</field>
+          <field>Reuse Candidates</field>
+          <field>Risk</field>
+          <field>Rollback/Safety</field>
+        </fields>
+      </output_required>
+      <rule>No code yet until context retrieval and code writing rules are loaded.</rule>
+    </phase6_fix_strategy>
+
+    <phase7_verification>
+      <goal>Prove the fix works and does not regress.</goal>
+      <actions>
+        <action>Define verification steps (manual + automated if available).</action>
+        <action>Define regression checks for neighboring features.</action>
+        <action>Confirm edge cases and negative cases.</action>
+        <action>Check performance/security implications if relevant.</action>
+      </actions>
+      <output_required>
+        <section_name>Verification</section_name>
+        <fields>
+          <field>How to Verify</field>
+          <field>Regression Checklist</field>
+          <field>Edge Cases</field>
+          <field>Notes (perf/security if needed)</field>
+        </fields>
+      </output_required>
+    </phase7_verification>
+
+    <phase8_user_visible_reasoning_template>
+      <goal>Make the thinking process visible to the user.</goal>
+      <required_output>
+        <template>
+          1) Bug Summary
+          2) Repro Reasoning (user-run)
+          3) Context Map
+          4) Hypotheses (ranked)
+          5) Audit Tests (user-run checks)
+          6) Fix Plan (minimal + reuse)
+          7) Verification
+          8) Open Questions (if any)
+        </template>
+      </required_output>
+      <rule>Always output these sections before proposing code changes.</rule>
+    </phase8_user_visible_reasoning_template>
+
+  </workflow>
+
+  <hard_constraints>
+    <constraint>No code until the user confirms intent and the context gates are satisfied.</constraint>
+    <constraint>Do not claim "reproduced" without user confirmation.</constraint>
+    <constraint>Use Breezell index/search to find similar code and reusable utilities.</constraint>
+    <constraint>If internal context is unclear, use Breezell web search for clarification only.</constraint>
+    <constraint>External references must not override existing project conventions.</constraint>
+    <constraint>Do not change unrelated code. Keep the fix minimal.</constraint>
+  </hard_constraints>
+
+  <return_to_index>
+    <instruction>
+      After completing the reasoning sections above,
+      return to "00_context_index.xml" and continue the normal workflow.
+    </instruction>
+  </return_to_index>
+
+</bug_deep_thinking_rules>
