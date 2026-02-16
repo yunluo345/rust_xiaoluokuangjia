@@ -10,7 +10,7 @@ pub async fn xinzeng(mingcheng: &str, leixing: &str, jiekoudizhi: &str, miyao: &
     let shijian = jichugongju::huoqushijianchuo().to_string();
     let beizhu_zhi = beizhu.unwrap_or("");
     let jieguo = psqlcaozuo::chaxun(
-        &format!("INSERT INTO {} (mingcheng, leixing, jiekoudizhi, miyao, moxing, wendu, zhuangtai, youxianji, beizhu, chuangjianshijian, gengxinshijian) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id::TEXT", biaoming),
+        &format!("INSERT INTO {} (mingcheng, leixing, jiekoudizhi, miyao, moxing, wendu, zhuangtai, youxianji, beizhu, chuangjianshijian, gengxinshijian) VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8 AS INTEGER),$9,$10,$11) RETURNING id::TEXT", biaoming),
         &[mingcheng, leixing, jiekoudizhi, miyao, moxing, wendu, "1", "0", beizhu_zhi, &shijian, &shijian],
     ).await?;
     jieguo.first().and_then(|v| v.get("id")?.as_str().map(String::from))
@@ -87,7 +87,7 @@ pub async fn qiehuanzhuangtai(id: &str) -> Option<u64> {
 pub async fn gengxinyouxianji(id: &str, youxianji: &str) -> Option<u64> {
     let shijian = jichugongju::huoqushijianchuo().to_string();
     psqlcaozuo::zhixing(
-        &format!("UPDATE {} SET youxianji = $2, gengxinshijian = $3 WHERE id = $1::BIGINT", biaoming),
+        &format!("UPDATE {} SET youxianji = CAST($2 AS INTEGER), gengxinshijian = $3 WHERE id = $1::BIGINT", biaoming),
         &[id, youxianji, &shijian],
     ).await
 }

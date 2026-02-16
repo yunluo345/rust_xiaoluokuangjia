@@ -17,6 +17,7 @@ pub async fn chaxun(sql: &str, canshu: &[&str]) -> Option<Vec<Value>> {
             for (i, lie) in hang.columns().iter().enumerate() {
                 let zhi = hang.try_get::<Option<String>, _>(i)
                     .or_else(|_| hang.try_get::<Option<i64>, _>(i).map(|v| v.map(|n| n.to_string())))
+                    .or_else(|_| hang.try_get::<Option<i32>, _>(i).map(|v| v.map(|n| n.to_string())))
                     .or_else(|_| hang.try_get::<Option<f64>, _>(i).map(|v| v.map(|n| n.to_string())))
                     .or_else(|_| hang.try_get::<Option<bool>, _>(i).map(|v| v.map(|b| b.to_string())))
                     .unwrap_or(None);
