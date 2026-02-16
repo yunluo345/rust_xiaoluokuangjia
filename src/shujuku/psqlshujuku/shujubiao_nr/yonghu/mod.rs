@@ -4,3 +4,6 @@ pub mod shujubiao_yonghuzu;
 pub mod shujucaozuo_yonghu;
 pub mod shujucaozuo_yonghuzu;
 pub mod yonghuyanzheng;
+
+#[allow(dead_code)]
+pub mod yonghu_ceshi;

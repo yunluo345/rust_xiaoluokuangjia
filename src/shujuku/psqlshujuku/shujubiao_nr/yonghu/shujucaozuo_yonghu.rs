@@ -115,7 +115,7 @@ pub async fn zhanghaocunzai(zhanghao: &str) -> bool {
 /// 分页查询用户
 pub async fn chaxun_fenye(pianyi: &str, shuliang: &str) -> Option<Vec<Value>> {
     psqlcaozuo::chaxun(
-        &format!("SELECT * FROM {} ORDER BY chuangjianshijian ASC LIMIT $1 OFFSET $2", biaoming),
+        &format!("SELECT * FROM {} ORDER BY chuangjianshijian ASC LIMIT $1::BIGINT OFFSET $2::BIGINT", biaoming),
         &[shuliang, pianyi],
     ).await
 }
