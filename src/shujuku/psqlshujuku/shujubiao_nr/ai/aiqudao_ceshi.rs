@@ -251,6 +251,25 @@ pub async fn yunxingceshi() {
         Some(_) => println!("✗ 删除后仍能查询，验证失败"),
     };
     
+    // 测试14: 根据类型按优先级随机获取渠道
+    println!("\n[测试14] 根据类型按优先级随机获取渠道...");
+    shujucaozuo_aiqudao::gengxinyouxianji(&qudao2_id, "5").await;
+    match shujucaozuo_aiqudao::suiji_huoqu_qudao("openai").await {
+        Some(qudao) => {
+            let mingcheng = qudao.get("mingcheng").and_then(|v| v.as_str()).unwrap_or("");
+            let miyao = qudao.get("miyao").and_then(|v| v.as_str()).unwrap_or("");
+            let moxing = qudao.get("moxing").and_then(|v| v.as_str()).unwrap_or("");
+            let jiekoudizhi = qudao.get("jiekoudizhi").and_then(|v| v.as_str()).unwrap_or("");
+            let youxianji = qudao.get("youxianji").and_then(|v| v.as_i64()).unwrap_or(-1);
+            println!("✓ 获取成功，名称: {}，模型: {}，密钥: {}，地址: {}，优先级: {}", mingcheng, moxing, miyao, jiekoudizhi, youxianji);
+        }
+        None => println!("✗ 获取失败"),
+    };
+    match shujucaozuo_aiqudao::suiji_huoqu_qudao("bucunzaileixing").await {
+        None => println!("✓ 不存在的类型正确返回空"),
+        Some(_) => println!("✗ 不存在的类型不应返回数据"),
+    };
+
     // ==================== 清理测试数据 ====================
     println!("\n【清理测试数据】");
     shujucaozuo_aiqudao::shanchu(&qudao2_id).await;

@@ -1,5 +1,7 @@
+use rand::prelude::*;
 use serde_json::Value;
 use crate::gongju::jichugongju;
+use crate::gongju::ai::aitongyonggongju;
 use crate::shujuku::psqlshujuku::psqlcaozuo;
 
 #[allow(non_upper_case_globals)]
@@ -99,6 +101,27 @@ pub async fn mingchengcunzai(mingcheng: &str) -> bool {
         &[mingcheng],
     ).await
     .is_some_and(|jieguo| !jieguo.is_empty())
+}
+
+/// 根据类型按优先级随机获取一个启用的渠道
+pub async fn suiji_huoqu_qudao(leixing: &str) -> Option<Value> {
+    let liebiao = chaxun_leixing(leixing).await?;
+    let zuigao = quzhengshuzhi(liebiao.first()?, "youxianji")?;
+    let houxuan: Vec<&Value> = liebiao.iter()
+        .filter(|v| quzhengshuzhi(v, "youxianji") == Some(zuigao))
+        .collect();
+    let mut qudao = houxuan.choose(&mut rand::rng()).map(|v| (*v).clone())?;
+    if let Some(yuandizhi) = qudao.get("jiekoudizhi").and_then(|v| v.as_str()) {
+        if let Some(buquandizhi) = aitongyonggongju::buquan_wangguandizhi(leixing, yuandizhi) {
+            qudao.as_object_mut()?.insert("jiekoudizhi".to_string(), Value::String(buquandizhi));
+        }
+    }
+    Some(qudao)
+}
+
+/// 从Value中提取整数值，兼容字符串和数字类型
+fn quzhengshuzhi(zhi: &Value, jianming: &str) -> Option<i64> {
+    zhi.get(jianming).and_then(|v| v.as_i64().or_else(|| v.as_str()?.parse().ok()))
 }
 
 /// 统计渠道总数
