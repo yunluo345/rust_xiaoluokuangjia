@@ -140,6 +140,15 @@ export class Aiduihualuoji {
         }
     }
 
+    // 删除最后一条用户消息（流式失败时回滚用）
+    shanchuzuihouyonghuxiaoxi() {
+        const huihua = this.huoqudangqianhuihua();
+        if (huihua && huihua.xiaoxilie.length > 0 && huihua.xiaoxilie[huihua.xiaoxilie.length - 1].juese === 'user') {
+            huihua.xiaoxilie.pop();
+            this.baocunshuju();
+        }
+    }
+
     // 获取当前会话历史记录
     huoqulishi() {
         const huihua = this.huoqudangqianhuihua();
@@ -234,12 +243,6 @@ export class Aiduihualuoji {
             return true;
         } catch (e) {
             this.rizhi('流式对话失败: ' + e, 'err');
-            // 失败时移除用户消息
-            const huihua = this.huoqudangqianhuihua();
-            if (huihua && huihua.xiaoxilie.length > 0 && huihua.xiaoxilie[huihua.xiaoxilie.length - 1].juese === 'user') {
-                huihua.xiaoxilie.pop();
-                this.baocunshuju();
-            }
             return false;
         }
     }

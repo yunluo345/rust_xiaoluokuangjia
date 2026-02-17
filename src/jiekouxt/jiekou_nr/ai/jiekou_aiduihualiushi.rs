@@ -1,13 +1,8 @@
 use actix_web::{HttpRequest, HttpResponse, web};
-use serde::Deserialize;
 use crate::gongju::jiamigongju;
 use crate::jiekouxt::jiekouxtzhuti::{self, Jiekoudinyi, Qingqiufangshi};
 use crate::jiekouxt::jiamichuanshu::jiamichuanshuzhongjian;
-use crate::shujuku::psqlshujuku::shujubiao_nr::ai::shujucaozuo_aiqudao;
-use crate::gongju::ai::openai::{aipeizhi, aixiaoxiguanli, gongjuji, openaizhuti};
-use crate::gongju::ai::openai::openaizhuti::ReactJieguo;
-use crate::peizhixt::peizhixitongzhuti;
-use crate::peizhixt::peizhi_nr::peizhi_ai::Ai;
+use crate::gongju::ai::openai::openaizhuti;
 use futures_core::Stream;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -24,16 +19,6 @@ pub const dinyi: Jiekoudinyi = Jiekoudinyi {
     yunxuputong: false,
 };
 
-#[derive(Deserialize)]
-struct Xiaoxi {
-    juese: String,
-    neirong: String,
-}
-
-#[derive(Deserialize)]
-struct Qingqiuti {
-    xiaoxilie: Vec<Xiaoxi>,
-}
 
 fn jiami_sse(neirong: &str, miyao: &[u8]) -> String {
     let miwen = jiamigongju::jiami(neirong.as_bytes(), miyao)
@@ -41,7 +26,6 @@ fn jiami_sse(neirong: &str, miyao: &[u8]) -> String {
         .unwrap_or_default();
     format!("data: {}\n\n", miwen)
 }
-
 fn cuowu_sse(xinxi: &str, miyao: &[u8]) -> HttpResponse {
     let neirong = serde_json::json!({"cuowu": xinxi}).to_string();
     HttpResponse::Ok()
@@ -111,97 +95,22 @@ impl Stream for Jiamiliushi {
     }
 }
 
-/// 执行工具调用，将每个 ToolCall 的结果填入后返回
-async fn zhixing_gongjudiaoyong(diaoyonglie: &[llm::ToolCall]) -> Vec<llm::ToolCall> {
-    let mut jieguolie = Vec::new();
-    for diaoyong in diaoyonglie {
-        let gongjuming = &diaoyong.function.name;
-        let canshu = &diaoyong.function.arguments;
-        println!("[流式ReAct] 执行工具: {} 参数: {}", gongjuming, canshu);
-        let jieguo = gongjuji::zhixing(gongjuming, canshu).await;
-        jieguolie.push(llm::ToolCall {
-            id: diaoyong.id.clone(),
-            call_type: diaoyong.call_type.clone(),
-            function: llm::FunctionCall {
-                name: gongjuming.clone(),
-                arguments: jieguo,
-            },
-        });
-    }
-    jieguolie
-}
-
 async fn chuliqingqiu(mingwen: &[u8], miyao: Vec<u8>) -> HttpResponse {
-    let qingqiu: Qingqiuti = match serde_json::from_slice::<Qingqiuti>(mingwen) {
+    let qingqiu: super::Qingqiuti = match serde_json::from_slice::<super::Qingqiuti>(mingwen) {
         Ok(q) if !q.xiaoxilie.is_empty() => q,
         Ok(_) => return cuowu_sse("消息列表不能为空", &miyao),
         Err(_) => return cuowu_sse("请求参数格式错误", &miyao),
     };
 
-    let qudao = match shujucaozuo_aiqudao::suiji_huoqu_qudao("openapi").await {
-        Some(q) => q,
-        None => return cuowu_sse("暂无可用AI渠道", &miyao),
-    };
-
-    let peizhi = match aipeizhi::Aipeizhi::cong_qudaoshuju(&qudao) {
+    let peizhi = match super::huoqu_peizhi().await {
         Some(p) => p,
-        None => return cuowu_sse("AI渠道配置错误", &miyao),
+        None => return cuowu_sse("暂无可用AI渠道或配置错误", &miyao),
     };
 
-    let mut guanli = aixiaoxiguanli::Xiaoxiguanli::xingjian()
-        .shezhi_xitongtishici(super::xitongtishici);
-    for gongju in gongjuji::huoqu_suoyougongju() {
-        guanli = guanli.tianjia_gongju(gongju);
-    }
-    for xiaoxi in qingqiu.xiaoxilie {
-        match xiaoxi.juese.as_str() {
-            "user" => guanli.zhuijia_yonghuxiaoxi(xiaoxi.neirong),
-            "assistant" => guanli.zhuijia_zhushouneirong(xiaoxi.neirong),
-            _ => {}
-        }
-    }
+    let mut guanli = super::goujian_guanli(qingqiu);
 
-    // ReAct 循环：非流式处理工具调用
-    let zuida_cishu = peizhixitongzhuti::duqupeizhi::<Ai>(Ai::wenjianming())
-        .map(|p| p.zuida_xunhuancishu)
-        .unwrap_or(20);
-    let mut shangci_gongjuqianming: Option<String> = None;
-    let mut chongfu_jishu: u32 = 0;
-    #[allow(non_upper_case_globals)]
-    const chongfu_yuzhi: u32 = 2;
+    super::react_xunhuan(&peizhi, &mut guanli, "流式ReAct").await;
 
-    for cishu in 1..=zuida_cishu {
-        println!("[流式ReAct] 第 {} 轮探测", cishu);
-        match openaizhuti::putongqingqiu_react(&peizhi, &guanli).await {
-            Some(ReactJieguo::Wenben(_)) => {
-                println!("[流式ReAct] AI 返回文本，切换到流式输出");
-                break;
-            }
-            Some(ReactJieguo::Gongjudiaoyong(diaoyonglie)) => {
-                let dangqian_qianming = diaoyonglie.iter()
-                    .map(|d| format!("{}:{}", d.function.name, d.function.arguments))
-                    .collect::<Vec<_>>()
-                    .join("|");
-                match &shangci_gongjuqianming {
-                    Some(shangci) if *shangci == dangqian_qianming => {
-                        chongfu_jishu += 1;
-                        if chongfu_jishu >= chongfu_yuzhi {
-                            println!("[流式ReAct] 检测到工具重复调用 {} 次，强制切换到流式输出", chongfu_jishu + 1);
-                            break;
-                        }
-                    }
-                    _ => chongfu_jishu = 0,
-                }
-                shangci_gongjuqianming = Some(dangqian_qianming);
-                guanli.zhuijia_zhushou_gongjudiaoyong(diaoyonglie.clone());
-                let jieguo = zhixing_gongjudiaoyong(&diaoyonglie).await;
-                guanli.zhuijia_gongjujieguo(jieguo);
-            }
-            None => return cuowu_sse("AI服务调用失败", &miyao),
-        }
-    }
-
-    // 流式请求最终回复
     let xiangying = match openaizhuti::liushiqingqiu(&peizhi, &guanli, false).await {
         Some(x) => x,
         None => return cuowu_sse("AI流式服务调用失败", &miyao),

@@ -1,6 +1,13 @@
 pub mod jiekou_aiduihua;
 pub mod jiekou_aiduihualiushi;
 
+use serde::Deserialize;
+use crate::gongju::ai::openai::{aipeizhi, aixiaoxiguanli, gongjuji, openaizhuti};
+use crate::gongju::ai::openai::openaizhuti::ReactJieguo;
+use crate::shujuku::psqlshujuku::shujubiao_nr::ai::shujucaozuo_aiqudao;
+use crate::peizhixt::peizhixitongzhuti;
+use crate::peizhixt::peizhi_nr::peizhi_ai::Ai;
+
 #[allow(non_upper_case_globals)]
 pub const xitongtishici: &str = "\
 你是AI日报助手，基于xiaoluo-B3框架。\
@@ -8,6 +15,105 @@ pub const xitongtishici: &str = "\
 你只能处理与工作相关的问题，不允许回答与工作无关的内容。\
 对于简单的问候（如你好、早上好等），你可以友好地回复。\
 工具使用规则：同一个工具最多调用一次，获取到结果后必须直接回复用户，禁止重复调用相同工具。";
+
+#[allow(non_upper_case_globals)]
+const chongfu_yuzhi: u32 = 2;
+
+#[derive(Deserialize)]
+pub struct Xiaoxi {
+    pub juese: String,
+    pub neirong: String,
+}
+
+#[derive(Deserialize)]
+pub struct Qingqiuti {
+    pub xiaoxilie: Vec<Xiaoxi>,
+}
+
+/// 构建消息管理器：设置系统提示词、注册工具、填充历史消息
+pub fn goujian_guanli(qingqiu: Qingqiuti) -> aixiaoxiguanli::Xiaoxiguanli {
+    let mut guanli = aixiaoxiguanli::Xiaoxiguanli::xingjian()
+        .shezhi_xitongtishici(xitongtishici);
+    for gongju in gongjuji::huoqu_suoyougongju() {
+        guanli = guanli.tianjia_gongju(gongju);
+    }
+    for xiaoxi in qingqiu.xiaoxilie {
+        match xiaoxi.juese.as_str() {
+            "user" => guanli.zhuijia_yonghuxiaoxi(xiaoxi.neirong),
+            "assistant" => guanli.zhuijia_zhushouneirong(xiaoxi.neirong),
+            _ => {}
+        }
+    }
+    guanli
+}
+
+/// 获取渠道并解析配置
+pub async fn huoqu_peizhi() -> Option<aipeizhi::Aipeizhi> {
+    let qudao = shujucaozuo_aiqudao::suiji_huoqu_qudao("openapi").await?;
+    println!("获取到的渠道数据: {}", qudao);
+    aipeizhi::Aipeizhi::cong_qudaoshuju(&qudao)
+}
+
+/// 并发执行工具调用
+async fn zhixing_gongjudiaoyong(qz: &str, lie: &[llm::ToolCall]) -> Vec<llm::ToolCall> {
+    let renwu: Vec<_> = lie.iter().map(|d| {
+        let mut d = d.clone();
+        let qz = qz.to_string();
+        async move {
+            println!("[{}] 执行工具: {} 参数: {}", qz, d.function.name, d.function.arguments);
+            d.function.arguments = gongjuji::zhixing(&d.function.name, &d.function.arguments).await;
+            d
+        }
+    }).collect();
+    futures::future::join_all(renwu).await
+}
+
+/// 工具调用签名，用于重复检测
+fn gongju_qianming(lie: &[llm::ToolCall]) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    for d in lie {
+        d.function.name.hash(&mut h);
+        d.function.arguments.hash(&mut h);
+    }
+    h.finish()
+}
+
+/// ReAct循环：处理工具调用，返回最终结果（成功为Some，失败为None）
+pub async fn react_xunhuan(
+    peizhi: &aipeizhi::Aipeizhi,
+    guanli: &mut aixiaoxiguanli::Xiaoxiguanli,
+    qz: &str,
+) -> Option<ReactJieguo> {
+    let zuida = peizhixitongzhuti::duqupeizhi::<Ai>(Ai::wenjianming())
+        .map(|p| p.zuida_xunhuancishu).unwrap_or(20);
+    let mut shangci_hash: u64 = 0;
+    let mut chongfu: u32 = 0;
+
+    for cishu in 1..=zuida {
+        println!("[{}] 第 {} 轮循环", qz, cishu);
+        match openaizhuti::putongqingqiu_react(peizhi, guanli).await {
+            Some(ReactJieguo::Wenben(huifu)) => return Some(ReactJieguo::Wenben(huifu)),
+            Some(ReactJieguo::Gongjudiaoyong(lie)) => {
+                let hash = gongju_qianming(&lie);
+                if hash == shangci_hash && shangci_hash != 0 {
+                    chongfu += 1;
+                    if chongfu >= chongfu_yuzhi {
+                        println!("[{}] 工具重复调用 {} 次，终止", qz, chongfu + 1);
+                        return None;
+                    }
+                } else {
+                    chongfu = 0;
+                }
+                shangci_hash = hash;
+                guanli.zhuijia_zhushou_gongjudiaoyong(lie.clone());
+                guanli.zhuijia_gongjujieguo(zhixing_gongjudiaoyong(qz, &lie).await);
+            }
+            None => return None,
+        }
+    }
+    None
+}
 
 use actix_web::web;
 use crate::jiekouxt::jiekouxtzhuti::huoqufangfa;

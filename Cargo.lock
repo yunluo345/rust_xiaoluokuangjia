@@ -2817,6 +2817,7 @@ dependencies = [
  "deadpool-redis",
  "dotenvy",
  "fastrand",
+ "futures",
  "futures-core",
  "hmac",
  "jsonwebtoken",

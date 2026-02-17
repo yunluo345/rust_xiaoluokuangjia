@@ -168,18 +168,22 @@ export class Aiduihuajiemian {
             } else {
                 // 流式
                 this.liushihuifu = '';
-                const chenggong = await this.luoji.liushiduihua(neirong, 'aiduihua_liushi_huidiao');
-                if (chenggong) {
-                    shuru.value = '';
-                    // 流式完成后添加完整回复到历史
-                    if (this.liushihuifu) {
-                        this.luoji.tianjiaxiaoxi('assistant', this.liushihuifu);
-                    }
-                    this.xuanranhuihualiebiao();
-                    this.xuanranduihua();
-                }
+                await this.luoji.liushiduihua(neirong, 'aiduihua_liushi_huidiao');
+                shuru.value = '';
             }
         } finally {
+            // 流式模式：无论成功失败，保存已收到的内容并清理临时DOM
+            if (this.luoji.dangqianmoshi === 'liushi') {
+                if (this.liushihuifu) {
+                    this.luoji.tianjiaxiaoxi('assistant', this.liushihuifu);
+                } else {
+                    // 没有收到任何AI回复，移除用户消息
+                    this.luoji.shanchuzuihouyonghuxiaoxi();
+                }
+                this.qingchulishilinshi();
+                this.xuanranhuihualiebiao();
+                this.xuanranduihua();
+            }
             this.zhengzaifasong = false;
             btn.disabled = false;
             btn.textContent = '发送';
