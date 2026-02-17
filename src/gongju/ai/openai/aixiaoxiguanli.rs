@@ -33,6 +33,10 @@ impl Xiaoxiguanli {
         self.xiaoxilie.push(ChatMessage::assistant().content(neirong).build());
     }
 
+    pub fn zhuijia_zhushou_gongjudiaoyong(&mut self, diaoyong: Vec<llm::ToolCall>) {
+        self.xiaoxilie.push(ChatMessage::assistant().tool_use(diaoyong).build());
+    }
+
     pub fn zhuijia_gongjujieguo(&mut self, gongjudiaoyong: Vec<llm::ToolCall>) {
         self.xiaoxilie.push(ChatMessage::user().tool_result(gongjudiaoyong).build());
     }

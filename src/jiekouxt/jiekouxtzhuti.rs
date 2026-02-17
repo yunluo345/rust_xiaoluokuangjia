@@ -1,8 +1,17 @@
-use actix_web::{web, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse};
 use serde::Serialize;
 use super::jiekou_nr;
 use crate::gongju::jichugongju;
 use crate::shujuku::psqlshujuku::psqlcaozuo;
+
+/// 从请求头中提取令牌
+pub fn tiqulingpai(req: &HttpRequest) -> Option<String> {
+    req.headers()
+        .get("Authorization")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|s| s.strip_prefix("Bearer "))
+        .map(|s| s.to_string())
+}
 
 /// 请求方式
 #[derive(Debug, Clone, Copy, PartialEq)]
