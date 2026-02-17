@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 actix-web = "4.12"
 qdrant-client = "1.0.89"
-reqwest = "0.13.2"
+reqwest = { version = "0.13.2", features = ["stream", "json"] }
 llm = { version = "1.3.7", default-features = false, features = ["openai", "anthropic", "ollama", "deepseek", "xai", "phind", "google", "groq", "default-tls"] }
 aes-gcm = "0.10.3"
 argon2 = "0.5.3"

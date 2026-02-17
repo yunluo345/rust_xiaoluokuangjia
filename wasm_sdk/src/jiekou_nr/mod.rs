@@ -1,5 +1,6 @@
 pub mod xitong;
 pub mod yonghu;
+pub mod ai;
 
 use serde::{Deserialize, Serialize};
 

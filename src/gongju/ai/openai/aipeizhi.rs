@@ -1,4 +1,5 @@
 use llm::builder::LLMBackend;
+use crate::gongju::ai::aitongyonggongju;
 
 pub struct Aipeizhi {
     pub leixing: LLMBackend,
@@ -12,10 +13,14 @@ pub struct Aipeizhi {
 
 impl Aipeizhi {
     pub fn cong_qudaoshuju(shuju: &serde_json::Value) -> Option<Self> {
-        let leixing = jiexi_leixing(quziduan(shuju, "leixing"))?;
+        let leixing_str = quziduan(shuju, "leixing");
+        let leixing = jiexi_leixing(leixing_str)?;
+        let yuanshi_dizhi = quziduan(shuju, "jiekoudizhi");
+        let jiekoudizhi = aitongyonggongju::buquan_wangguandizhi(leixing_str, yuanshi_dizhi)
+            .unwrap_or_else(|| yuanshi_dizhi.to_string());
         Some(Self {
             leixing,
-            jiekoudizhi: quziduan(shuju, "jiekoudizhi").to_string(),
+            jiekoudizhi,
             miyao: quziduan(shuju, "miyao").to_string(),
             moxing: quziduan(shuju, "moxing").to_string(),
             wendu: quziduan(shuju, "wendu").parse().unwrap_or(0.0),
@@ -41,7 +46,7 @@ fn quziduan<'a>(shuju: &'a serde_json::Value, ming: &str) -> &'a str {
 
 fn jiexi_leixing(leixing: &str) -> Option<LLMBackend> {
     match leixing {
-        "openai" => Some(LLMBackend::OpenAI),
+        "openai" | "openapi" => Some(LLMBackend::OpenAI),
         "claude" | "anthropic" => Some(LLMBackend::Anthropic),
         "deepseek" => Some(LLMBackend::DeepSeek),
         "google" | "gemini" => Some(LLMBackend::Google),

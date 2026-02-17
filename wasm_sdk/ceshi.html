@@ -92,14 +92,29 @@
 
     <div class="card" id="aiqudao_mianban"></div>
 
+    <div class="card" id="aiduihua_mianban"></div>
+
     <script type="module">
-        import init, { Kehuduanjiami } from './pkg/wasm_sdk.js';
-        import { Aiqudaoluoji } from './aiqudao_luoji.js';
-        import { Aiqudaojiemian } from './aiqudao_jiemian.js';
+        const v = Date.now();
+        import(`./pkg/wasm_sdk.js?v=${v}`).then(module => {
+            return Promise.all([
+                module,
+                import(`./aiqudao_luoji.js?v=${v}`),
+                import(`./aiqudao_jiemian.js?v=${v}`),
+                import(`./aiduihua_luoji.js?v=${v}`),
+                import(`./aiduihua_jiemian.js?v=${v}`)
+            ]);
+        }).then(([wasm, aiqudaoluoji, aiqudaojiemian, aiduihualuoji, aiduihuajiemian]) => {
+            const { default: init, Kehuduanjiami } = wasm;
+            const { Aiqudaoluoji } = aiqudaoluoji;
+            const { Aiqudaojiemian } = aiqudaojiemian;
+            const { Aiduihualuoji } = aiduihualuoji;
+            const { Aiduihuajiemian } = aiduihuajiemian;
 
         const fuwuqidizhi = 'http://127.0.0.1:8889';
         let kehu = null;
         let aiqudao_jm = null;
+        let aiduihua_jm = null;
 
         function rizhi(neirong, leixing = '') {
             const el = document.getElementById('rizhi');
@@ -133,6 +148,9 @@
                 const aiqudao_lj = new Aiqudaoluoji(kehu, rizhi);
                 aiqudao_jm = new Aiqudaojiemian(aiqudao_lj, 'aiqudao_mianban');
                 aiqudao_jm.xuanran();
+                const aiduihua_lj = new Aiduihualuoji(kehu, rizhi);
+                aiduihua_jm = new Aiduihuajiemian(aiduihua_lj, 'aiduihua_mianban');
+                aiduihua_jm.xuanran();
             } catch (e) {
                 gengxinzhuangtai('wasm_zhuangtai', '加载失败', false);
                 rizhi('WASM 加载失败: ' + e, 'err');
@@ -198,6 +216,12 @@
             rizhi('SSE: ' + shuju, 'info');
         };
 
+        window.aiduihua_liushi_huidiao = function(shuju) {
+            if (aiduihua_jm) {
+                aiduihua_jm.liushihuidiao(shuju);
+            }
+        };
+
         window.aiqudao_shuaxin = () => { if (aiqudao_jm) aiqudao_jm.shuaxinliebiao(); };
         window.aiqudao_xinzengshitu = () => { if (aiqudao_jm) aiqudao_jm.xuanranxinzengbiaodan(); };
         window.aiqudao_tijiaoxinzeng = () => { if (aiqudao_jm) aiqudao_jm.tijiaoxinzeng(); };
@@ -205,6 +229,16 @@
         window.aiqudao_shanchu = (id) => { if (aiqudao_jm) aiqudao_jm.shanchuid(id); };
         window.aiqudao_bianji = (id) => { if (aiqudao_jm) aiqudao_jm.bianji(id); };
         window.aiqudao_tijiaobian = () => { if (aiqudao_jm) aiqudao_jm.tijiaobian(); };
+
+        window.aiduihua_fasong = () => { if (aiduihua_jm) aiduihua_jm.fasong(); };
+        window.aiduihua_qiehuanmoshi = (moshi) => { if (aiduihua_jm) aiduihua_jm.qiehuanmoshi(moshi); };
+        window.aiduihua_qingkonglishi = () => { if (aiduihua_jm) aiduihua_jm.qingkonglishi(); };
+        window.aiduihua_shanchuxiaoxi = (idx) => { if (aiduihua_jm) aiduihua_jm.shanchuxiaoxi(idx); };
+        window.aiduihua_daochulishi = () => { if (aiduihua_jm) aiduihua_jm.daochulishi(); };
+        }).catch(err => {
+            console.error('模块加载失败:', err);
+            rizhi('模块加载失败: ' + err.message, 'err');
+        });
     </script>
 </body>
 </html>

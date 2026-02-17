@@ -71,7 +71,7 @@ pub struct Jiekouzhucexinxi {
 
 impl Jiekouzhucexinxi {
     pub fn wanzhenglujing(&self) -> String {
-        format!("{}{}", self.qianzhui, self.dinyi.lujing)
+        format!("/jiekou{}{}", self.qianzhui, self.dinyi.lujing)
     }
 }
 
