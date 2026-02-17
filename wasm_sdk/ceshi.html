@@ -27,6 +27,29 @@
         label { font-size: 13px; color: #475569; margin-bottom: 4px; display: block; }
         .shurukuang { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 8px; }
         .shuruxiang { display: flex; flex-direction: column; }
+        .aq-biao { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .aq-biao th { background: #F1F5F9; color: #475569; padding: 8px 10px; text-align: left; font-weight: 600; border-bottom: 2px solid #E2E8F0; }
+        .aq-biao td { padding: 8px 10px; border-bottom: 1px solid #E2E8F0; }
+        .aq-biao tr:hover { background: #F8FAFC; }
+        .aq-btn { background: #3B82F6; color: #fff; border: none; border-radius: 6px; padding: 6px 14px; font-size: 13px; cursor: pointer; transition: background-color 200ms; min-height: 36px; }
+        .aq-btn:hover { background: #2563EB; }
+        .aq-btn:focus { outline: none; box-shadow: 0 0 0 2px #3B82F6; }
+        .aq-btn-zhu { background: #3B82F6; }
+        .aq-btn-lv { background: #10B981; }
+        .aq-btn-lv:hover { background: #059669; }
+        .aq-btn-huang { background: #F59E0B; }
+        .aq-btn-huang:hover { background: #D97706; }
+        .aq-btn-hong { background: #EF4444; }
+        .aq-btn-hong:hover { background: #DC2626; }
+        .aq-btn-xiao { padding: 4px 10px; font-size: 12px; min-height: 30px; margin-right: 4px; }
+        .aq-biaodan { max-width: 500px; }
+        .aq-hang { display: flex; flex-direction: column; margin-bottom: 10px; }
+        .aq-hang label { font-size: 13px; color: #475569; margin-bottom: 4px; }
+        .aq-hang input { border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; font-size: 14px; outline: none; transition: border-color 200ms; color: #1E293B; background: #fff; }
+        .aq-hang input:focus { border-color: #3B82F6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
+        .aq-hang input:disabled { background: #F1F5F9; color: #94A3B8; }
+        .aq-hang select { border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; font-size: 14px; outline: none; transition: border-color 200ms; color: #1E293B; background: #fff; cursor: pointer; }
+        .aq-hang select:focus { border-color: #3B82F6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
     </style>
 </head>
 <body>
@@ -63,15 +86,20 @@
 
     <div class="card">
         <h2>日志</h2>
-        <button onclick="qingkongrizhi()" style="background:#64748B;font-size:12px;padding:6px 14px;min-height:36px">清空</button>
+        <button onclick="qingkongrizhi()" style="background:#64748B;font-size:12px;padding:6px 14px;min-height:36px;cursor:pointer;color:#fff;border:none;border-radius:8px">清空</button>
         <div id="rizhi" class="log"></div>
     </div>
 
+    <div class="card" id="aiqudao_mianban"></div>
+
     <script type="module">
         import init, { Kehuduanjiami } from './pkg/wasm_sdk.js';
+        import { Aiqudaoluoji } from './aiqudao_luoji.js';
+        import { Aiqudaojiemian } from './aiqudao_jiemian.js';
 
         const fuwuqidizhi = 'http://127.0.0.1:8889';
         let kehu = null;
+        let aiqudao_jm = null;
 
         function rizhi(neirong, leixing = '') {
             const el = document.getElementById('rizhi');
@@ -93,12 +121,18 @@
                 kehu = new Kehuduanjiami(fuwuqidizhi);
                 gengxinzhuangtai('wasm_zhuangtai', '已就绪', true);
                 rizhi('WASM 自动加载成功，服务器: ' + fuwuqidizhi, 'ok');
+                if (kehu.yidenglu()) {
+                    rizhi('检测到已保存的登录令牌，自动恢复登录状态', 'info');
+                }
                 document.getElementById('btn_jiankang').disabled = false;
                 document.getElementById('btn_jiamiqingqiu').disabled = false;
                 document.getElementById('btn_sseceshi').disabled = false;
                 document.getElementById('btn_jiamisseceshi').disabled = false;
                 document.getElementById('btn_chongzhi').disabled = false;
                 document.getElementById('btn_denglu').disabled = false;
+                const aiqudao_lj = new Aiqudaoluoji(kehu, rizhi);
+                aiqudao_jm = new Aiqudaojiemian(aiqudao_lj, 'aiqudao_mianban');
+                aiqudao_jm.xuanran();
             } catch (e) {
                 gengxinzhuangtai('wasm_zhuangtai', '加载失败', false);
                 rizhi('WASM 加载失败: ' + e, 'err');
@@ -163,6 +197,14 @@
         window.sse_huidiao = function(shuju) {
             rizhi('SSE: ' + shuju, 'info');
         };
+
+        window.aiqudao_shuaxin = () => { if (aiqudao_jm) aiqudao_jm.shuaxinliebiao(); };
+        window.aiqudao_xinzengshitu = () => { if (aiqudao_jm) aiqudao_jm.xuanranxinzengbiaodan(); };
+        window.aiqudao_tijiaoxinzeng = () => { if (aiqudao_jm) aiqudao_jm.tijiaoxinzeng(); };
+        window.aiqudao_qiehuan = (id) => { if (aiqudao_jm) aiqudao_jm.qiehuanzhuangtai(id); };
+        window.aiqudao_shanchu = (id) => { if (aiqudao_jm) aiqudao_jm.shanchuid(id); };
+        window.aiqudao_bianji = (id) => { if (aiqudao_jm) aiqudao_jm.bianji(id); };
+        window.aiqudao_tijiaobian = () => { if (aiqudao_jm) aiqudao_jm.tijiaobian(); };
     </script>
 </body>
 </html>

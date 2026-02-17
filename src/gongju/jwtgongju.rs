@@ -7,8 +7,6 @@ use crate::peizhixt::peizhi_nr::peizhi_zongpeizhi::Zongpeizhi;
 use crate::shujuku::redisshujuku::rediscaozuo;
 
 #[allow(non_upper_case_globals)]
-const guoqishijian_miao: u64 = 86400;
-#[allow(non_upper_case_globals)]
 const redis_qianzhui: &str = "jwt:yonghu:";
 
 #[allow(non_upper_case_globals)]
@@ -30,6 +28,7 @@ fn redis_jian(yonghuid: &str) -> String {
 /// 签发 JWT，写入 Redis 覆盖旧令牌
 pub async fn qianfa(yonghuid: &str, zhanghao: &str, yonghuzuid: &str) -> Option<String> {
     let miyao = huoqumiyao()?;
+    let guoqishijian_miao = huoquguoqishijian()?;
     let dangqian = jichugongju::huoqushijianchuo() / 1000;
     let zaiti = Zaiti {
         yonghuid: yonghuid.to_string(),
@@ -68,4 +67,10 @@ fn huoqumiyao() -> Option<&'static str> {
             .filter(|m| !m.is_empty())
             .unwrap_or_default()
     }).as_str()).filter(|s| !s.is_empty())
+}
+
+fn huoquguoqishijian() -> Option<u64> {
+    peizhixitongzhuti::duqupeizhi::<Zongpeizhi>(Zongpeizhi::wenjianming())
+        .map(|p| p.jwtguoqishijian_miao)
+        .filter(|&t| t > 0)
 }

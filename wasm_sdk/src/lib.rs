@@ -13,6 +13,7 @@ use jiekou_nr::xitong::jiankangqingqiu as jiankangqq;
 use jiekou_nr::xitong::jiamijiankang as jiamijiankangqq;
 use jiekou_nr::xitong::sseceshi as sseceshiqq;
 use jiekou_nr::xitong::jiamisseceshi as jiamisseceshiqq;
+use jiekou_nr::xitong::aiqudaoguanli as aiqudaoqq;
 use jiekou_nr::yonghu::denglujiekou as dengluqq;
 
 const huihua_guoqi_zhuangtaima: u16 = 401;
@@ -141,19 +142,23 @@ pub struct Kehuduanjiami {
     miyao: Option<Vec<u8>>,
     kehugongyao_b64: Option<String>,
     zhiwen: String,
+    lingpai: Option<String>,
 }
 
 #[wasm_bindgen]
 impl Kehuduanjiami {
     #[wasm_bindgen(constructor)]
     pub fn xinjian(fuwuqidizhi: &str) -> Self {
-        Self {
+        let mut shili = Self {
             fuwuqidizhi: fuwuqidizhi.to_string(),
             huihuaid: None,
             miyao: None,
             kehugongyao_b64: None,
             zhiwen: shebeishibie::shengchengzhiwen(),
-        }
+            lingpai: None,
+        };
+        shili.huifulingpai();
+        shili
     }
 
     pub async fn jiamiqingqiu(&mut self, fangfa: &str, lujing: &str, qingqiuti: Option<String>) -> Result<String, JsValue> {
@@ -203,16 +208,12 @@ impl Kehuduanjiami {
     pub async fn ssejiamiqingqiu(&mut self, lujing: &str, qingqiuti: Option<String>, huidiaohanming: &str) -> Result<(), JsValue> {
         self.quebaoxieshang().await?;
         let huidiao = huoquhuidiao(huidiaohanming)?;
-        let xinxi = self.huoqujiamixinxi()?;
-        let jiami_ti = qingqiuti.map(|ti| jiamiqingqiuti(&ti, xinxi.miyao)).transpose()?;
-        let url = format!("{}{}", self.fuwuqidizhi, lujing);
-        let ewaiqingqiutou = vec![
-            ("X-Huihua-Id", xinxi.huihuaid),
-            ("X-Kehugongyao", xinxi.kehugongyao),
-        ];
-        let request = goujianqingqiu("POST", &url, jiami_ti.as_deref(), Some(&ewaiqingqiutou))?;
-        let xiangying = fasongqingqiu(&request).await?;
-        duqujiamiliushi(&xiangying, xinxi.miyao, &huidiao).await
+        let jieguo = self.zhixingssejiamiqingqiu(lujing, qingqiuti.as_deref(), &huidiao).await;
+        if jieguo.as_ref().err().and_then(|e| e.as_string()).map_or(false, |s| s.contains("base64解码失败") || s.contains("解密响应失败")) {
+            self.chongxinxieshang().await?;
+            return self.zhixingssejiamiqingqiu(lujing, qingqiuti.as_deref(), &huidiao).await;
+        }
+        jieguo
     }
 
     pub async fn sseceshiqingqiu(&self, huidiaohanming: &str) -> Result<(), JsValue> {
@@ -234,6 +235,12 @@ impl Kehuduanjiami {
             jieguo?
         };
         let xiangying: dengluqq::Xiangying = fanxuliehua(&jiemi_wenben, "解析登录响应失败")?;
+        if xiangying.zhuangtaima == 200 {
+            if let Some(ref shuju) = xiangying.shuju {
+                self.lingpai = Some(shuju.lingpai.clone());
+                self.baocunlingpai();
+            }
+        }
         xuliehua(&xiangying)
     }
 
@@ -246,6 +253,37 @@ impl Kehuduanjiami {
     pub fn yixieshang(&self) -> bool {
         self.huihuaid.is_some() && self.miyao.is_some()
     }
+
+    pub fn shezhilingpai(&mut self, lingpai: &str) {
+        self.lingpai = Some(lingpai.to_string());
+    }
+
+    pub fn huoqulingpai(&self) -> Option<String> {
+        self.lingpai.clone()
+    }
+
+    pub fn yidenglu(&self) -> bool {
+        self.lingpai.is_some()
+    }
+
+    /// AI渠道管理请求
+    pub async fn aiqudaoqingqiu(&mut self, caozuo: &str, canshu: Option<String>) -> Result<String, JsValue> {
+        let lingpai = self.lingpai.clone().ok_or_else(|| cuowu("尚未登录，请先登录"))?;
+        self.quebaoxieshang().await?;
+        let canshu_zhi: serde_json::Value = match canshu {
+            Some(ref s) => fanxuliehua(s, "解析参数失败")?,
+            None => serde_json::json!({}),
+        };
+        let ti = xuliehua(&aiqudaoqq::Qingqiuti { caozuo: caozuo.to_string(), canshu: canshu_zhi })?;
+        let jieguo = self.zhixingrenzhengjiamiqingqiu(aiqudaoqq::fangshi, aiqudaoqq::lujing, Some(&ti), &lingpai).await;
+        let jiemi_wenben = if self.xuyaochongshi(&jieguo) {
+            self.chongxinxieshang().await?;
+            self.zhixingrenzhengjiamiqingqiu(aiqudaoqq::fangshi, aiqudaoqq::lujing, Some(&ti), &lingpai).await?
+        } else {
+            jieguo?
+        };
+        Ok(jiemi_wenben)
+    }
 }
 
 impl Kehuduanjiami {
@@ -255,6 +293,37 @@ impl Kehuduanjiami {
             huihuaid: self.huihuaid.as_deref().ok_or_else(|| cuowu("尚未协商密钥"))?,
             kehugongyao: self.kehugongyao_b64.as_deref().ok_or_else(|| cuowu("尚未协商密钥"))?,
         })
+    }
+
+    fn baocunlingpai(&self) {
+        if let Some(ref lingpai) = self.lingpai {
+            if let Some(chuangkou) = web_sys::window() {
+                if let Ok(Some(cunchu)) = chuangkou.local_storage() {
+                    let _ = cunchu.set_item("lingpai", lingpai);
+                }
+            }
+        }
+    }
+
+    fn huifulingpai(&mut self) {
+        if let Some(chuangkou) = web_sys::window() {
+            if let Ok(Some(cunchu)) = chuangkou.local_storage() {
+                if let Ok(Some(lingpai)) = cunchu.get_item("lingpai") {
+                    if !lingpai.is_empty() {
+                        self.lingpai = Some(lingpai);
+                    }
+                }
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    fn qingchulingpai(&self) {
+        if let Some(chuangkou) = web_sys::window() {
+            if let Ok(Some(cunchu)) = chuangkou.local_storage() {
+                let _ = cunchu.remove_item("lingpai");
+            }
+        }
     }
 
     async fn xieshangmiyao(&mut self) -> Result<(), JsValue> {
@@ -297,7 +366,7 @@ impl Kehuduanjiami {
 
     fn xuyaochongshi(&self, jieguo: &Result<String, JsValue>) -> bool {
         match jieguo {
-            Err(e) => e.as_string().map_or(false, |s| s.contains("解密响应失败")),
+            Err(e) => e.as_string().map_or(false, |s| s.contains("解密响应失败") || s.contains("base64解码失败")),
             Ok(wenben) => shifouhuihuaguoqi(wenben),
         }
     }
@@ -305,5 +374,31 @@ impl Kehuduanjiami {
     async fn chongxinxieshang(&mut self) -> Result<(), JsValue> {
         self.chongzhihuihua();
         self.xieshangmiyao().await
+    }
+
+    async fn zhixingrenzhengjiamiqingqiu(&self, fangfa: &str, lujing: &str, qingqiuti: Option<&str>, lingpai: &str) -> Result<String, JsValue> {
+        let xinxi = self.huoqujiamixinxi()?;
+        let jiami_ti = qingqiuti.map(|ti| jiamiqingqiuti(ti, xinxi.miyao)).transpose()?;
+        let url = format!("{}{}", self.fuwuqidizhi, lujing);
+        let ewaiqingqiutou = vec![
+            ("X-Huihua-Id", xinxi.huihuaid),
+            ("X-Kehugongyao", xinxi.kehugongyao),
+            ("X-Lingpai", lingpai),
+        ];
+        let xiangying_wenben = putongqingqiu_neibu(fangfa, &url, jiami_ti.as_deref(), Some(&ewaiqingqiutou)).await?;
+        jiemixiangying(&xiangying_wenben, xinxi.miyao)
+    }
+
+    async fn zhixingssejiamiqingqiu(&self, lujing: &str, qingqiuti: Option<&str>, huidiao: &js_sys::Function) -> Result<(), JsValue> {
+        let xinxi = self.huoqujiamixinxi()?;
+        let jiami_ti = qingqiuti.map(|ti| jiamiqingqiuti(ti, xinxi.miyao)).transpose()?;
+        let url = format!("{}{}", self.fuwuqidizhi, lujing);
+        let ewaiqingqiutou = vec![
+            ("X-Huihua-Id", xinxi.huihuaid),
+            ("X-Kehugongyao", xinxi.kehugongyao),
+        ];
+        let request = goujianqingqiu("POST", &url, jiami_ti.as_deref(), Some(&ewaiqingqiutou))?;
+        let xiangying = fasongqingqiu(&request).await?;
+        duqujiamiliushi(&xiangying, xinxi.miyao, huidiao).await
     }
 }
