@@ -56,15 +56,6 @@ pub async fn putongqingqiu(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli) -> Option<S
     None
 }
 
-fn pingjie_jiekoudizhi(jiekoudizhi: &str) -> String {
-    let jidi = jiekoudizhi.trim_end_matches('/');
-    if jidi.ends_with("/v1") {
-        format!("{}/chat/completions", jidi)
-    } else {
-        format!("{}/v1/chat/completions", jidi)
-    }
-}
-
 fn goujian_xiaoxiti(guanli: &Xiaoxiguanli) -> Vec<serde_json::Value> {
     let mut xiaoxilie = Vec::new();
     if let Some(tishici) = guanli.huoqu_xitongtishici() {
@@ -84,7 +75,7 @@ fn goujian_xiaoxiti(guanli: &Xiaoxiguanli) -> Vec<serde_json::Value> {
 
 /// 流式调用，返回 reqwest 字节流响应
 pub async fn liushiqingqiu(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli) -> Option<reqwest::Response> {
-    let wanzhengdizhi = pingjie_jiekoudizhi(&peizhi.jiekoudizhi);
+    let wanzhengdizhi = format!("{}/chat/completions", peizhi.jiekoudizhi.trim_end_matches('/'));
     let xiaoxilie = goujian_xiaoxiti(guanli);
     let qingqiuti = serde_json::json!({
         "model": peizhi.moxing,

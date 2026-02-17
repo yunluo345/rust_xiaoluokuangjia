@@ -40,7 +40,10 @@ async fn chuliqingqiu(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
     };
 
     let qudao = match shujucaozuo_aiqudao::suiji_huoqu_qudao("openapi").await {
-        Some(q) => q,
+        Some(q) => {
+            println!("获取到的渠道数据: {}", q);
+            q
+        }
         None => return jiamishibai(500, "暂无可用AI渠道", miyao),
     };
 

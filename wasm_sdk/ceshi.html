@@ -235,6 +235,10 @@
         window.aiduihua_qingkonglishi = () => { if (aiduihua_jm) aiduihua_jm.qingkonglishi(); };
         window.aiduihua_shanchuxiaoxi = (idx) => { if (aiduihua_jm) aiduihua_jm.shanchuxiaoxi(idx); };
         window.aiduihua_daochulishi = () => { if (aiduihua_jm) aiduihua_jm.daochulishi(); };
+        window.aiduihua_xinjianhiuhua = () => { if (aiduihua_jm) aiduihua_jm.xinjianhiuhua(); };
+        window.aiduihua_qiehuanhuihua = (id) => { if (aiduihua_jm) aiduihua_jm.qiehuanhuihua(id); };
+        window.aiduihua_shanchuhuihua = (id) => { if (aiduihua_jm) aiduihua_jm.shanchuhuihua(id); };
+        window.aiduihua_chongmingming = (id) => { if (aiduihua_jm) aiduihua_jm.chongmingming(id); };
         }).catch(err => {
             console.error('模块加载失败:', err);
             rizhi('模块加载失败: ' + err.message, 'err');

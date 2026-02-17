@@ -16,11 +16,19 @@ export class Aiduihuajiemian {
         tou.innerHTML = `
             <h2 style="font-size:15px;color:#475569;margin:0">AI对话</h2>
             <div>
-                <button class="aq-btn aq-btn-xiao" onclick="aiduihua_qingkonglishi()">清空历史</button>
-                <button class="aq-btn aq-btn-xiao aq-btn-huang" onclick="aiduihua_daochulishi()">导出历史</button>
+                <button class="aq-btn aq-btn-xiao" onclick="aiduihua_xinjianhiuhua()" style="margin:0 4px 0 0">新建对话</button>
+                <button class="aq-btn aq-btn-xiao" onclick="aiduihua_qingkonglishi()" style="margin:0 4px 0 0">清空历史</button>
+                <button class="aq-btn aq-btn-xiao aq-btn-huang" onclick="aiduihua_daochulishi()" style="margin:0">导出历史</button>
             </div>
         `;
         this.rongqi.appendChild(tou);
+
+        // 会话列表栏
+        const huihualan = document.createElement('div');
+        huihualan.id = 'aiduihua_huihualan';
+        huihualan.style.cssText = 'margin-bottom:12px;display:flex;gap:6px;overflow-x:auto;padding-bottom:4px';
+        this.rongqi.appendChild(huihualan);
+        this.xuanranhuihualiebiao();
 
         // 模式选择
         const moshilan = document.createElement('div');
@@ -46,15 +54,38 @@ export class Aiduihuajiemian {
 
         // 输入区域
         const shuruqu = document.createElement('div');
-        shuruqu.style.cssText = 'display:flex;gap:8px;align-items:flex-end';
+        shuruqu.style.cssText = 'display:flex;gap:8px;align-items:stretch';
         shuruqu.innerHTML = `
             <textarea id="aiduihua_shuru" placeholder="输入消息..." style="flex:1;border:1px solid #E2E8F0;border-radius:8px;padding:10px;font-size:14px;resize:vertical;min-height:60px;outline:none;font-family:inherit"></textarea>
-            <button id="aiduihua_fasong_btn" class="aq-btn aq-btn-lv" onclick="aiduihua_fasong()" style="min-height:60px">发送</button>
+            <button id="aiduihua_fasong_btn" class="aq-btn aq-btn-lv" onclick="aiduihua_fasong()" style="margin:0">发送</button>
         `;
         this.rongqi.appendChild(shuruqu);
 
         // 渲染历史记录
         this.xuanranduihua();
+    }
+
+    xuanranhuihualiebiao() {
+        const lan = document.getElementById('aiduihua_huihualan');
+        if (!lan) return;
+
+        const liebiao = this.luoji.huoquhuihualiebiao();
+        const dangqianid = this.luoji.huoqudangqianid();
+
+        let html = '';
+        liebiao.forEach(h => {
+            const xuanzhong = h.id === dangqianid;
+            const bg = xuanzhong ? '#3B82F6' : '#E2E8F0';
+            const color = xuanzhong ? '#fff' : '#475569';
+            html += `
+                <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+                    <button onclick="aiduihua_qiehuanhuihua('${h.id}')" style="background:${bg};color:${color};border:none;border-radius:6px;padding:6px 12px;font-size:13px;cursor:pointer;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;margin:0;min-height:32px" title="${this.zhuanyihtml(h.mingcheng)}">${this.zhuanyihtml(h.mingcheng)}</button>
+                    <button onclick="aiduihua_chongmingming('${h.id}')" style="background:#F1F5F9;border:1px solid #CBD5E1;border-radius:4px;cursor:pointer;font-size:13px;padding:4px 6px;margin:0;color:#64748B;min-height:28px" title="重命名">✏</button>
+                    <button onclick="aiduihua_shanchuhuihua('${h.id}')" style="background:#FEF2F2;border:1px solid #FECACA;border-radius:4px;cursor:pointer;font-size:13px;padding:4px 6px;margin:0;color:#EF4444;min-height:28px" title="删除">✕</button>
+                </div>
+            `;
+        });
+        lan.innerHTML = html;
     }
 
     xuanranduihua() {
@@ -131,6 +162,7 @@ export class Aiduihuajiemian {
                 const huifu = await this.luoji.feiliushiduihua(neirong);
                 if (huifu) {
                     shuru.value = '';
+                    this.xuanranhuihualiebiao();
                     this.xuanranduihua();
                 }
             } else {
@@ -143,6 +175,7 @@ export class Aiduihuajiemian {
                     if (this.liushihuifu) {
                         this.luoji.tianjiaxiaoxi('assistant', this.liushihuifu);
                     }
+                    this.xuanranhuihualiebiao();
                     this.xuanranduihua();
                 }
             }
@@ -218,8 +251,9 @@ export class Aiduihuajiemian {
     }
 
     qingkonglishi() {
-        if (confirm('确定要清空所有对话历史吗？')) {
+        if (confirm('确定要清空当前对话历史吗？')) {
             this.luoji.qingkonglishi();
+            this.xuanranhuihualiebiao();
             this.xuanranduihua();
         }
     }
@@ -233,5 +267,40 @@ export class Aiduihuajiemian {
 
     daochulishi() {
         this.luoji.daochulishi();
+    }
+
+    // 新建会话
+    xinjianhiuhua() {
+        this.luoji.xinjianhiuhua();
+        this.xuanranhuihualiebiao();
+        this.xuanranduihua();
+    }
+
+    // 切换会话
+    qiehuanhuihua(id) {
+        this.luoji.qiehuanhuihua(id);
+        this.xuanranhuihualiebiao();
+        this.xuanranduihua();
+    }
+
+    // 删除会话
+    shanchuhuihua(id) {
+        if (confirm('确定要删除这个对话吗？')) {
+            this.luoji.shanchuhuihua(id);
+            this.xuanranhuihualiebiao();
+            this.xuanranduihua();
+        }
+    }
+
+    // 重命名会话
+    chongmingming(id) {
+        const liebiao = this.luoji.huoquhuihualiebiao();
+        const huihua = liebiao.find(h => h.id === id);
+        if (!huihua) return;
+        const xinming = prompt('请输入新名称:', huihua.mingcheng);
+        if (xinming && xinming.trim()) {
+            this.luoji.chongmingminghuihua(id, xinming.trim());
+            this.xuanranhuihualiebiao();
+        }
     }
 }

@@ -3,55 +3,147 @@ export class Aiduihualuoji {
     constructor(kehu, rizhifn) {
         this.kehu = kehu;
         this.rizhi = rizhifn;
-        this.lishijilu = this.jiazailishi();
         this.dangqianmoshi = 'feiliushi'; // 'feiliushi' 或 'liushi'
-    }
-
-    // 从localStorage加载历史记录
-    jiazailishi() {
-        try {
-            const json = localStorage.getItem('ai_duihua_lishi');
-            return json ? JSON.parse(json) : [];
-        } catch (e) {
-            this.rizhi('加载历史记录失败: ' + e, 'warn');
-            return [];
+        this.shuju = this.jiazaishuju();
+        // 确保至少有一个会话
+        if (this.shuju.huihualiebiao.length === 0) {
+            this.xinjianhiuhua();
         }
     }
 
-    // 保存历史记录到localStorage
-    baocunlishi() {
+    // 从localStorage加载全部数据
+    jiazaishuju() {
         try {
-            localStorage.setItem('ai_duihua_lishi', JSON.stringify(this.lishijilu));
+            const json = localStorage.getItem('ai_duihua_shuju');
+            if (json) {
+                const d = JSON.parse(json);
+                if (d.huihualiebiao && d.dangqianid) return d;
+            }
+            // 兼容旧数据迁移
+            const laoJson = localStorage.getItem('ai_duihua_lishi');
+            if (laoJson) {
+                const laoLishi = JSON.parse(laoJson);
+                if (Array.isArray(laoLishi) && laoLishi.length > 0) {
+                    const id = this.shengchengid();
+                    const huihua = { id, mingcheng: '历史对话', xiaoxilie: laoLishi, chuangjianshijian: Date.now() };
+                    localStorage.removeItem('ai_duihua_lishi');
+                    return { huihualiebiao: [huihua], dangqianid: id };
+                }
+            }
         } catch (e) {
-            this.rizhi('保存历史记录失败: ' + e, 'warn');
+            this.rizhi('加载数据失败: ' + e, 'warn');
+        }
+        return { huihualiebiao: [], dangqianid: null };
+    }
+
+    // 保存全部数据到localStorage
+    baocunshuju() {
+        try {
+            localStorage.setItem('ai_duihua_shuju', JSON.stringify(this.shuju));
+        } catch (e) {
+            this.rizhi('保存数据失败: ' + e, 'warn');
         }
     }
 
-    // 添加消息到历史
+    // 生成简单唯一id
+    shengchengid() {
+        return Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
+    }
+
+    // 获取当前会话
+    huoqudangqianhuihua() {
+        return this.shuju.huihualiebiao.find(h => h.id === this.shuju.dangqianid) || null;
+    }
+
+    // 获取会话列表
+    huoquhuihualiebiao() {
+        return this.shuju.huihualiebiao;
+    }
+
+    // 获取当前会话id
+    huoqudangqianid() {
+        return this.shuju.dangqianid;
+    }
+
+    // 新建会话
+    xinjianhiuhua() {
+        const id = this.shengchengid();
+        const huihua = { id, mingcheng: '新对话', xiaoxilie: [], chuangjianshijian: Date.now() };
+        this.shuju.huihualiebiao.unshift(huihua);
+        this.shuju.dangqianid = id;
+        this.baocunshuju();
+        return id;
+    }
+
+    // 切换会话
+    qiehuanhuihua(id) {
+        const huihua = this.shuju.huihualiebiao.find(h => h.id === id);
+        if (huihua) {
+            this.shuju.dangqianid = id;
+            this.baocunshuju();
+        }
+    }
+
+    // 删除会话
+    shanchuhuihua(id) {
+        this.shuju.huihualiebiao = this.shuju.huihualiebiao.filter(h => h.id !== id);
+        if (this.shuju.dangqianid === id) {
+            if (this.shuju.huihualiebiao.length > 0) {
+                this.shuju.dangqianid = this.shuju.huihualiebiao[0].id;
+            } else {
+                this.xinjianhiuhua();
+                return;
+            }
+        }
+        this.baocunshuju();
+    }
+
+    // 重命名会话
+    chongmingminghuihua(id, mingcheng) {
+        const huihua = this.shuju.huihualiebiao.find(h => h.id === id);
+        if (huihua) {
+            huihua.mingcheng = mingcheng;
+            this.baocunshuju();
+        }
+    }
+
+    // 添加消息到当前会话
     tianjiaxiaoxi(juese, neirong) {
-        this.lishijilu.push({ juese, neirong });
-        this.baocunlishi();
+        const huihua = this.huoqudangqianhuihua();
+        if (!huihua) return;
+        huihua.xiaoxilie.push({ juese, neirong });
+        // 第一条用户消息时自动命名
+        if (juese === 'user' && huihua.mingcheng === '新对话') {
+            huihua.mingcheng = neirong.substring(0, 20) + (neirong.length > 20 ? '...' : '');
+        }
+        this.baocunshuju();
     }
 
-    // 清空历史记录
+    // 清空当前会话历史
     qingkonglishi() {
-        this.lishijilu = [];
-        localStorage.removeItem('ai_duihua_lishi');
-        this.rizhi('历史记录已清空', 'info');
+        const huihua = this.huoqudangqianhuihua();
+        if (huihua) {
+            huihua.xiaoxilie = [];
+            huihua.mingcheng = '新对话';
+            this.baocunshuju();
+            this.rizhi('当前对话已清空', 'info');
+        }
     }
 
     // 删除指定索引的消息
     shanchuxiaoxi(suoyin) {
-        if (suoyin >= 0 && suoyin < this.lishijilu.length) {
-            this.lishijilu.splice(suoyin, 1);
-            this.baocunlishi();
+        const huihua = this.huoqudangqianhuihua();
+        if (huihua && suoyin >= 0 && suoyin < huihua.xiaoxilie.length) {
+            huihua.xiaoxilie.splice(suoyin, 1);
+            this.baocunshuju();
             this.rizhi('消息已删除', 'info');
         }
     }
 
-    // 获取历史记录
+    // 获取当前会话历史记录
     huoqulishi() {
-        return this.lishijilu;
+        const huihua = this.huoqudangqianhuihua();
+        return huihua ? huihua.xiaoxilie : [];
     }
 
     // 设置模式
@@ -82,7 +174,7 @@ export class Aiduihualuoji {
             this.tianjiaxiaoxi('user', neirong);
 
             // 构建请求
-            const xiaoxilie = this.lishijilu.map(x => ({ juese: x.juese, neirong: x.neirong }));
+            const xiaoxilie = this.huoqulishi().map(x => ({ juese: x.juese, neirong: x.neirong }));
             const xiaoxilie_json = JSON.stringify(xiaoxilie);
 
             this.rizhi('发送非流式对话请求...', 'info');
@@ -97,16 +189,17 @@ export class Aiduihualuoji {
             } else {
                 this.rizhi('AI回复失败: ' + jieguo.xiaoxi, 'err');
                 // 失败时移除用户消息
-                this.lishijilu.pop();
-                this.baocunlishi();
+                const huihua = this.huoqudangqianhuihua();
+                if (huihua) { huihua.xiaoxilie.pop(); this.baocunshuju(); }
                 return null;
             }
         } catch (e) {
             this.rizhi('对话请求失败: ' + e, 'err');
             // 失败时移除用户消息
-            if (this.lishijilu.length > 0 && this.lishijilu[this.lishijilu.length - 1].juese === 'user') {
-                this.lishijilu.pop();
-                this.baocunlishi();
+            const huihua = this.huoqudangqianhuihua();
+            if (huihua && huihua.xiaoxilie.length > 0 && huihua.xiaoxilie[huihua.xiaoxilie.length - 1].juese === 'user') {
+                huihua.xiaoxilie.pop();
+                this.baocunshuju();
             }
             return null;
         }
@@ -132,7 +225,7 @@ export class Aiduihualuoji {
             this.tianjiaxiaoxi('user', neirong);
 
             // 构建请求
-            const xiaoxilie = this.lishijilu.map(x => ({ juese: x.juese, neirong: x.neirong }));
+            const xiaoxilie = this.huoqulishi().map(x => ({ juese: x.juese, neirong: x.neirong }));
             const xiaoxilie_json = JSON.stringify(xiaoxilie);
 
             this.rizhi('发送流式对话请求...', 'info');
@@ -142,9 +235,10 @@ export class Aiduihualuoji {
         } catch (e) {
             this.rizhi('流式对话失败: ' + e, 'err');
             // 失败时移除用户消息
-            if (this.lishijilu.length > 0 && this.lishijilu[this.lishijilu.length - 1].juese === 'user') {
-                this.lishijilu.pop();
-                this.baocunlishi();
+            const huihua = this.huoqudangqianhuihua();
+            if (huihua && huihua.xiaoxilie.length > 0 && huihua.xiaoxilie[huihua.xiaoxilie.length - 1].juese === 'user') {
+                huihua.xiaoxilie.pop();
+                this.baocunshuju();
             }
             return false;
         }
