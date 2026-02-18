@@ -31,11 +31,20 @@ async fn chuliqingqiu(mingwen: &[u8], miyao: &[u8], lingpai: &str) -> HttpRespon
         None => return jiamishibai(500, "暂无可用AI渠道或配置错误", miyao),
     };
 
-    let mut guanli = super::goujian_guanli(qingqiu);
+    let benci_neirong = qingqiu.xiaoxilie.iter()
+        .rev()
+        .find(|x| x.juese == "user")
+        .map(|x| x.neirong.as_str())
+        .unwrap_or("");
 
-    match super::react_xunhuan(&peizhi, &mut guanli, "ReAct", lingpai).await {
+    let (gongjulie, yitu_miaoshu) = super::huoqu_yitu_gongju(&peizhi, benci_neirong).await;
+    println!("[AI对话] 意图: {} 工具数: {}", yitu_miaoshu, gongjulie.len());
+
+    let mut guanli = super::goujian_guanli_anyitu(&qingqiu, gongjulie);
+
+    match super::react_xunhuan(&peizhi, &mut guanli, "ReAct", lingpai, &qingqiu).await {
         Some(ReactJieguo::Wenben(huifu)) => {
-            let shuju = serde_json::json!({ "huifu": huifu });
+            let shuju = serde_json::json!({ "huifu": huifu, "yitu": yitu_miaoshu });
             jiamichuanshuzhongjian::jiamixiangying(
                 jiekouxtzhuti::chenggong("对话成功", shuju), miyao,
             )
@@ -57,7 +66,15 @@ pub async fn chuli(req: HttpRequest, ti: web::Bytes) -> HttpResponse {
         None => return jiekouxtzhuti::shibai(401, "加密会话无效"),
     };
     match jiamichuanshuzhongjian::jiemiqingqiuti(&ti, &miyao) {
-        Some(mingwen) => chuliqingqiu(&mingwen, &miyao, &lingpai).await,
+        Some(mingwen) => {
+            println!("[AI对话] 前端请求内容: {}", String::from_utf8_lossy(&mingwen));
+            if let Ok(json) = serde_json::from_slice::<serde_json::Value>(&mingwen) {
+                if let Some(zuihou) = json["xiaoxilie"].as_array().and_then(|arr| arr.last()) {
+                    println!("[AI对话] 本次发送内容: {}", zuihou["neirong"].as_str().unwrap_or(""));
+                }
+            }
+            chuliqingqiu(&mingwen, &miyao, &lingpai).await
+        }
         None => jiekouxtzhuti::shibai(400, "解密请求体失败"),
     }
 }

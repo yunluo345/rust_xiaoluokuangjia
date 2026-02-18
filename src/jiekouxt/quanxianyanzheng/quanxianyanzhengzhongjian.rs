@@ -1,6 +1,6 @@
 use actix_web::{
     dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
-    Error, HttpMessage,
+    Error, HttpMessage, http::Method,
 };
 use std::future::{ready, Ready};
 use std::pin::Pin;
@@ -47,6 +47,10 @@ where
     forward_ready!(service);
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
+        if req.method() == Method::OPTIONS {
+            return Box::pin(self.service.call(req));
+        }
+
         let lujing = req.path().to_string();
         let lingpai = req.headers()
             .get(toubu_shouquan)

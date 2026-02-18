@@ -99,7 +99,11 @@ async fn main() -> std::io::Result<()> {
     println!("启动服务器: http://127.0.0.1:{}", zongpeizhi.houduanyunxingduankou);
     
     HttpServer::new(|| {
-        let kuayu = Cors::permissive();
+        let kuayu = Cors::default()
+            .allow_any_origin()
+            .allow_any_method()
+            .allow_any_header()
+            .max_age(3600);
         App::new()
             .wrap(kuayu)
             .configure(jiekouxt::jiekouxtzhuti::peizhi)

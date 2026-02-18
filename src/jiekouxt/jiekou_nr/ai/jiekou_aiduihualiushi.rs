@@ -44,6 +44,7 @@ struct Jiamiliushi {
     miyao: Vec<u8>,
     huanchong: String,
     jieshu: bool,
+    chushi: Option<String>,
 }
 
 impl Stream for Jiamiliushi {
@@ -51,6 +52,9 @@ impl Stream for Jiamiliushi {
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
+        if let Some(chushi) = this.chushi.take() {
+            return Poll::Ready(Some(Ok(actix_web::web::Bytes::from(chushi))));
+        }
         if this.jieshu {
             return Poll::Ready(None);
         }
@@ -107,20 +111,42 @@ async fn chuliqingqiu(mingwen: &[u8], miyao: Vec<u8>, lingpai: &str) -> HttpResp
         None => return cuowu_sse("暂无可用AI渠道或配置错误", &miyao),
     };
 
-    let mut guanli = super::goujian_guanli(qingqiu);
+    let benci_neirong = qingqiu.xiaoxilie.iter()
+        .rev()
+        .find(|x| x.juese == "user")
+        .map(|x| x.neirong.as_str())
+        .unwrap_or("");
 
-    super::react_xunhuan(&peizhi, &mut guanli, "流式ReAct", lingpai).await;
+    let (gongjulie, yitu_miaoshu) = super::huoqu_yitu_gongju(&peizhi, benci_neirong).await;
+    println!("[AI对话流式] 意图: {} 工具数: {}", yitu_miaoshu, gongjulie.len());
+
+    let mut guanli = super::goujian_guanli_anyitu(&qingqiu, gongjulie);
+
+    if let Some(openaizhuti::ReactJieguo::Wenben(huifu)) =
+        super::react_xunhuan(&peizhi, &mut guanli, "流式ReAct", lingpai, &qingqiu).await
+    {
+        let shuju = serde_json::json!({"neirong": huifu, "yitu": yitu_miaoshu}).to_string();
+        return HttpResponse::Ok()
+            .content_type("text/event-stream")
+            .insert_header(("Cache-Control", "no-cache"))
+            .insert_header(("Connection", "keep-alive"))
+            .body(jiami_sse(&shuju, &miyao));
+    }
 
     let xiangying = match openaizhuti::liushiqingqiu(&peizhi, &guanli, false).await {
         Some(x) => x,
         None => return cuowu_sse("AI流式服务调用失败", &miyao),
     };
 
+    let yitu_shuju = serde_json::json!({"yitu": yitu_miaoshu}).to_string();
+    let chushi_sse = jiami_sse(&yitu_shuju, &miyao);
+
     let liushi = Jiamiliushi {
         neiliu: Box::pin(xiangying.bytes_stream()),
         miyao,
         huanchong: String::new(),
         jieshu: false,
+        chushi: Some(chushi_sse),
     };
 
     HttpResponse::Ok()
@@ -143,7 +169,15 @@ pub async fn chuli(req: HttpRequest, ti: web::Bytes) -> HttpResponse {
         None => return jiekouxtzhuti::shibai(401, "加密会话无效"),
     };
     match jiamichuanshuzhongjian::jiemiqingqiuti(&ti, &miyao) {
-        Some(mingwen) => chuliqingqiu(&mingwen, miyao, &lingpai).await,
+        Some(mingwen) => {
+            println!("[AI对话流式] 前端请求内容: {}", String::from_utf8_lossy(&mingwen));
+            if let Ok(json) = serde_json::from_slice::<serde_json::Value>(&mingwen) {
+                if let Some(zuihou) = json["xiaoxilie"].as_array().and_then(|arr| arr.last()) {
+                    println!("[AI对话流式] 本次发送内容: {}", zuihou["neirong"].as_str().unwrap_or(""));
+                }
+            }
+            chuliqingqiu(&mingwen, miyao, &lingpai).await
+        }
         None => jiekouxtzhuti::shibai(400, "解密请求体失败"),
     }
 }
