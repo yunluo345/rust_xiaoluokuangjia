@@ -19,7 +19,7 @@ pub fn dinyi() -> Tool {
 }
 
 /// 工具执行
-pub async fn zhixing(_canshu: &str) -> String {
+pub async fn zhixing(_canshu: &str, _lingpai: &str) -> String {
     let shijianchuo = jichugongju::huoqushijianchuo();
     format!("当前服务器时间戳: {}", shijianchuo)
 }

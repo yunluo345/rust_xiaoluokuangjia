@@ -95,7 +95,7 @@ impl Stream for Jiamiliushi {
     }
 }
 
-async fn chuliqingqiu(mingwen: &[u8], miyao: Vec<u8>) -> HttpResponse {
+async fn chuliqingqiu(mingwen: &[u8], miyao: Vec<u8>, lingpai: &str) -> HttpResponse {
     let qingqiu: super::Qingqiuti = match serde_json::from_slice::<super::Qingqiuti>(mingwen) {
         Ok(q) if !q.xiaoxilie.is_empty() => q,
         Ok(_) => return cuowu_sse("消息列表不能为空", &miyao),
@@ -109,7 +109,7 @@ async fn chuliqingqiu(mingwen: &[u8], miyao: Vec<u8>) -> HttpResponse {
 
     let mut guanli = super::goujian_guanli(qingqiu);
 
-    super::react_xunhuan(&peizhi, &mut guanli, "流式ReAct").await;
+    super::react_xunhuan(&peizhi, &mut guanli, "流式ReAct", lingpai).await;
 
     let xiangying = match openaizhuti::liushiqingqiu(&peizhi, &guanli, false).await {
         Some(x) => x,
@@ -131,15 +131,19 @@ async fn chuliqingqiu(mingwen: &[u8], miyao: Vec<u8>) -> HttpResponse {
 }
 
 pub async fn chuli(req: HttpRequest, ti: web::Bytes) -> HttpResponse {
-    if let Some(lingpai) = jiekouxtzhuti::tiqulingpai(&req) {
-        println!("[AI对话流式] 用户令牌: {}", lingpai);
-    }
+    let lingpai = match jiekouxtzhuti::tiqulingpai(&req) {
+        Some(l) => {
+            println!("[AI对话流式] 用户令牌: {}", l);
+            l
+        }
+        None => return jiekouxtzhuti::shibai(401, "缺少授权令牌"),
+    };
     let miyao = match jiamichuanshuzhongjian::paishengyao(&req).await {
         Some(m) => m,
         None => return jiekouxtzhuti::shibai(401, "加密会话无效"),
     };
     match jiamichuanshuzhongjian::jiemiqingqiuti(&ti, &miyao) {
-        Some(mingwen) => chuliqingqiu(&mingwen, miyao).await,
+        Some(mingwen) => chuliqingqiu(&mingwen, miyao, &lingpai).await,
         None => jiekouxtzhuti::shibai(400, "解密请求体失败"),
     }
 }

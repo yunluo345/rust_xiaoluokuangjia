@@ -1,5 +1,6 @@
 pub mod jiekou_aiduihua;
 pub mod jiekou_aiduihualiushi;
+pub mod ceshi;
 
 use serde::Deserialize;
 use crate::gongju::ai::openai::{aipeizhi, aixiaoxiguanli, gongjuji, openaizhuti};
@@ -55,13 +56,14 @@ pub async fn huoqu_peizhi() -> Option<aipeizhi::Aipeizhi> {
 }
 
 /// 并发执行工具调用
-async fn zhixing_gongjudiaoyong(qz: &str, lie: &[llm::ToolCall]) -> Vec<llm::ToolCall> {
+async fn zhixing_gongjudiaoyong(qz: &str, lie: &[llm::ToolCall], lingpai: &str) -> Vec<llm::ToolCall> {
     let renwu: Vec<_> = lie.iter().map(|d| {
         let mut d = d.clone();
         let qz = qz.to_string();
+        let lingpai = lingpai.to_string();
         async move {
             println!("[{}] 执行工具: {} 参数: {}", qz, d.function.name, d.function.arguments);
-            d.function.arguments = gongjuji::zhixing(&d.function.name, &d.function.arguments).await;
+            d.function.arguments = gongjuji::zhixing(&d.function.name, &d.function.arguments, &lingpai).await;
             d
         }
     }).collect();
@@ -84,6 +86,7 @@ pub async fn react_xunhuan(
     peizhi: &aipeizhi::Aipeizhi,
     guanli: &mut aixiaoxiguanli::Xiaoxiguanli,
     qz: &str,
+    lingpai: &str,
 ) -> Option<ReactJieguo> {
     let zuida = peizhixitongzhuti::duqupeizhi::<Ai>(Ai::wenjianming())
         .map(|p| p.zuida_xunhuancishu).unwrap_or(20);
@@ -107,7 +110,7 @@ pub async fn react_xunhuan(
                 }
                 shangci_hash = hash;
                 guanli.zhuijia_zhushou_gongjudiaoyong(lie.clone());
-                guanli.zhuijia_gongjujieguo(zhixing_gongjudiaoyong(qz, &lie).await);
+                guanli.zhuijia_gongjujieguo(zhixing_gongjudiaoyong(qz, &lie, lingpai).await);
             }
             None => return None,
         }
