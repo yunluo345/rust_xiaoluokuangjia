@@ -4,6 +4,7 @@ export class Aiduihualuoji {
         this.kehu = kehu;
         this.rizhi = rizhifn;
         this.dangqianmoshi = 'feiliushi'; // 'feiliushi' 或 'liushi'
+        this.abortController = null; // AbortController 引用，用于终止请求
         this.shuju = this.jiazaishuju();
         // 确保至少有一个会话
         if (this.shuju.huihualiebiao.length === 0) {
@@ -187,7 +188,8 @@ export class Aiduihualuoji {
             const xiaoxilie_json = JSON.stringify(xiaoxilie);
 
             this.rizhi('发送非流式对话请求...', 'info');
-            const jieguo_json = await this.kehu.aiduihuaqingqiu(xiaoxilie_json);
+            this.abortController = null;
+            const jieguo_json = await this.kehu.aiduihuaqingqiu(xiaoxilie_json, 'aiduihua_duquqi_huidiao');
             const jieguo = JSON.parse(jieguo_json);
 
             if (jieguo.zhuangtaima === 200 && jieguo.shuju && jieguo.shuju.huifu) {
@@ -203,6 +205,14 @@ export class Aiduihualuoji {
                 return null;
             }
         } catch (e) {
+            // abort() 导致的中断不算错误
+            if (this.abortController === 'yizhongzhi') {
+                this.rizhi('非流式对话已终止', 'info');
+                // 失败时移除用户消息
+                const huihua = this.huoqudangqianhuihua();
+                if (huihua) { huihua.xiaoxilie.pop(); this.baocunshuju(); }
+                return null;
+            }
             this.rizhi('对话请求失败: ' + e, 'err');
             // 失败时移除用户消息
             const huihua = this.huoqudangqianhuihua();
@@ -211,11 +221,13 @@ export class Aiduihualuoji {
                 this.baocunshuju();
             }
             return null;
+        } finally {
+            this.abortController = null;
         }
     }
 
     // 流式对话
-    async liushiduihua(neirong, huidiaohanming) {
+    async liushiduihua(neirong, huidiaohanming, duquqi_huidiaohanming) {
         if (!this.kehu) {
             this.rizhi('尚未初始化', 'warn');
             return false;
@@ -238,12 +250,57 @@ export class Aiduihualuoji {
             const xiaoxilie_json = JSON.stringify(xiaoxilie);
 
             this.rizhi('发送流式对话请求...', 'info');
-            await this.kehu.aiduihualiushiqingqiu(xiaoxilie_json, huidiaohanming);
+            this.abortController = null;
+            await this.kehu.aiduihualiushiqingqiu(xiaoxilie_json, huidiaohanming, duquqi_huidiaohanming);
             this.rizhi('流式对话完成', 'ok');
             return true;
         } catch (e) {
+            // abort() 导致的中断不算错误
+            if (this.abortController === 'yizhongzhi') {
+                this.rizhi('流式对话已终止', 'info');
+                return true;
+            }
             this.rizhi('流式对话失败: ' + e, 'err');
             return false;
+        } finally {
+            this.abortController = null;
+        }
+    }
+
+    // 保存 AbortController（由 WASM 回调调用）
+    baocunduquqi(controller) {
+        console.log('[DEBUG] baocunduquqi 被调用');
+        console.log('[DEBUG] controller:', controller);
+        console.log('[DEBUG] controller type:', typeof controller);
+        console.log('[DEBUG] controller.abort:', controller?.abort);
+        this.abortController = controller;
+        this.rizhi('已获取 AbortController，可以终止', 'info');
+    }
+
+    // 终止流式对话
+    async zhongzhiliushi() {
+        console.log('[DEBUG] zhongzhiliushi 被调用');
+        console.log('[DEBUG] this.abortController:', this.abortController);
+        console.log('[DEBUG] this.abortController type:', typeof this.abortController);
+        
+        if (!this.abortController) {
+            this.rizhi('AbortController 尚未就绪，无法终止', 'warn');
+            return;
+        }
+        if (this.abortController === 'yizhongzhi') {
+            this.rizhi('已经终止过了', 'warn');
+            return;
+        }
+        try {
+            console.log('[DEBUG] 准备调用 controller.abort()');
+            this.rizhi('正在终止流式对话...', 'info');
+            this.abortController.abort();
+            console.log('[DEBUG] controller.abort() 执行完成');
+            this.abortController = 'yizhongzhi';
+            this.rizhi('流式对话已终止', 'ok');
+        } catch (e) {
+            console.error('[DEBUG] controller.abort() 失败:', e);
+            this.rizhi('终止失败: ' + e, 'err');
         }
     }
 

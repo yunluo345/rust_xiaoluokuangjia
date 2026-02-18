@@ -58,6 +58,7 @@ export class Aiduihuajiemian {
         shuruqu.innerHTML = `
             <textarea id="aiduihua_shuru" placeholder="输入消息..." style="flex:1;border:1px solid #E2E8F0;border-radius:8px;padding:10px;font-size:14px;resize:vertical;min-height:60px;outline:none;font-family:inherit"></textarea>
             <button id="aiduihua_fasong_btn" class="aq-btn aq-btn-lv" onclick="aiduihua_fasong()" style="margin:0">发送</button>
+            <button id="aiduihua_zhongzhi_btn" class="aq-btn aq-btn-hong" onclick="aiduihua_zhongzhi()" style="margin:0;display:none">终止</button>
         `;
         this.rongqi.appendChild(shuruqu);
 
@@ -137,6 +138,49 @@ export class Aiduihuajiemian {
         this.luoji.shezhimoshi(moshi);
     }
 
+    // 显示/隐藏请求中状态
+    shezhibtnzhuangtai(zhengzai) {
+        const btn = document.getElementById('aiduihua_fasong_btn');
+        const zhongzhiBtn = document.getElementById('aiduihua_zhongzhi_btn');
+        if (zhengzai) {
+            btn.disabled = true;
+            btn.textContent = '请求中...';
+            btn.style.display = 'none';
+            if (zhongzhiBtn) zhongzhiBtn.style.display = '';
+        } else {
+            btn.disabled = false;
+            btn.textContent = '发送';
+            btn.style.display = '';
+            if (zhongzhiBtn) zhongzhiBtn.style.display = 'none';
+        }
+    }
+
+    // 在对话区显示"正在请求..."加载提示
+    xianshijiazai() {
+        const quyu = document.getElementById('aiduihua_quyu');
+        if (!quyu) return;
+        let jiazaiqu = document.getElementById('aiduihua_jiazai_linshi');
+        if (!jiazaiqu) {
+            jiazaiqu = document.createElement('div');
+            jiazaiqu.id = 'aiduihua_jiazai_linshi';
+            jiazaiqu.style.cssText = 'display:flex;justify-content:flex-start;margin-bottom:12px';
+            jiazaiqu.innerHTML = `
+                <div style="max-width:80%;background:#F0FDF4;border-radius:8px;padding:10px">
+                    <div style="font-size:12px;font-weight:600;color:#10B981;margin-bottom:4px">AI</div>
+                    <div style="font-size:13px;color:#94A3B8">正在请求...</div>
+                </div>
+            `;
+            quyu.appendChild(jiazaiqu);
+            quyu.scrollTop = quyu.scrollHeight;
+        }
+    }
+
+    // 移除加载提示
+    yichujiazai() {
+        const jiazaiqu = document.getElementById('aiduihua_jiazai_linshi');
+        if (jiazaiqu) jiazaiqu.remove();
+    }
+
     async fasong() {
         if (this.zhengzaifasong) {
             this.luoji.rizhi('正在发送中，请稍候', 'warn');
@@ -144,7 +188,6 @@ export class Aiduihuajiemian {
         }
 
         const shuru = document.getElementById('aiduihua_shuru');
-        const btn = document.getElementById('aiduihua_fasong_btn');
         const neirong = shuru.value.trim();
 
         if (!neirong) {
@@ -153,8 +196,8 @@ export class Aiduihuajiemian {
         }
 
         this.zhengzaifasong = true;
-        btn.disabled = true;
-        btn.textContent = '发送中...';
+        this.shezhibtnzhuangtai(true);
+        this.xianshijiazai();
 
         try {
             if (this.luoji.dangqianmoshi === 'feiliushi') {
@@ -168,7 +211,7 @@ export class Aiduihuajiemian {
             } else {
                 // 流式
                 this.liushihuifu = '';
-                await this.luoji.liushiduihua(neirong, 'aiduihua_liushi_huidiao');
+                await this.luoji.liushiduihua(neirong, 'aiduihua_liushi_huidiao', 'aiduihua_duquqi_huidiao');
                 shuru.value = '';
             }
         } finally {
@@ -184,13 +227,27 @@ export class Aiduihuajiemian {
                 this.xuanranhuihualiebiao();
                 this.xuanranduihua();
             }
+            this.yichujiazai();
             this.zhengzaifasong = false;
-            btn.disabled = false;
-            btn.textContent = '发送';
+            this.shezhibtnzhuangtai(false);
+        }
+    }
+
+    // 终止请求
+    async zhongzhi() {
+        console.log('[DEBUG] jiemian.zhongzhi 被调用');
+        console.log('[DEBUG] dangqianmoshi:', this.luoji.dangqianmoshi);
+        if (this.luoji.dangqianmoshi === 'liushi') {
+            await this.luoji.zhongzhiliushi();
+        } else {
+            // 非流式也支持终止
+            await this.luoji.zhongzhiliushi();
         }
     }
 
     liushihuidiao(shuju) {
+        // 收到数据后移除加载提示
+        this.yichujiazai();
         // 解析 SSE 格式: data: {"neirong":"xxx"}\n\n
         try {
             const lines = shuju.split('\n');

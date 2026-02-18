@@ -14,14 +14,14 @@ pub struct Qingqiuti {
     pub xiaoxilie: Vec<Xiaoxi>,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Xiangying {
     pub zhuangtaima: u16,
     pub xiaoxi: String,
     pub shuju: Option<Huifushuju>,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Huifushuju {
     pub huifu: String,
 }

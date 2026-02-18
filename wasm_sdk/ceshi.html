@@ -226,6 +226,16 @@
             }
         };
 
+        window.aiduihua_duquqi_huidiao = function(controller) {
+            console.log('[DEBUG] aiduihua_duquqi_huidiao 被调用');
+            console.log('[DEBUG] controller 参数:', controller);
+            if (aiduihua_jm && aiduihua_jm.luoji) {
+                aiduihua_jm.luoji.baocunduquqi(controller);
+            } else {
+                console.error('[DEBUG] aiduihua_jm 或 aiduihua_jm.luoji 不存在');
+            }
+        };
+
         window.aiqudao_shuaxin = () => { if (aiqudao_jm) aiqudao_jm.shuaxinliebiao(); };
         window.aiqudao_xinzengshitu = () => { if (aiqudao_jm) aiqudao_jm.xuanranxinzengbiaodan(); };
         window.aiqudao_tijiaoxinzeng = () => { if (aiqudao_jm) aiqudao_jm.tijiaoxinzeng(); };
@@ -235,6 +245,7 @@
         window.aiqudao_tijiaobian = () => { if (aiqudao_jm) aiqudao_jm.tijiaobian(); };
 
         window.aiduihua_fasong = () => { if (aiduihua_jm) aiduihua_jm.fasong(); };
+        window.aiduihua_zhongzhi = () => { if (aiduihua_jm) aiduihua_jm.zhongzhi(); };
         window.aiduihua_qiehuanmoshi = (moshi) => { if (aiduihua_jm) aiduihua_jm.qiehuanmoshi(moshi); };
         window.aiduihua_qingkonglishi = () => { if (aiduihua_jm) aiduihua_jm.qingkonglishi(); };
         window.aiduihua_shanchuxiaoxi = (idx) => { if (aiduihua_jm) aiduihua_jm.shanchuxiaoxi(idx); };
