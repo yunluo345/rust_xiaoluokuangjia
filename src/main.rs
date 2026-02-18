@@ -93,7 +93,7 @@ async fn main() -> std::io::Result<()> {
     }
     
     if !gongju::wangluogongju::shifangduankou(zongpeizhi.houduanyunxingduankou) {
-        tuichu(&format!("释放端口 {} 失败", zongpeizhi.houduanyunxingduankou));
+        eprintln!("警告: 释放端口 {} 失败，但继续运行", zongpeizhi.houduanyunxingduankou);
     }
     
     println!("启动服务器: http://127.0.0.1:{}", zongpeizhi.houduanyunxingduankou);

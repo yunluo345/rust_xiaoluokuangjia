@@ -19,7 +19,7 @@
         .err { color: #EF4444; }
         .info { color: #3B82F6; }
         .warn { color: #F59E0B; }
-        .zhuangtai { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .zhuangtai { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; vertical-align: middle; }
         .zhuangtai.lianjiecheng { background: #D1FAE5; color: #065F46; }
         .zhuangtai.weilianjiecheng { background: #FEE2E2; color: #991B1B; }
         input { border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px; font-size: 14px; min-height: 44px; outline: none; transition: border-color 200ms; color: #1E293B; background: #fff; }
@@ -27,6 +27,7 @@
         label { font-size: 13px; color: #475569; margin-bottom: 4px; display: block; }
         .shurukuang { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 8px; }
         .shuruxiang { display: flex; flex-direction: column; }
+        .shuruxiang button { margin: 0; }
         .aq-biao { width: 100%; border-collapse: collapse; font-size: 13px; }
         .aq-biao th { background: #F1F5F9; color: #475569; padding: 8px 10px; text-align: left; font-weight: 600; border-bottom: 2px solid #E2E8F0; }
         .aq-biao td { padding: 8px 10px; border-bottom: 1px solid #E2E8F0; }
@@ -53,11 +54,11 @@
     </style>
 </head>
 <body>
-    <h1>加密传输测试面板</h1>
+    <h1>AI日报系统-SDK</h1>
 
     <div class="card">
-        <h2>连接状态</h2>
-        <p>WASM: <span id="wasm_zhuangtai" class="zhuangtai weilianjiecheng">加载中...</span></p>
+        <h2>SDK连接状态</h2>
+        <p>SDK: <span id="wasm_zhuangtai" class="zhuangtai weilianjiecheng">加载中...</span></p>
     </div>
 
     <div class="card">
@@ -80,7 +81,10 @@
                 <label for="denglu_mima">密码</label>
                 <input id="denglu_mima" type="password" value="5201314" placeholder="请输入密码">
             </div>
-            <button id="btn_denglu" onclick="dengluqingqiu()" disabled>加密登录</button>
+            <div class="shuruxiang">
+                <label style="visibility:hidden">占位</label>
+                <button id="btn_denglu" onclick="dengluqingqiu()" disabled>加密登录</button>
+            </div>
         </div>
     </div>
 

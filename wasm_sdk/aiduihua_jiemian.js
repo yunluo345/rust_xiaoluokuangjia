@@ -49,7 +49,7 @@ export class Aiduihuajiemian {
         // 对话区域
         const duihuaqu = document.createElement('div');
         duihuaqu.id = 'aiduihua_quyu';
-        duihuaqu.style.cssText = 'background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:12px;max-height:400px;overflow-y:auto;margin-bottom:12px;min-height:200px';
+        duihuaqu.style.cssText = 'background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:12px;max-height:400px;overflow-y:auto;margin-bottom:12px;min-height:200px;display:flex;flex-direction:column;justify-content:center';
         this.rongqi.appendChild(duihuaqu);
 
         // 输入区域
