@@ -172,4 +172,27 @@ impl Kehuduanjiami {
         let xiangying = fasongqingqiu(&request).await?;
         duqujiamiliushi(&xiangying, xinxi.miyao, huidiao, None).await
     }
+
+    pub async fn zhixingrenzhengputongqingqiu_with_abort(&self, fangfa: &str, lujing: &str, qingqiuti: Option<&str>, lingpai: &str, abort_signal: &web_sys::AbortSignal) -> Result<String, JsValue> {
+        let url = format!("{}{}", self.fuwuqidizhi, lujing);
+        let auth_header = format!("Bearer {}", lingpai);
+        let ewaiqingqiutou = vec![
+            ("Authorization", auth_header.as_str()),
+        ];
+        let request = goujianqingqiu(fangfa, &url, qingqiuti, Some(&ewaiqingqiutou), Some(abort_signal))?;
+        let xiangying = fasongqingqiu(&request).await?;
+        let wenben = JsFuture::from(xiangying.text()?).await?;
+        wenben.as_string().ok_or_else(|| cuowu("响应不是文本"))
+    }
+
+    pub async fn zhixingsserenzhengputongqingqiu_with_abort(&self, lujing: &str, qingqiuti: Option<&str>, huidiao: &js_sys::Function, lingpai: &str, abort_signal: &web_sys::AbortSignal) -> Result<(), JsValue> {
+        let url = format!("{}{}", self.fuwuqidizhi, lujing);
+        let auth_header = format!("Bearer {}", lingpai);
+        let ewaiqingqiutou = vec![
+            ("Authorization", auth_header.as_str()),
+        ];
+        let request = goujianqingqiu("POST", &url, qingqiuti, Some(&ewaiqingqiutou), Some(abort_signal))?;
+        let xiangying = fasongqingqiu(&request).await?;
+        crate::http_gongju::duquliushi(&xiangying, huidiao).await
+    }
 }

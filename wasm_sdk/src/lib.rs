@@ -159,7 +159,6 @@ impl Kehuduanjiami {
 
     pub async fn aiduihuaqingqiu(&mut self, xiaoxilie_json: &str, baocunduquqi_hanming: &str) -> Result<String, JsValue> {
         let lingpai = self.neibu.lingpai.as_ref().ok_or_else(|| jiami_gongju::cuowu("未登录"))?.clone();
-        self.neibu.quebaoxieshang().await?;
         
         let xiaoxilie: Vec<aiduihuaqq::Xiaoxi> = fanxuliehua(xiaoxilie_json, "解析消息列表失败")?;
         let ti = xuliehua(&aiduihuaqq::Qingqiuti { xiaoxilie })?;
@@ -169,14 +168,7 @@ impl Kehuduanjiami {
         let abort_signal = abort_controller.signal();
         let _ = baocunduquqi.call1(&JsValue::NULL, &abort_controller);
         
-        let jieguo = self.neibu.zhixingrenzhengjiamiqingqiu_with_abort(aiduihuaqq::fangshi, aiduihuaqq::lujing, Some(&ti), &lingpai, &abort_signal).await;
-        
-        let jiemi_wenben = if self.neibu.xuyaochongshi(&jieguo) {
-            self.neibu.chongxinxieshang().await?;
-            self.neibu.zhixingrenzhengjiamiqingqiu_with_abort(aiduihuaqq::fangshi, aiduihuaqq::lujing, Some(&ti), &lingpai, &abort_signal).await?
-        } else {
-            jieguo?
-        };
+        let jiemi_wenben = self.neibu.zhixingrenzhengputongqingqiu_with_abort(aiduihuaqq::fangshi, aiduihuaqq::lujing, Some(&ti), &lingpai, &abort_signal).await?;
         
         let xiangying: aiduihuaqq::Xiangying = fanxuliehua(&jiemi_wenben, "解析AI对话响应失败")?;
         if xiangying.zhuangtaima == huihua_guoqi_zhuangtaima {
@@ -189,7 +181,6 @@ impl Kehuduanjiami {
 
     pub async fn aiduihualiushiqingqiu(&mut self, xiaoxilie_json: &str, huidiaohanming: &str, baocunduquqi_hanming: &str) -> Result<(), JsValue> {
         let lingpai = self.neibu.lingpai.as_ref().ok_or_else(|| jiami_gongju::cuowu("未登录"))?.clone();
-        self.neibu.quebaoxieshang().await?;
         
         let xiaoxilie: Vec<aiduihualiushiqq::Xiaoxi> = fanxuliehua(xiaoxilie_json, "解析消息列表失败")?;
         let ti = xuliehua(&aiduihualiushiqq::Qingqiuti { xiaoxilie })?;
@@ -200,13 +191,7 @@ impl Kehuduanjiami {
         let abort_signal = abort_controller.signal();
         let _ = baocunduquqi.call1(&JsValue::NULL, &abort_controller);
         
-        let jieguo = self.neibu.zhixingsserenzhengjiamiqingqiu_with_abort(aiduihualiushiqq::lujing, Some(&ti), &huidiao, &lingpai, &abort_signal).await;
-        
-        if jieguo.as_ref().err().and_then(|e| e.as_string()).map_or(false, |s| s.contains("base64解码失败") || s.contains("解密响应失败")) {
-            self.neibu.chongxinxieshang().await?;
-            return self.neibu.zhixingsserenzhengjiamiqingqiu_with_abort(aiduihualiushiqq::lujing, Some(&ti), &huidiao, &lingpai, &abort_signal).await;
-        }
-        jieguo
+        self.neibu.zhixingsserenzhengputongqingqiu_with_abort(aiduihualiushiqq::lujing, Some(&ti), &huidiao, &lingpai, &abort_signal).await
     }
 
     pub fn huoqulingpai(&self) -> Option<String> {
