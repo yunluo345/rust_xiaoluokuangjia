@@ -1,9 +1,8 @@
 use actix_web::{HttpRequest, HttpResponse, web};
 use crate::jiekouxt::jiekouxtzhuti::{self, Jiekoudinyi, Qingqiufangshi};
-use crate::gongju::ai::openai::openaizhuti;
-use futures_core::Stream;
-use std::pin::Pin;
-use std::task::{Context, Poll};
+use crate::gongju::ai::openai::{gongjuji, openaizhuti};
+use crate::peizhixt::peizhixitongzhuti;
+use crate::peizhixt::peizhi_nr::peizhi_ai::Ai;
 
 #[allow(non_upper_case_globals)]
 pub const dinyi: Jiekoudinyi = Jiekoudinyi {
@@ -17,7 +16,6 @@ pub const dinyi: Jiekoudinyi = Jiekoudinyi {
     yunxuputong: false,
 };
 
-
 fn cuowu_sse(xinxi: &str) -> HttpResponse {
     let neirong = serde_json::json!({"cuowu": xinxi}).to_string();
     HttpResponse::Ok()
@@ -27,67 +25,54 @@ fn cuowu_sse(xinxi: &str) -> HttpResponse {
         .body(format!("data: {}\n\n", neirong))
 }
 
-fn tiqu_wenben(json: &serde_json::Value) -> Option<&str> {
-    json.pointer("/choices/0/delta/content")?.as_str()
+fn shengchengsse(shuju: &serde_json::Value) -> web::Bytes {
+    web::Bytes::from(format!("data: {}\n\n", shuju))
 }
 
-struct Liushi {
-    neiliu: Pin<Box<dyn Stream<Item = Result<actix_web::web::Bytes, reqwest::Error>> + Send>>,
-    huanchong: String,
-    jieshu: bool,
-    chushi: Option<String>,
+fn fasongshuju(
+    fasongqi: &futures::channel::mpsc::UnboundedSender<Result<web::Bytes, actix_web::Error>>,
+    shuju: serde_json::Value,
+) -> bool {
+    fasongqi.unbounded_send(Ok(shengchengsse(&shuju))).is_ok()
 }
 
-impl Stream for Liushi {
-    type Item = Result<actix_web::web::Bytes, actix_web::Error>;
+fn gongju_qianming(lie: &[llm::ToolCall]) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    for d in lie {
+        d.function.name.hash(&mut h);
+        d.function.arguments.hash(&mut h);
+    }
+    h.finish()
+}
 
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let this = self.get_mut();
-        if let Some(chushi) = this.chushi.take() {
-            return Poll::Ready(Some(Ok(actix_web::web::Bytes::from(chushi))));
+async fn zhixing_gongju_liushi(
+    qz: &str,
+    lie: &[llm::ToolCall],
+    lingpai: &str,
+    fasongqi: &futures::channel::mpsc::UnboundedSender<Result<web::Bytes, actix_web::Error>>,
+) -> Vec<llm::ToolCall> {
+    let renwu: Vec<_> = lie.iter().map(|d| {
+        let mut d = d.clone();
+        let qz = qz.to_string();
+        let lingpai = lingpai.to_string();
+        async move {
+            println!("[{}] 执行工具: {} 参数: {}", qz, d.function.name, d.function.arguments);
+            d.function.arguments = gongjuji::zhixing(&d.function.name, &d.function.arguments, &lingpai).await;
+            d
         }
-        if this.jieshu {
-            return Poll::Ready(None);
-        }
-        match this.neiliu.as_mut().poll_next(cx) {
-            Poll::Ready(Some(Ok(shuju))) => {
-                let wenben = String::from_utf8_lossy(&shuju);
-                this.huanchong.push_str(&wenben);
-                let mut shuchu = String::new();
-                while let Some(weizhi) = this.huanchong.find("\n") {
-                    let hang: String = this.huanchong.drain(..=weizhi).collect();
-                    let hang = hang.trim();
-                    if hang.is_empty() { continue; }
-                    let shuju_str = hang.strip_prefix("data:").unwrap_or(hang).trim_start();
-                    if shuju_str == "[DONE]" {
-                        this.jieshu = true;
-                        break;
-                    }
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(shuju_str) {
-                        if let Some(neirong) = tiqu_wenben(&json) {
-                            if !neirong.is_empty() {
-                                let shuju = serde_json::json!({"neirong": neirong}).to_string();
-                                shuchu.push_str(&format!("data: {}\n\n", shuju));
-                            }
-                        }
-                    }
-                }
-                if shuchu.is_empty() {
-                    cx.waker().wake_by_ref();
-                    Poll::Pending
-                } else {
-                    Poll::Ready(Some(Ok(actix_web::web::Bytes::from(shuchu))))
-                }
-            }
-            Poll::Ready(Some(Err(e))) => {
-                this.jieshu = true;
-                let cuowu = serde_json::json!({"cuowu": format!("流式传输错误: {}", e)}).to_string();
-                Poll::Ready(Some(Ok(actix_web::web::Bytes::from(format!("data: {}\n\n", cuowu)))))
-            }
-            Poll::Ready(None) => Poll::Ready(None),
-            Poll::Pending => Poll::Pending,
+    }).collect();
+    let jieguolie = futures::future::join_all(renwu).await;
+    for jieguo in &jieguolie {
+        if !fasongshuju(fasongqi, serde_json::json!({
+            "shijian": "gongjujieguo",
+            "mingcheng": jieguo.function.name,
+            "neirong": format!("工具{}执行完成", jieguo.function.name),
+        })) {
+            return jieguolie;
         }
     }
+    jieguolie
 }
 
 async fn chuliqingqiu(ti: &[u8], lingpai: &str) -> HttpResponse {
@@ -111,39 +96,75 @@ async fn chuliqingqiu(ti: &[u8], lingpai: &str) -> HttpResponse {
     let (gongjulie, yitu_miaoshu) = super::huoqu_yitu_gongju(&peizhi, benci_neirong).await;
     println!("[AI对话流式] 意图: {} 工具数: {}", yitu_miaoshu, gongjulie.len());
 
-    let mut guanli = super::goujian_guanli_anyitu(&qingqiu, gongjulie);
+    let (fasongqi, jieshouqi) = futures::channel::mpsc::unbounded::<Result<web::Bytes, actix_web::Error>>();
+    let lingpai = lingpai.to_string();
 
-    if let Some(openaizhuti::ReactJieguo::Wenben(huifu)) =
-        super::react_xunhuan(&peizhi, &mut guanli, "流式ReAct", lingpai, &qingqiu).await
-    {
-        let shuju = serde_json::json!({"neirong": huifu, "yitu": yitu_miaoshu}).to_string();
-        return HttpResponse::Ok()
-            .content_type("text/event-stream")
-            .insert_header(("Cache-Control", "no-cache"))
-            .insert_header(("Connection", "keep-alive"))
-            .body(format!("data: {}\n\n", shuju));
-    }
+    actix_web::rt::spawn(async move {
+        if !fasongshuju(&fasongqi, serde_json::json!({"shijian": "yitu", "yitu": yitu_miaoshu})) {
+            return;
+        }
 
-    let xiangying = match openaizhuti::liushiqingqiu(&peizhi, &guanli, false).await {
-        Some(x) => x,
-        None => return cuowu_sse("AI流式服务调用失败"),
-    };
+        let mut guanli = super::goujian_guanli_anyitu(&qingqiu, gongjulie);
+        let zuida = peizhixitongzhuti::duqupeizhi::<Ai>(Ai::wenjianming())
+            .map(|p| p.zuida_xunhuancishu).unwrap_or(20);
+        let mut shangci_hash: u64 = 0;
+        let mut chongfu: u32 = 0;
 
-    let yitu_shuju = serde_json::json!({"yitu": yitu_miaoshu}).to_string();
-    let chushi_sse = format!("data: {}\n\n", yitu_shuju);
+        for cishu in 1..=zuida {
+            if !fasongshuju(&fasongqi, serde_json::json!({
+                "shijian": "xunhuan",
+                "lun": cishu,
+                "neirong": format!("第{}轮思考中", cishu),
+            })) {
+                return;
+            }
 
-    let liushi = Liushi {
-        neiliu: Box::pin(xiangying.bytes_stream()),
-        huanchong: String::new(),
-        jieshu: false,
-        chushi: Some(chushi_sse),
-    };
+            match openaizhuti::putongqingqiu_react(&peizhi, &guanli).await {
+                Some(openaizhuti::ReactJieguo::Wenben(huifu)) => {
+                    let _ = fasongshuju(&fasongqi, serde_json::json!({"neirong": huifu, "wancheng": true}));
+                    return;
+                }
+                Some(openaizhuti::ReactJieguo::Gongjudiaoyong(lie)) => {
+                    let hash = gongju_qianming(&lie);
+                    if hash == shangci_hash && shangci_hash != 0 {
+                        chongfu += 1;
+                        if chongfu >= 2 {
+                            let _ = fasongshuju(&fasongqi, serde_json::json!({"cuowu": "工具重复调用次数过多，已终止"}));
+                            return;
+                        }
+                    } else {
+                        chongfu = 0;
+                    }
+                    shangci_hash = hash;
+
+                    if !fasongshuju(&fasongqi, serde_json::json!({
+                        "shijian": "gongjudiaoyong",
+                        "lun": cishu,
+                        "gongju": lie.iter().map(|d| d.function.name.clone()).collect::<Vec<_>>(),
+                        "neirong": format!("第{}轮调用工具", cishu),
+                    })) {
+                        return;
+                    }
+
+                    guanli.zhuijia_zhushou_gongjudiaoyong(lie.clone());
+                    let jieguolie = zhixing_gongju_liushi("流式ReAct", &lie, &lingpai, &fasongqi).await;
+                    guanli.zhuijia_gongjujieguo(jieguolie);
+                }
+                None => {
+                    let _ = fasongshuju(&fasongqi, serde_json::json!({"cuowu": "AI服务调用失败或处理超时"}));
+                    return;
+                }
+            }
+        }
+
+        let _ = fasongshuju(&fasongqi, serde_json::json!({"cuowu": "超过最大循环次数，已终止"}));
+    });
 
     HttpResponse::Ok()
         .content_type("text/event-stream")
         .insert_header(("Cache-Control", "no-cache"))
         .insert_header(("Connection", "keep-alive"))
-        .streaming(liushi)
+        .streaming(jieshouqi)
 }
 
 pub async fn chuli(req: HttpRequest, ti: web::Bytes) -> HttpResponse {

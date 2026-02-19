@@ -246,40 +246,48 @@ export class Aiduihuajiemian {
     }
 
     liushihuidiao(shuju) {
-        // 收到数据后移除加载提示
         this.yichujiazai();
-        // 解析 SSE 格式: data: {"neirong":"xxx"}\n\n
         try {
             const lines = shuju.split('\n');
             for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    const jsonStr = line.substring(6).trim();
-                    if (!jsonStr) continue;
-                    
-                    const json = JSON.parse(jsonStr);
-                    
-                    // 检查错误
-                    if (json.cuowu) {
-                        this.luoji.rizhi('流式错误: ' + json.cuowu, 'err');
-                        continue;
-                    }
-                    
-                    // 累积内容
-                    if (json.neirong) {
-                        this.liushihuifu += json.neirong;
-                    }
+                if (!line.startsWith('data: ')) continue;
+                const jsonStr = line.substring(6).trim();
+                if (!jsonStr) continue;
+
+                const json = JSON.parse(jsonStr);
+                if (json.cuowu) {
+                    this.luoji.rizhi('流式错误: ' + json.cuowu, 'err');
+                    continue;
+                }
+
+                if (json.shijian === 'yitu' && json.yitu) {
+                    this.liushihuifu += `\n[意图] ${json.yitu}\n`;
+                    continue;
+                }
+                if (json.shijian === 'xunhuan' && json.neirong) {
+                    this.liushihuifu += `\n[进度] ${json.neirong}\n`;
+                    continue;
+                }
+                if (json.shijian === 'gongjudiaoyong' && json.neirong) {
+                    this.liushihuifu += `\n[工具调用] ${json.neirong}\n`;
+                    continue;
+                }
+                if (json.shijian === 'gongjujieguo' && json.neirong) {
+                    this.liushihuifu += `\n[工具结果] ${json.neirong}\n`;
+                    continue;
+                }
+                if (json.neirong) {
+                    this.liushihuifu += json.neirong;
                 }
             }
         } catch (e) {
             this.luoji.rizhi('解析流式数据失败: ' + e, 'warn');
             return;
         }
-        
-        // 实时显示（在对话区域底部追加）
+
         const quyu = document.getElementById('aiduihua_quyu');
         if (!quyu) return;
 
-        // 查找或创建流式显示区域
         let liushiqu = document.getElementById('aiduihua_liushi_linshi');
         if (!liushiqu) {
             liushiqu = document.createElement('div');
@@ -298,8 +306,6 @@ export class Aiduihuajiemian {
         if (neirongqu) {
             neirongqu.textContent = this.liushihuifu;
         }
-
-        // 滚动到底部
         quyu.scrollTop = quyu.scrollHeight;
     }
 
