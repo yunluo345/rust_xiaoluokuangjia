@@ -36,6 +36,20 @@ fn fasongshuju(
     fasongqi.unbounded_send(Ok(shengchengsse(&shuju))).is_ok()
 }
 
+/// 逐字发送文本内容
+async fn zhuzi_fasong(
+    fasongqi: &futures::channel::mpsc::UnboundedSender<Result<web::Bytes, actix_web::Error>>,
+    wenben: &str,
+) -> bool {
+    for zi in wenben.chars() {
+        if !fasongshuju(fasongqi, serde_json::json!({"neirong": zi.to_string()})) {
+            return false;
+        }
+        actix_web::rt::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    fasongshuju(fasongqi, serde_json::json!({"wancheng": true}))
+}
+
 fn gongju_qianming(lie: &[llm::ToolCall]) -> u64 {
     use std::hash::{Hash, Hasher};
     let mut h = std::collections::hash_map::DefaultHasher::new();
@@ -87,13 +101,7 @@ async fn chuliqingqiu(ti: &[u8], lingpai: &str) -> HttpResponse {
         None => return cuowu_sse("暂无可用AI渠道或配置错误"),
     };
 
-    let benci_neirong = qingqiu.xiaoxilie.iter()
-        .rev()
-        .find(|x| x.juese == "user")
-        .map(|x| x.neirong.as_str())
-        .unwrap_or("");
-
-    let (gongjulie, yitu_miaoshu) = super::huoqu_yitu_gongju(&peizhi, benci_neirong).await;
+    let (gongjulie, yitu_miaoshu) = super::huoqu_yitu_gongju(&peizhi, &qingqiu.xiaoxilie).await;
     println!("[AI对话流式] 意图: {} 工具数: {}", yitu_miaoshu, gongjulie.len());
 
     let (fasongqi, jieshouqi) = futures::channel::mpsc::unbounded::<Result<web::Bytes, actix_web::Error>>();
@@ -121,7 +129,7 @@ async fn chuliqingqiu(ti: &[u8], lingpai: &str) -> HttpResponse {
 
             match openaizhuti::putongqingqiu_react(&peizhi, &guanli).await {
                 Some(openaizhuti::ReactJieguo::Wenben(huifu)) => {
-                    let _ = fasongshuju(&fasongqi, serde_json::json!({"neirong": huifu, "wancheng": true}));
+                    zhuzi_fasong(&fasongqi, &huifu).await;
                     return;
                 }
                 Some(openaizhuti::ReactJieguo::Gongjudiaoyong(lie)) => {

@@ -1,3 +1,40 @@
 {
+  "ribao_biaoqian": [
+    {
+      "bitian": true,
+      "miaoshu": "我方公司参与人员姓名",
+      "mingcheng": "wofangrenyuan"
+    },
+    {
+      "bitian": true,
+      "miaoshu": "对方公司参与人员姓名",
+      "mingcheng": "duifangrenyuan"
+    },
+    {
+      "bitian": true,
+      "miaoshu": "日报记录的工作日期",
+      "mingcheng": "ribaoshijian"
+    },
+    {
+      "bitian": true,
+      "miaoshu": "与客户交流的具体内容",
+      "mingcheng": "jiaoliuneirong"
+    },
+    {
+      "bitian": true,
+      "miaoshu": "客户姓名",
+      "mingcheng": "kehuminzi"
+    },
+    {
+      "bitian": true,
+      "miaoshu": "工作发生的地点信息",
+      "mingcheng": "didian"
+    },
+    {
+      "bitian": true,
+      "miaoshu": "本次工作的具体内容描述",
+      "mingcheng": "gonguoneirong"
+    }
+  ],
   "zuida_xunhuancishu": 20
 }

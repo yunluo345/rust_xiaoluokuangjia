@@ -18,6 +18,27 @@ fn hebing(moren: &mut Value, xianyou: &Value) {
             if let Some(moren_zhi) = moren_obj.get_mut(jian) {
                 if moren_zhi.is_object() && zhi.is_object() {
                     hebing(moren_zhi, zhi);
+                } else if moren_zhi.is_array() && zhi.is_array() {
+                    // 数组合并：以 mingcheng 为唯一键，保留用户项，补充默认中用户没有的项
+                    let xianyou_arr = zhi.as_array().unwrap();
+                    let moren_arr = moren_zhi.as_array().unwrap().clone();
+
+                    // 先收集用户已有的 mingcheng 集合
+                    let xianyou_mingcheng: std::collections::HashSet<String> = xianyou_arr
+                        .iter()
+                        .filter_map(|v| v.get("mingcheng").and_then(|m| m.as_str()).map(|s| s.to_string()))
+                        .collect();
+
+                    // 从默认中找出用户没有的项，追加进去
+                    let mut jieguo = xianyou_arr.clone();
+                    for moren_xiang in &moren_arr {
+                        if let Some(mc) = moren_xiang.get("mingcheng").and_then(|m| m.as_str()) {
+                            if !xianyou_mingcheng.contains(mc) {
+                                jieguo.push(moren_xiang.clone());
+                            }
+                        }
+                    }
+                    *moren_zhi = Value::Array(jieguo);
                 } else {
                     *moren_zhi = zhi.clone();
                 }

@@ -22,8 +22,9 @@ pub const yitu_tishici: &str = "\
 你是意图分析助手。根据用户消息判断意图类型。\
 只返回JSON，不要返回其他任何内容。\
 格式：{\"leixing\":\"gongjudiaoyong\"或\"putongduihua\",\"guanjianci\":\"提取的关键词\"}\
-- gongjudiaoyong：用户需要查询数据、执行操作、管理系统（如查时间、管理渠道等）\
-- putongduihua：普通问候、闲聊、知识问答等";
+- gongjudiaoyong：用户需要查询数据、执行操作、管理系统、检查或验证或审核日报或文档等（如查时间、管理渠道、检查日报、验证日报是否合格等）\
+- putongduihua：普通问候、闲聊、知识问答等\
+注意：只要用户消息中包含检查、验证、审核、日报等操作性词语，优先判断为gongjudiaoyong。";
 
 #[allow(non_upper_case_globals)]
 const chongfu_yuzhi: u32 = 2;
@@ -87,10 +88,17 @@ pub async fn huoqu_peizhi() -> Option<aipeizhi::Aipeizhi> {
 }
 
 /// 意图分析：用AI判断用户本次消息的意图
-async fn fenxi_yitu(peizhi: &aipeizhi::Aipeizhi, benci_neirong: &str) -> Option<YituJieguo> {
+async fn fenxi_yitu(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi]) -> Option<YituJieguo> {
     let mut guanli = aixiaoxiguanli::Xiaoxiguanli::xingjian()
         .shezhi_xitongtishici(yitu_tishici);
-    guanli.zhuijia_yonghuxiaoxi(benci_neirong);
+    for xiaoxi in xiaoxilie {
+        match xiaoxi.juese.as_str() {
+            "user" => guanli.zhuijia_yonghuxiaoxi(&xiaoxi.neirong),
+            "assistant" => guanli.zhuijia_zhushouneirong(&xiaoxi.neirong),
+            _ => {}
+        }
+    }
+    let benci_neirong = xiaoxilie.last().map(|x| x.neirong.as_str()).unwrap_or("");
     println!("[意图分析] 开始分析: {}", benci_neirong);
     let huifu = openaizhuti::putongqingqiu(peizhi, &guanli).await?;
     println!("[意图分析] AI返回: {}", huifu);
@@ -109,25 +117,28 @@ async fn fenxi_yitu(peizhi: &aipeizhi::Aipeizhi, benci_neirong: &str) -> Option<
     }
 }
 
+/// 优先用 AI 关键词匹配工具，匹配不到再用原文兜底，都没有则返回全部工具
+fn zhineng_tiqu_gongju_youxian(guanjianci: &str, yuanwen: &str) -> Vec<llm::chat::Tool> {
+    let gongju = gongjuji::zhineng_tiqu_gongju(guanjianci);
+    if !gongju.is_empty() {
+        return gongju;
+    }
+    let gongju = gongjuji::zhineng_tiqu_gongju(yuanwen);
+    if !gongju.is_empty() {
+        return gongju;
+    }
+    gongjuji::huoqu_suoyougongju()
+}
+
 /// 意图分析 + 工具筛选：先AI分析，失败则降级关键词匹配，再失败则无工具
-pub async fn huoqu_yitu_gongju(peizhi: &aipeizhi::Aipeizhi, benci_neirong: &str) -> (Vec<llm::chat::Tool>, String) {
+pub async fn huoqu_yitu_gongju(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi]) -> (Vec<llm::chat::Tool>, String) {
+    let benci_neirong = xiaoxilie.last().map(|x| x.neirong.as_str()).unwrap_or("");
     // 1. 尝试AI意图分析
-    if let Some(yitu) = fenxi_yitu(peizhi, benci_neirong).await {
+    if let Some(yitu) = fenxi_yitu(peizhi, xiaoxilie).await {
         if yitu.leixing == "gongjudiaoyong" {
-            // 先用AI返回的关键词匹配
-            let gongju = gongjuji::zhineng_tiqu_gongju(&yitu.guanjianci);
-            if !gongju.is_empty() {
-                println!("[意图] 工具调用(AI关键词)，匹配到 {} 个工具", gongju.len());
-                return (gongju, format!("工具调用: {}", yitu.guanjianci));
-            }
-            // AI关键词没匹配到，用原文匹配
-            let gongju = gongjuji::zhineng_tiqu_gongju(benci_neirong);
-            if !gongju.is_empty() {
-                println!("[意图] 工具调用(原文匹配)，匹配到 {} 个工具", gongju.len());
-                return (gongju, format!("工具调用(原文): {}", yitu.guanjianci));
-            }
-            println!("[意图] 工具调用意图但无匹配工具");
-            return (vec![], "普通对话(无匹配工具)".to_string());
+            let gongju = zhineng_tiqu_gongju_youxian(&yitu.guanjianci, benci_neirong);
+            println!("[意图] 工具调用，匹配到 {} 个工具", gongju.len());
+            return (gongju, format!("工具调用: {}", yitu.guanjianci));
         }
         println!("[意图] 普通对话");
         return (vec![], "普通对话".to_string());
