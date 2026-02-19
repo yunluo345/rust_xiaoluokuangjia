@@ -1,4 +1,5 @@
 use llm::chat::{ChatMessage, Tool};
+use crate::gongju::tokengongju;
 
 pub struct Xiaoxiguanli {
     xitongtishici: Option<String>,
@@ -49,7 +50,37 @@ impl Xiaoxiguanli {
         &self.xiaoxilie
     }
 
+    pub fn qingkong_gongjulie(&mut self) {
+        self.gongjulie.clear();
+    }
+
     pub fn huoqu_gongjulie(&self) -> Option<&[Tool]> {
         (!self.gongjulie.is_empty()).then(|| self.gongjulie.as_slice())
+    }
+
+    /// 计算当前上下文总 token 数
+    pub fn dangqian_token(&self) -> usize {
+        tokengongju::jisuan_xiaoxilie(self.xitongtishici.as_deref(), &self.xiaoxilie)
+    }
+
+    /// 裁剪旧消息，保证总 token 不超过上限
+    /// 保留系统提示词 + 最近的消息，从前面逐条删除
+    pub fn caijian_shangxiawen(&mut self, zuida_token: u32) {
+        let shangxian = zuida_token as usize;
+        if shangxian == 0 {
+            return;
+        }
+        let mut dangqian = self.dangqian_token();
+        if dangqian <= shangxian {
+            return;
+        }
+        println!("[上下文裁剪] 当前 {} token，上限 {}，开始裁剪", dangqian, shangxian);
+        // 从最旧的消息开始删除，至少保留最后一条用户消息
+        while dangqian > shangxian && self.xiaoxilie.len() > 1 {
+            let yichu = self.xiaoxilie.remove(0);
+            let jianshao = tokengongju::jisuan_xiaoxi(&yichu);
+            dangqian = dangqian.saturating_sub(jianshao);
+        }
+        println!("[上下文裁剪] 裁剪后 {} token，剩余 {} 条消息", dangqian, self.xiaoxilie.len());
     }
 }

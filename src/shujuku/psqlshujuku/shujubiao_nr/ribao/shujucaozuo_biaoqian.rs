@@ -74,3 +74,12 @@ pub async fn zhicunzai(leixingid: &str, zhi: &str) -> bool {
     ).await
     .is_some_and(|jieguo| !jieguo.is_empty())
 }
+
+/// 根据标签ID查询其所属的类型信息
+pub async fn chaxun_leixing(biaoqianid: &str) -> Option<Value> {
+    let jieguo = psqlcaozuo::chaxun(
+        "SELECT l.* FROM biaoqianleixing l INNER JOIN biaoqian b ON l.id = b.leixingid WHERE b.id = $1::BIGINT",
+        &[biaoqianid],
+    ).await?;
+    jieguo.into_iter().next()
+}

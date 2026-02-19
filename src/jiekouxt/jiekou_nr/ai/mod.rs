@@ -19,12 +19,16 @@ pub const xitongtishici: &str = "\
 
 #[allow(non_upper_case_globals)]
 pub const yitu_tishici: &str = "\
-你是意图分析助手。根据用户消息判断意图类型。\
+你是意图分析助手。根据用户消息判断意图类型，并提取多个语义关键词。\
 只返回JSON，不要返回其他任何内容。\
-格式：{\"leixing\":\"gongjudiaoyong\"或\"putongduihua\",\"guanjianci\":\"提取的关键词\"}\
-- gongjudiaoyong：用户需要查询数据、执行操作、管理系统、检查或验证或审核日报或文档等（如查时间、管理渠道、检查日报、验证日报是否合格等）\
-- putongduihua：普通问候、闲聊、知识问答等\
-注意：只要用户消息中包含检查、验证、审核、日报等操作性词语，优先判断为gongjudiaoyong。";
+格式：{\"leixing\":\"gongjudiaoyong\"或\"putongduihua\",\"guanjianci\":[\"关键词1\",\"关键词2\",\"关键词3\"]}\
+- gongjudiaoyong：用户需要获取实时信息、查询数据、执行操作、管理系统、检查或验证或审核日报或文档等（如查时间、几点了、今天日期、管理渠道、检查日报、验证日报是否合格等）\
+- putongduihua：普通问候、闲聊、不需要实时数据的知识问答等\
+关键词提取规则：\
+1. 从用户消息中提取核心语义词，包括原词和同义词/近义词\
+2. 例如'现在几点了'应提取['时间','几点','当前时间']，'帮我检查日报'应提取['日报','检查','验证']\
+3. 每条消息提取2-5个关键词，覆盖用户意图的各个维度\
+注意：只要用户消息中包含时间、几点、日期、检查、验证、审核、日报、渠道等需要查询或操作的词语，必须判断为gongjudiaoyong。";
 
 #[allow(non_upper_case_globals)]
 const chongfu_yuzhi: u32 = 2;
@@ -42,7 +46,7 @@ pub struct Qingqiuti {
 
 pub struct YituJieguo {
     pub leixing: String,
-    pub guanjianci: String,
+    pub guanjianci: Vec<String>,
     pub yuanwen: String,
 }
 
@@ -109,7 +113,21 @@ async fn fenxi_yitu(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi]) -> Option
         .trim();
     if let Ok(json) = serde_json::from_str::<serde_json::Value>(jinghua) {
         let leixing = json["leixing"].as_str().unwrap_or("putongduihua").to_string();
-        let guanjianci = json["guanjianci"].as_str().unwrap_or("").to_string();
+        // 支持数组和字符串两种格式
+        let guanjianci = if let Some(shuzu) = json["guanjianci"].as_array() {
+            shuzu.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
+        } else if let Some(danzi) = json["guanjianci"].as_str() {
+            if danzi.is_empty() {
+                vec![]
+            } else {
+                vec![danzi.to_string()]
+            }
+        } else {
+            vec![]
+        };
+        println!("[意图分析] 类型: {} 关键词: {:?}", leixing, guanjianci);
         Some(YituJieguo { leixing, guanjianci, yuanwen: huifu })
     } else {
         println!("[意图分析] JSON解析失败");
@@ -117,12 +135,38 @@ async fn fenxi_yitu(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi]) -> Option
     }
 }
 
-/// 优先用 AI 关键词匹配工具，匹配不到再用原文兜底，都没有则返回全部工具
-fn zhineng_tiqu_gongju_youxian(guanjianci: &str, yuanwen: &str) -> Vec<llm::chat::Tool> {
-    let gongju = gongjuji::zhineng_tiqu_gongju(guanjianci);
-    if !gongju.is_empty() {
-        return gongju;
+/// 多关键词匹配工具：逐个关键词匹配，合并去重，匹配不到再用原文兜底
+fn zhineng_tiqu_gongju_youxian(guanjianci_lie: &[String], yuanwen: &str) -> Vec<llm::chat::Tool> {
+    // 1. 用每个关键词分别匹配，收集工具名和命中次数
+    let mut gongjuming_defen: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for ci in guanjianci_lie {
+        let pipei = gongjuji::zhineng_tiqu_gongjuming(ci);
+        for (ming, defen) in pipei {
+            *gongjuming_defen.entry(ming).or_insert(0) += defen;
+        }
     }
+    // 也把所有关键词拼接起来整体匹配一次
+    if !guanjianci_lie.is_empty() {
+        let pingjie = guanjianci_lie.join(" ");
+        let pipei = gongjuji::zhineng_tiqu_gongjuming(&pingjie);
+        for (ming, defen) in pipei {
+            *gongjuming_defen.entry(ming).or_insert(0) += defen;
+        }
+    }
+    if !gongjuming_defen.is_empty() {
+        // 按得分降序排列，取所有匹配到的工具
+        let mut paixu: Vec<(String, usize)> = gongjuming_defen.into_iter().collect();
+        paixu.sort_by(|a, b| b.1.cmp(&a.1));
+        println!("[意图] 多关键词匹配结果: {:?}", paixu);
+        let gongjuming_lie: Vec<String> = paixu.into_iter().map(|(ming, _)| ming).collect();
+        let gongju = gongjuji::huoqu_suoyougongju().into_iter()
+            .filter(|g| gongjuming_lie.contains(&g.function.name))
+            .collect::<Vec<_>>();
+        if !gongju.is_empty() {
+            return gongju;
+        }
+    }
+    // 2. 关键词都没匹配到，用原文兜底
     let gongju = gongjuji::zhineng_tiqu_gongju(yuanwen);
     if !gongju.is_empty() {
         return gongju;
@@ -136,9 +180,16 @@ pub async fn huoqu_yitu_gongju(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi]
     // 1. 尝试AI意图分析
     if let Some(yitu) = fenxi_yitu(peizhi, xiaoxilie).await {
         if yitu.leixing == "gongjudiaoyong" {
+            let guanjianci_miaoshu = yitu.guanjianci.join(", ");
             let gongju = zhineng_tiqu_gongju_youxian(&yitu.guanjianci, benci_neirong);
-            println!("[意图] 工具调用，匹配到 {} 个工具", gongju.len());
-            return (gongju, format!("工具调用: {}", yitu.guanjianci));
+            println!("[意图] 工具调用，关键词: [{}] 匹配到 {} 个工具", guanjianci_miaoshu, gongju.len());
+            return (gongju, format!("工具调用: [{}]", guanjianci_miaoshu));
+        }
+        // AI判断为普通对话，但用关键词做兜底校验，防止AI误判
+        let doudigongju = gongjuji::zhineng_tiqu_gongju(benci_neirong);
+        if !doudigongju.is_empty() {
+            println!("[意图] AI判断普通对话，但关键词兜底匹配到 {} 个工具，覆盖为工具调用", doudigongju.len());
+            return (doudigongju, "工具调用(关键词兜底)".to_string());
         }
         println!("[意图] 普通对话");
         return (vec![], "普通对话".to_string());
@@ -195,7 +246,8 @@ pub async fn react_xunhuan(
     let mut chongfu: u32 = 0;
 
     for cishu in 1..=zuida {
-        println!("[{}] 第 {} 轮循环", qz, cishu);
+        guanli.caijian_shangxiawen(peizhi.zuida_token);
+        println!("[{}] 第 {} 轮循环 (token: {})", qz, cishu, guanli.dangqian_token());
         match openaizhuti::putongqingqiu_react(peizhi, guanli).await {
             Some(ReactJieguo::Wenben(huifu)) => return Some(ReactJieguo::Wenben(huifu)),
             Some(ReactJieguo::Gongjudiaoyong(lie)) => {
@@ -203,7 +255,11 @@ pub async fn react_xunhuan(
                 if hash == shangci_hash && shangci_hash != 0 {
                     chongfu += 1;
                     if chongfu >= chongfu_yuzhi {
-                        println!("[{}] 工具重复调用 {} 次，终止", qz, chongfu + 1);
+                        println!("[{}] 工具重复调用 {} 次，移除工具做最终回复", qz, chongfu + 1);
+                        guanli.qingkong_gongjulie();
+                        if let Some(huifu) = openaizhuti::putongqingqiu(peizhi, guanli).await {
+                            return Some(ReactJieguo::Wenben(huifu));
+                        }
                         return None;
                     }
                 } else {

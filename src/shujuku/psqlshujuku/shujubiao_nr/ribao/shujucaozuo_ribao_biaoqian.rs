@@ -68,3 +68,27 @@ pub async fn guanliancunzai(ribaoid: &str, biaoqianid: &str) -> bool {
     ).await
     .is_some_and(|jieguo| !jieguo.is_empty())
 }
+
+/// 按标签类型名称和值查询关联的日报
+pub async fn chaxun_leixingmingcheng_zhi(leixingmingcheng: &str, zhi: &str) -> Option<Vec<Value>> {
+    psqlcaozuo::chaxun(
+        "SELECT r.* FROM ribao r INNER JOIN ribao_biaoqian rb ON r.id = rb.ribaoid INNER JOIN biaoqian b ON rb.biaoqianid = b.id INNER JOIN biaoqianleixing l ON b.leixingid = l.id WHERE l.mingcheng = $1 AND b.zhi = $2 ORDER BY r.fabushijian DESC",
+        &[leixingmingcheng, zhi],
+    ).await
+}
+
+/// 查询日报的所有标签（包含类型信息）
+pub async fn chaxun_ribaoid_daixinxi(ribaoid: &str) -> Option<Vec<Value>> {
+    psqlcaozuo::chaxun(
+        "SELECT b.id, b.zhi, b.leixingid, l.mingcheng AS leixingmingcheng FROM ribao_biaoqian rb INNER JOIN biaoqian b ON rb.biaoqianid = b.id INNER JOIN biaoqianleixing l ON b.leixingid = l.id WHERE rb.ribaoid = $1::BIGINT",
+        &[ribaoid],
+    ).await
+}
+
+/// 按标签ID查询相关日报的其他标签（按类型筛选）
+pub async fn chaxun_xiangguanbiaoqian(biaoqianid: &str, leixingmingcheng: &str) -> Option<Vec<Value>> {
+    psqlcaozuo::chaxun(
+        "SELECT DISTINCT b.id, b.zhi, b.leixingid, l.mingcheng AS leixingmingcheng FROM ribao_biaoqian rb1 INNER JOIN ribao_biaoqian rb2 ON rb1.ribaoid = rb2.ribaoid INNER JOIN biaoqian b ON rb2.biaoqianid = b.id INNER JOIN biaoqianleixing l ON b.leixingid = l.id WHERE rb1.biaoqianid = $1::BIGINT AND l.mingcheng = $2",
+        &[biaoqianid, leixingmingcheng],
+    ).await
+}

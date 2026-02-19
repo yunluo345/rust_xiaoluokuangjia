@@ -12,7 +12,7 @@ const ziduanlie: &[Ziduandinyi] = &[
     Ziduandinyi { mingcheng: "nicheng", nicheng: "昵称", jieshao: "用户显示名称", leixing: "TEXT NOT NULL", morenzhi: None },
     Ziduandinyi { mingcheng: "touxiang", nicheng: "头像", jieshao: "头像地址", leixing: "TEXT", morenzhi: None },
     Ziduandinyi { mingcheng: "youxiang", nicheng: "邮箱", jieshao: "联系邮箱", leixing: "TEXT", morenzhi: None },
-    Ziduandinyi { mingcheng: "yonghuzuid", nicheng: "用户组ID", jieshao: "关联的用户组", leixing: "TEXT NOT NULL", morenzhi: None },
+    Ziduandinyi { mingcheng: "yonghuzuid", nicheng: "用户组ID", jieshao: "关联的用户组", leixing: "BIGINT NOT NULL REFERENCES yonghuzu(id) ON DELETE RESTRICT", morenzhi: None },
     Ziduandinyi { mingcheng: "fengjin", nicheng: "封禁状态", jieshao: "是否被封禁，1封禁0正常", leixing: "TEXT NOT NULL", morenzhi: Some("0") },
     Ziduandinyi { mingcheng: "fengjinyuanyin", nicheng: "封禁原因", jieshao: "封禁的具体原因说明", leixing: "TEXT", morenzhi: None },
     Ziduandinyi { mingcheng: "fengjinjieshu", nicheng: "封禁结束时间", jieshao: "封禁到期的时间戳，为空表示永久封禁", leixing: "TEXT", morenzhi: None },

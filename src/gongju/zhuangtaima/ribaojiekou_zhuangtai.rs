@@ -22,6 +22,7 @@ pub mod cuowu {
     pub const biaoqianbucunzai: Zhuangtai = Zhuangtai { ma: 404, xiaoxi: "标签不存在" };
     pub const ribaobucunzai: Zhuangtai = Zhuangtai { ma: 404, xiaoxi: "日报不存在" };
     pub const guanlianbucunzai: Zhuangtai = Zhuangtai { ma: 404, xiaoxi: "关联不存在" };
+    pub const mingchengyicunzai: Zhuangtai = Zhuangtai { ma: 409, xiaoxi: "名称已存在" };
     
     pub const chuangjianshi: Zhuangtai = Zhuangtai { ma: 500, xiaoxi: "创建失败" };
     pub const chaxunshibai: Zhuangtai = Zhuangtai { ma: 500, xiaoxi: "查询失败" };

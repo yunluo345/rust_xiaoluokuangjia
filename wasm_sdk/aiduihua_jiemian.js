@@ -4,6 +4,7 @@ export class Aiduihuajiemian {
         this.luoji = luoji;
         this.rongqi = document.getElementById(rongqiid);
         this.liushihuifu = ''; // 流式回复缓存
+        this.liushishijianlie = []; // 流式事件消息列表
         this.zhengzaifasong = false;
     }
 
@@ -89,6 +90,10 @@ export class Aiduihuajiemian {
         lan.innerHTML = html;
     }
 
+    shifoushijian(neirong) {
+        return /^\[(\u610f\u56fe|\u8fdb\u5ea6|\u5de5\u5177\u8c03\u7528|\u5de5\u5177\u7ed3\u679c)\]/.test(neirong);
+    }
+
     xuanranduihua() {
         const quyu = document.getElementById('aiduihua_quyu');
         if (!quyu) return;
@@ -102,26 +107,35 @@ export class Aiduihuajiemian {
         let html = '';
         lishi.forEach((xiaoxi, idx) => {
             const shiuser = xiaoxi.juese === 'user';
-            const yanse = shiuser ? '#3B82F6' : '#10B981';
-            const beijing = shiuser ? '#EFF6FF' : '#F0FDF4';
-            const duiqi = shiuser ? 'flex-end' : 'flex-start';
-            const juese_text = shiuser ? '我' : 'AI';
-            
-            html += `
-                <div style="display:flex;justify-content:${duiqi};margin-bottom:12px">
-                    <div style="max-width:80%;background:${beijing};border-radius:8px;padding:10px;position:relative">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                            <span style="font-size:12px;font-weight:600;color:${yanse}">${juese_text}</span>
-                            <button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="aiduihua_shanchuxiaoxi(${idx})" style="padding:2px 6px;font-size:11px;min-height:20px">删除</button>
+            const shiShijian = !shiuser && this.shifoushijian(xiaoxi.neirong);
+
+            if (shiShijian) {
+                // 事件消息：紧凑小气泡
+                html += `
+                    <div style="display:flex;justify-content:flex-start;margin-bottom:6px">
+                        <div style="background:#F5F3FF;border:1px solid #E9D5FF;border-radius:16px;padding:5px 12px">
+                            <span style="font-size:12px;color:#7C3AED">${this.zhuanyihtml(xiaoxi.neirong)}</span>
                         </div>
-                        <div style="font-size:13px;color:#1E293B;white-space:pre-wrap;word-break:break-word">${this.zhuanyihtml(xiaoxi.neirong)}</div>
-                    </div>
-                </div>
-            `;
+                    </div>`;
+            } else {
+                const yanse = shiuser ? '#3B82F6' : '#10B981';
+                const beijing = shiuser ? '#EFF6FF' : '#F0FDF4';
+                const duiqi = shiuser ? 'flex-end' : 'flex-start';
+                const juese_text = shiuser ? '我' : 'AI';
+                html += `
+                    <div style="display:flex;justify-content:${duiqi};margin-bottom:12px">
+                        <div style="max-width:80%;background:${beijing};border-radius:8px;padding:10px;position:relative">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                                <span style="font-size:12px;font-weight:600;color:${yanse}">${juese_text}</span>
+                                <button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="aiduihua_shanchuxiaoxi(${idx})" style="padding:2px 6px;font-size:11px;min-height:20px">删除</button>
+                            </div>
+                            <div style="font-size:13px;color:#1E293B;white-space:pre-wrap;word-break:break-word">${this.zhuanyihtml(xiaoxi.neirong)}</div>
+                        </div>
+                    </div>`;
+            }
         });
 
         quyu.innerHTML = html;
-        // 滚动到底部
         quyu.scrollTop = quyu.scrollHeight;
     }
 
@@ -219,10 +233,14 @@ export class Aiduihuajiemian {
         } finally {
             // 流式模式：无论成功失败，保存已收到的内容并清理临时DOM
             if (this.luoji.dangqianmoshi === 'liushi') {
+                // 保存事件消息为独立气泡
+                for (const sj of this.liushishijianlie) {
+                    this.luoji.tianjiaxiaoxi('assistant', sj);
+                }
                 if (this.liushihuifu) {
                     this.luoji.tianjiaxiaoxi('assistant', this.liushihuifu);
-                } else {
-                    // 没有收到任何AI回复，移除用户消息
+                } else if (this.liushishijianlie.length === 0) {
+                    // 没有收到任何回复，移除用户消息
                     this.luoji.shanchuzuihouyonghuxiaoxi();
                 }
                 this.qingchulishilinshi();
@@ -247,6 +265,19 @@ export class Aiduihuajiemian {
         }
     }
 
+    tianjiashijianqipao(neirong) {
+        const quyu = document.getElementById('aiduihua_quyu');
+        if (!quyu) return;
+        const qipao = document.createElement('div');
+        qipao.className = 'aiduihua_shijian_linshi';
+        qipao.style.cssText = 'display:flex;justify-content:flex-start;margin-bottom:6px';
+        qipao.innerHTML = `<div style="background:#F5F3FF;border:1px solid #E9D5FF;border-radius:16px;padding:5px 12px">
+            <span style="font-size:12px;color:#7C3AED">${this.zhuanyihtml(neirong)}</span>
+        </div>`;
+        quyu.appendChild(qipao);
+        quyu.scrollTop = quyu.scrollHeight;
+    }
+
     liushihuidiao(shuju) {
         this.yichujiazai();
         try {
@@ -263,19 +294,27 @@ export class Aiduihuajiemian {
                 }
 
                 if (json.shijian === 'yitu' && json.yitu) {
-                    this.liushihuifu += `\n[意图] ${json.yitu}\n`;
+                    const sj = `[意图] ${json.yitu}`;
+                    this.liushishijianlie.push(sj);
+                    this.tianjiashijianqipao(sj);
                     continue;
                 }
                 if (json.shijian === 'xunhuan' && json.neirong) {
-                    this.liushihuifu += `\n[进度] ${json.neirong}\n`;
+                    const sj = `[进度] ${json.neirong}`;
+                    this.liushishijianlie.push(sj);
+                    this.tianjiashijianqipao(sj);
                     continue;
                 }
                 if (json.shijian === 'gongjudiaoyong' && json.neirong) {
-                    this.liushihuifu += `\n[工具调用] ${json.neirong}\n`;
+                    const sj = `[工具调用] ${json.neirong}`;
+                    this.liushishijianlie.push(sj);
+                    this.tianjiashijianqipao(sj);
                     continue;
                 }
                 if (json.shijian === 'gongjujieguo' && json.neirong) {
-                    this.liushihuifu += `\n[工具结果] ${json.neirong}\n`;
+                    const sj = `[工具结果] ${json.neirong}`;
+                    this.liushishijianlie.push(sj);
+                    this.tianjiashijianqipao(sj);
                     continue;
                 }
                 if (json.neirong) {
@@ -287,36 +326,39 @@ export class Aiduihuajiemian {
             return;
         }
 
-        const quyu = document.getElementById('aiduihua_quyu');
-        if (!quyu) return;
+        // 只有有文字内容时才显示流式文字气泡
+        if (this.liushihuifu) {
+            const quyu = document.getElementById('aiduihua_quyu');
+            if (!quyu) return;
 
-        let liushiqu = document.getElementById('aiduihua_liushi_linshi');
-        if (!liushiqu) {
-            liushiqu = document.createElement('div');
-            liushiqu.id = 'aiduihua_liushi_linshi';
-            liushiqu.style.cssText = 'display:flex;justify-content:flex-start;margin-bottom:12px';
-            liushiqu.innerHTML = `
-                <div style="max-width:80%;background:#F0FDF4;border-radius:8px;padding:10px">
-                    <div style="font-size:12px;font-weight:600;color:#10B981;margin-bottom:4px">AI</div>
-                    <div id="aiduihua_liushi_neirong" style="font-size:13px;color:#1E293B;white-space:pre-wrap;word-break:break-word"></div>
-                </div>
-            `;
-            quyu.appendChild(liushiqu);
-        }
+            let liushiqu = document.getElementById('aiduihua_liushi_linshi');
+            if (!liushiqu) {
+                liushiqu = document.createElement('div');
+                liushiqu.id = 'aiduihua_liushi_linshi';
+                liushiqu.style.cssText = 'display:flex;justify-content:flex-start;margin-bottom:12px';
+                liushiqu.innerHTML = `
+                    <div style="max-width:80%;background:#F0FDF4;border-radius:8px;padding:10px">
+                        <div style="font-size:12px;font-weight:600;color:#10B981;margin-bottom:4px">AI</div>
+                        <div id="aiduihua_liushi_neirong" style="font-size:13px;color:#1E293B;white-space:pre-wrap;word-break:break-word"></div>
+                    </div>
+                `;
+                quyu.appendChild(liushiqu);
+            }
 
-        const neirongqu = document.getElementById('aiduihua_liushi_neirong');
-        if (neirongqu) {
-            neirongqu.textContent = this.liushihuifu;
+            const neirongqu = document.getElementById('aiduihua_liushi_neirong');
+            if (neirongqu) {
+                neirongqu.textContent = this.liushihuifu;
+            }
+            quyu.scrollTop = quyu.scrollHeight;
         }
-        quyu.scrollTop = quyu.scrollHeight;
     }
 
     qingchulishilinshi() {
         const linshi = document.getElementById('aiduihua_liushi_linshi');
-        if (linshi) {
-            linshi.remove();
-        }
+        if (linshi) linshi.remove();
+        document.querySelectorAll('.aiduihua_shijian_linshi').forEach(el => el.remove());
         this.liushihuifu = '';
+        this.liushishijianlie = [];
     }
 
     qingkonglishi() {

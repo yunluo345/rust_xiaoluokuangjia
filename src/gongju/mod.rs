@@ -6,3 +6,4 @@ pub mod jiamigongju;
 pub mod jwtgongju;
 pub mod ai;
 pub mod zhuangtaima;
+pub mod tokengongju;

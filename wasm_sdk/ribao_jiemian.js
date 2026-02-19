@@ -322,33 +322,45 @@ export class Ribaojiemian {
         const suoyoubiaoqian = biaoqianjg.shuju || [];
         const yiguanlianid = new Set(yiguanlian.map(g => g.biaoqianid));
         const weiguanlian = suoyoubiaoqian.filter(bq => !yiguanlianid.has(bq.id));
-        let html = `<h3 style="font-size:14px;color:#475569;margin:0 0 12px">日报 #${ribaoid} 的标签关联</h3>`;
-        html += '<div style="margin-bottom:16px"><h4 style="font-size:13px;color:#64748B;margin:0 0 8px">已关联标签</h4>';
+
+        let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <h3 style="font-size:15px;color:#1E293B;margin:0">日报 #${ribaoid} 的标签</h3>
+            <button class="aq-btn" onclick="ribao_quxiao()">返回列表</button>
+        </div>`;
+
+        // 已关联标签
+        html += `<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:14px;margin-bottom:14px">
+            <div style="font-size:13px;font-weight:600;color:#475569;margin-bottom:10px">已关联标签</div>`;
         if (yiguanlian.length === 0) {
-            html += '<p style="color:#94A3B8;font-size:13px">暂无关联标签</p>';
+            html += '<p style="color:#94A3B8;font-size:13px;margin:0">暂无关联标签</p>';
         } else {
             html += '<div style="display:flex;flex-wrap:wrap;gap:8px">';
             for (const gl of yiguanlian) {
                 const bq = suoyoubiaoqian.find(b => b.id === gl.biaoqianid);
                 const mingcheng = bq ? bq.zhi : gl.biaoqianid;
-                html += `<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:#EFF6FF;color:#1E40AF;border-radius:6px;font-size:13px">
+                html += `<span style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#EFF6FF;color:#1E40AF;border-radius:20px;font-size:13px;line-height:1.2">
                     ${mingcheng}
-                    <button onclick="ribao_shanchuguanlian('${ribaoid}','${gl.biaoqianid}')" style="background:none;border:none;color:#DC2626;cursor:pointer;padding:0;font-size:16px;line-height:1">×</button>
+                    <button onclick="ribao_shanchuguanlian('${ribaoid}','${gl.biaoqianid}')" style="background:none;border:none;color:#DC2626;cursor:pointer;padding:0;font-size:14px;line-height:1;display:flex;align-items:center">×</button>
                 </span>`;
             }
             html += '</div>';
         }
-        html += '</div><div><h4 style="font-size:13px;color:#64748B;margin:0 0 8px">可添加标签</h4>';
+        html += '</div>';
+
+        // 可添加标签
+        html += `<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:14px">
+            <div style="font-size:13px;font-weight:600;color:#475569;margin-bottom:10px">可添加标签</div>`;
         if (weiguanlian.length === 0) {
-            html += '<p style="color:#94A3B8;font-size:13px">所有标签已关联</p>';
+            html += '<p style="color:#94A3B8;font-size:13px;margin:0">所有标签已关联</p>';
         } else {
             html += '<div style="display:flex;flex-wrap:wrap;gap:8px">';
             for (const bq of weiguanlian) {
-                html += `<button onclick="ribao_xinzengguanlian('${ribaoid}','${bq.id}')" class="aq-btn aq-btn-xiao" style="padding:4px 10px;font-size:13px">${bq.zhi}</button>`;
+                html += `<button onclick="ribao_xinzengguanlian('${ribaoid}','${bq.id}')" style="padding:6px 12px;font-size:13px;background:#E0F2FE;color:#0369A1;border:1px solid #BAE6FD;border-radius:20px;cursor:pointer;line-height:1.2;transition:background 200ms" onmouseover="this.style.background='#BAE6FD'" onmouseout="this.style.background='#E0F2FE'">${bq.zhi}</button>`;
             }
             html += '</div>';
         }
-        html += '</div><div style="margin-top:16px"><button class="aq-btn" onclick="ribao_quxiao()">返回</button></div>';
+        html += '</div>';
+
         nr.innerHTML = html;
     }
 

@@ -7,7 +7,7 @@ pub struct Ribao;
 #[allow(non_upper_case_globals)]
 const ziduanlie: &[Ziduandinyi] = &[
     Ziduandinyi { mingcheng: "id", nicheng: "日报ID", jieshao: "日报唯一标识", leixing: "BIGSERIAL PRIMARY KEY", morenzhi: None },
-    Ziduandinyi { mingcheng: "yonghuid", nicheng: "用户ID", jieshao: "发送日报的用户ID", leixing: "BIGINT NOT NULL", morenzhi: None },
+    Ziduandinyi { mingcheng: "yonghuid", nicheng: "用户ID", jieshao: "发送日报的用户ID", leixing: "BIGINT NOT NULL REFERENCES yonghu(id) ON DELETE CASCADE", morenzhi: None },
     Ziduandinyi { mingcheng: "neirong", nicheng: "日报内容", jieshao: "日报的具体内容", leixing: "TEXT NOT NULL", morenzhi: None },
     Ziduandinyi { mingcheng: "fabushijian", nicheng: "发布时间", jieshao: "日报发布的时间戳", leixing: "TEXT NOT NULL", morenzhi: None },
     Ziduandinyi { mingcheng: "chuangjianshijian", nicheng: "创建时间", jieshao: "记录创建时间", leixing: "TEXT NOT NULL", morenzhi: None },

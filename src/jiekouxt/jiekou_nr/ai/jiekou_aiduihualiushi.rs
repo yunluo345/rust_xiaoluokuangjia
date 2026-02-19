@@ -119,6 +119,7 @@ async fn chuliqingqiu(ti: &[u8], lingpai: &str) -> HttpResponse {
         let mut chongfu: u32 = 0;
 
         for cishu in 1..=zuida {
+            guanli.caijian_shangxiawen(peizhi.zuida_token);
             if !fasongshuju(&fasongqi, serde_json::json!({
                 "shijian": "xunhuan",
                 "lun": cishu,
@@ -137,7 +138,13 @@ async fn chuliqingqiu(ti: &[u8], lingpai: &str) -> HttpResponse {
                     if hash == shangci_hash && shangci_hash != 0 {
                         chongfu += 1;
                         if chongfu >= 2 {
-                            let _ = fasongshuju(&fasongqi, serde_json::json!({"cuowu": "工具重复调用次数过多，已终止"}));
+                            println!("[流式ReAct] 工具重复调用，移除工具做最终回复");
+                            guanli.qingkong_gongjulie();
+                            if let Some(huifu) = openaizhuti::putongqingqiu(&peizhi, &guanli).await {
+                                zhuzi_fasong(&fasongqi, &huifu).await;
+                            } else {
+                                let _ = fasongshuju(&fasongqi, serde_json::json!({"cuowu": "AI服务调用失败"}));
+                            }
                             return;
                         }
                     } else {

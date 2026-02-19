@@ -7,6 +7,7 @@ pub struct Aipeizhi {
     pub miyao: String,
     pub moxing: String,
     pub wendu: f32,
+    pub zuida_token: u32,
     pub chaoshishijian: u64,
     pub chongshicishu: u32,
 }
@@ -24,6 +25,10 @@ impl Aipeizhi {
             miyao: quziduan(shuju, "miyao").to_string(),
             moxing: quziduan(shuju, "moxing").to_string(),
             wendu: quziduan(shuju, "wendu").parse().unwrap_or(0.0),
+            zuida_token: {
+                let zhi: u32 = quziduan(shuju, "zuida_token").parse().unwrap_or(0);
+                if zhi == 0 { 22767 } else { zhi }
+            },
             chaoshishijian: 30,
             chongshicishu: 0,
         })

@@ -32,6 +32,7 @@ struct Xinzengcanshu {
     miyao: String,
     moxing: String,
     wendu: String,
+    zuida_token: Option<String>,
     beizhu: Option<String>,
 }
 
@@ -111,6 +112,7 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
             if shujucaozuo_aiqudao::mingchengcunzai(&canshu.mingcheng).await {
                 return jiamishibai(400, "渠道名称已存在", miyao);
             }
+            let zuida_token = canshu.zuida_token.as_deref().unwrap_or("0");
             match shujucaozuo_aiqudao::xinzeng(
                 &canshu.mingcheng,
                 &canshu.leixing,
@@ -118,6 +120,7 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
                 &canshu.miyao,
                 &canshu.moxing,
                 &canshu.wendu,
+                zuida_token,
                 canshu.beizhu.as_deref(),
             ).await {
                 Some(id) => jiamichenggong("新增成功", serde_json::json!({"id": id}), miyao),

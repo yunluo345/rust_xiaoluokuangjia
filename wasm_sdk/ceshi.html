@@ -315,6 +315,13 @@
         window.biaoqian_bianjibiaoqian_danxiang = (id) => { if (biaoqian_jm) biaoqian_jm.bianjibiaoqian_danxiang(id); };
         window.biaoqian_shanchubiaoqian = (id) => { if (biaoqian_jm) biaoqian_jm.shanchubiaoqian(id); };
         window.biaoqian_fanhui = () => { if (biaoqian_jm) biaoqian_jm.fanhui(); };
+        window.biaoqian_quxiao = () => { if (biaoqian_jm) biaoqian_jm.quxiao(); };
+        window.biaoqian_tijiaoxinzengleixing = () => { if (biaoqian_jm) biaoqian_jm.tijiaoxinzengleixing(); };
+        window.biaoqian_tijiaobjleixing = () => { if (biaoqian_jm) biaoqian_jm.tijiaobjleixing(); };
+        window.biaoqian_tijiaoxinzengbiaoqian = () => { if (biaoqian_jm) biaoqian_jm.tijiaoxinzengbiaoqian(); };
+        window.biaoqian_tijiaoxinzengbiaoqian_leixing = (leixingid) => { if (biaoqian_jm) biaoqian_jm.tijiaoxinzengbiaoqian_leixing(leixingid); };
+        window.biaoqian_tijiaobjbiaoqian = () => { if (biaoqian_jm) biaoqian_jm.tijiaobjbiaoqian(); };
+        window.biaoqian_fanhuileixing = (leixingid) => { if (biaoqian_jm) biaoqian_jm.fanhuileixing(leixingid); };
         }).catch(err => {
             console.error('模块加载失败:', err);
             rizhi('模块加载失败: ' + err.message, 'err');

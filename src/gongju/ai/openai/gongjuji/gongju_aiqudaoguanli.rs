@@ -24,6 +24,7 @@ enum Caozuoleixing {
         miyao: String,
         moxing: String,
         wendu: String,
+        zuida_token: String,
         beizhu: Option<String>,
     },
     Gengxin {
@@ -116,6 +117,10 @@ pub fn dinyi() -> Tool {
                         "type": "string",
                         "description": "温度参数(0-2)，xinzeng操作时可选，默认0"
                     },
+                    "zuida_token": {
+                        "type": "string",
+                        "description": "模型最大Token数，xinzeng操作时可选，默认0表示不限制"
+                    },
                     "beizhu": {
                         "type": "string",
                         "description": "备注信息，xinzeng操作时可选"
@@ -151,6 +156,7 @@ struct Qingqiucanshu {
     miyao: Option<String>,
     moxing: Option<String>,
     wendu: Option<String>,
+    zuida_token: Option<String>,
     beizhu: Option<String>,
     ziduanlie: Option<Vec<Vec<String>>>,
     youxianji: Option<String>,
@@ -201,6 +207,7 @@ fn jiexi_caozuo(qingqiu: Qingqiucanshu) -> Result<Caozuoleixing, String> {
             let miyao = tiqucansu(qingqiu.miyao, "miyao")?;
             let moxing = tiqucansu(qingqiu.moxing, "moxing")?;
             let wendu = qingqiu.wendu.unwrap_or_else(|| "0".to_string());
+            let zuida_token = qingqiu.zuida_token.unwrap_or_else(|| "0".to_string());
             
             if !yanzheng_leixing(&leixing) {
                 return Err(chaxun_shibai("类型只能是 openapi、xiangliang 或 yuyin"));
@@ -213,6 +220,7 @@ fn jiexi_caozuo(qingqiu: Qingqiucanshu) -> Result<Caozuoleixing, String> {
                 miyao,
                 moxing,
                 wendu,
+                zuida_token,
                 beizhu: qingqiu.beizhu,
             })
         }
@@ -280,6 +288,7 @@ async fn zhixing_caozuo(caozuo: Caozuoleixing) -> String {
             miyao,
             moxing,
             wendu,
+            zuida_token,
             beizhu,
         } => {
             if shujucaozuo_aiqudao::mingchengcunzai(&mingcheng).await {
@@ -293,6 +302,7 @@ async fn zhixing_caozuo(caozuo: Caozuoleixing) -> String {
                 &miyao,
                 &moxing,
                 &wendu,
+                &zuida_token,
                 beizhu.as_deref(),
             ).await {
                 Some(id) => chaxun_chenggong(json!({"id": id})),

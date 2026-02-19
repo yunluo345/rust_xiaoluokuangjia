@@ -33,7 +33,7 @@ export class Aiqudaojiemian {
             return;
         }
         let html = '<div style="overflow-x:auto"><table class="aq-biao"><thead><tr>' +
-            '<th>ID</th><th>名称</th><th>类型</th><th>模型</th><th>温度</th><th>优先级</th><th>状态</th><th>操作</th>' +
+            '<th>ID</th><th>名称</th><th>类型</th><th>模型</th><th>温度</th><th>最大Token</th><th>优先级</th><th>状态</th><th>操作</th>' +
             '</tr></thead><tbody>';
         for (const qd of liebiao) {
             const zt = qd.zhuangtai === '1';
@@ -42,7 +42,7 @@ export class Aiqudaojiemian {
                 : '<span style="color:#EF4444;font-weight:600">禁用</span>';
             html += `<tr>
                 <td>${qd.id}</td><td>${qd.mingcheng}</td><td>${qd.leixing}</td>
-                <td>${qd.moxing}</td><td>${qd.wendu}</td><td>${qd.youxianji}</td>
+                <td>${qd.moxing}</td><td>${qd.wendu}</td><td>${qd.zuida_token || 0}</td><td>${qd.youxianji}</td>
                 <td>${zthtml}</td>
                 <td style="white-space:nowrap">
                     <button class="aq-btn aq-btn-xiao" onclick="aiqudao_qiehuan('${qd.id}')">${zt ? '禁用' : '启用'}</button>
@@ -70,6 +70,7 @@ export class Aiqudaojiemian {
             <div class="aq-hang"><label>密钥</label><input id="aq_miyao" type="text" placeholder="API密钥"></div>
             <div class="aq-hang"><label>模型</label><input id="aq_moxing" type="text" placeholder="模型名称"></div>
             <div class="aq-hang"><label>温度</label><input id="aq_wendu" type="text" value="0.7" placeholder="0.0-2.0"></div>
+            <div class="aq-hang"><label>最大Token</label><input id="aq_zuida_token" type="text" value="0" placeholder="0表示不限制"></div>
             <div class="aq-hang"><label>备注</label><input id="aq_beizhu" type="text" placeholder="可选"></div>
             <div style="margin-top:12px">
                 <button class="aq-btn aq-btn-lv" onclick="aiqudao_tijiaoxinzeng()">提交</button>
@@ -82,7 +83,8 @@ export class Aiqudaojiemian {
         const shuju = {
             mingcheng: hq('aq_mingcheng'), leixing: hq('aq_leixing'),
             jiekoudizhi: hq('aq_jiekoudizhi'), miyao: hq('aq_miyao'),
-            moxing: hq('aq_moxing'), wendu: hq('aq_wendu'), beizhu: hq('aq_beizhu') || undefined
+            moxing: hq('aq_moxing'), wendu: hq('aq_wendu'),
+            zuida_token: hq('aq_zuida_token') || '0', beizhu: hq('aq_beizhu') || undefined
         };
         if (!shuju.mingcheng || !shuju.leixing || !shuju.jiekoudizhi || !shuju.miyao || !shuju.moxing) {
             this.luoji.rizhi('请填写所有必填字段', 'warn');
@@ -123,6 +125,7 @@ export class Aiqudaojiemian {
             <div class="aq-hang"><label>密钥</label><input id="aq_b_miyao" type="text" value="${qd.miyao}"></div>
             <div class="aq-hang"><label>模型</label><input id="aq_b_moxing" type="text" value="${qd.moxing}"></div>
             <div class="aq-hang"><label>温度</label><input id="aq_b_wendu" type="text" value="${qd.wendu}"></div>
+            <div class="aq-hang"><label>最大Token</label><input id="aq_b_zuida_token" type="text" value="${qd.zuida_token || 0}"></div>
             <div class="aq-hang"><label>备注</label><input id="aq_b_beizhu" type="text" value="${qd.beizhu || ''}"></div>
             <div style="margin-top:12px">
                 <button class="aq-btn aq-btn-huang" onclick="aiqudao_tijiaobian()">保存修改</button>
@@ -137,7 +140,7 @@ export class Aiqudaojiemian {
             ['mingcheng', hq('aq_b_mingcheng')], ['leixing', hq('aq_b_leixing')],
             ['jiekoudizhi', hq('aq_b_jiekoudizhi')], ['miyao', hq('aq_b_miyao')],
             ['moxing', hq('aq_b_moxing')], ['wendu', hq('aq_b_wendu')],
-            ['beizhu', hq('aq_b_beizhu')]
+            ['zuida_token', hq('aq_b_zuida_token')], ['beizhu', hq('aq_b_beizhu')]
         ].filter(([, v]) => v);
         if (ziduanlie.length === 0) { this.luoji.rizhi('没有需要更新的字段', 'warn'); return; }
         const jg = await this.luoji.gengxin(this.xuanzhongid, ziduanlie);

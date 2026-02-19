@@ -8,12 +8,12 @@ use crate::shujuku::psqlshujuku::psqlcaozuo;
 const biaoming: &str = "aiqudao";
 
 /// 新增AI渠道，返回自增ID
-pub async fn xinzeng(mingcheng: &str, leixing: &str, jiekoudizhi: &str, miyao: &str, moxing: &str, wendu: &str, beizhu: Option<&str>) -> Option<String> {
+pub async fn xinzeng(mingcheng: &str, leixing: &str, jiekoudizhi: &str, miyao: &str, moxing: &str, wendu: &str, zuida_token: &str, beizhu: Option<&str>) -> Option<String> {
     let shijian = jichugongju::huoqushijianchuo().to_string();
     let beizhu_zhi = beizhu.unwrap_or("");
     let jieguo = psqlcaozuo::chaxun(
-        &format!("INSERT INTO {} (mingcheng, leixing, jiekoudizhi, miyao, moxing, wendu, zhuangtai, youxianji, beizhu, chuangjianshijian, gengxinshijian) VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8 AS INTEGER),$9,$10,$11) RETURNING id::TEXT", biaoming),
-        &[mingcheng, leixing, jiekoudizhi, miyao, moxing, wendu, "1", "0", beizhu_zhi, &shijian, &shijian],
+        &format!("INSERT INTO {} (mingcheng, leixing, jiekoudizhi, miyao, moxing, wendu, zuida_token, zhuangtai, youxianji, beizhu, chuangjianshijian, gengxinshijian) VALUES ($1,$2,$3,$4,$5,$6,CAST($7 AS INTEGER),$8,CAST($9 AS INTEGER),$10,$11,$12) RETURNING id::TEXT", biaoming),
+        &[mingcheng, leixing, jiekoudizhi, miyao, moxing, wendu, zuida_token, "1", "0", beizhu_zhi, &shijian, &shijian],
     ).await?;
     jieguo.first().and_then(|v| v.get("id")?.as_str().map(String::from))
 }

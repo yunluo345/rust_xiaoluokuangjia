@@ -106,8 +106,19 @@ export class Biaoqianjiemian {
         nr.innerHTML = html;
     }
 
-    async xinzengleixing() {
-        const mingcheng = prompt('输入类型名称：');
+    xinzengleixing() {
+        this.gengxincaozuo('');
+        const nr = document.getElementById('biaoqian_neirong');
+        nr.innerHTML = `<div class="aq-biaodan">
+            <div class="aq-hang"><label>类型名称</label><input id="bq_lx_mingcheng" type="text" placeholder="输入类型名称"></div>
+            <div style="margin-top:12px">
+                <button class="aq-btn aq-btn-lv" onclick="biaoqian_tijiaoxinzengleixing()">提交</button>
+                <button class="aq-btn" onclick="biaoqian_quxiao()">取消</button>
+            </div></div>`;
+    }
+
+    async tijiaoxinzengleixing() {
+        const mingcheng = document.getElementById('bq_lx_mingcheng')?.value?.trim();
         if (!mingcheng) return;
         const jg = await this.luoji.leixing_xinzeng(mingcheng);
         if (jg && jg.zhuangtaima === 200) this.xianshileixing();
@@ -116,10 +127,26 @@ export class Biaoqianjiemian {
     async bianjileixing(id) {
         const jg = await this.luoji.leixing_chaxun_id(id);
         if (!jg || jg.zhuangtaima !== 200) return;
-        const mingcheng = prompt('修改类型名称：', jg.shuju.mingcheng);
-        if (!mingcheng) return;
-        const gxjg = await this.luoji.leixing_gengxin(id, mingcheng);
-        if (gxjg && gxjg.zhuangtaima === 200) this.xianshileixing();
+        this.xuanzhongid_bianji = id;
+        this.gengxincaozuo('');
+        const nr = document.getElementById('biaoqian_neirong');
+        nr.innerHTML = `<div class="aq-biaodan">
+            <div class="aq-hang"><label>类型名称</label><input id="bq_lx_mingcheng" type="text" value="${this.zhuanyihtml(jg.shuju.mingcheng)}"></div>
+            <div style="margin-top:12px">
+                <button class="aq-btn aq-btn-huang" onclick="biaoqian_tijiaobjleixing()">保存</button>
+                <button class="aq-btn" onclick="biaoqian_quxiao()">取消</button>
+            </div></div>`;
+    }
+
+    async tijiaobjleixing() {
+        const mingcheng = document.getElementById('bq_lx_mingcheng')?.value?.trim();
+        if (!mingcheng || !this.xuanzhongid_bianji) return;
+        const jg = await this.luoji.leixing_gengxin(this.xuanzhongid_bianji, mingcheng);
+        if (jg && jg.zhuangtaima === 200) { this.xuanzhongid_bianji = null; this.xianshileixing(); }
+    }
+
+    zhuanyihtml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
     async shanchuleixing(id) {
@@ -161,19 +188,47 @@ export class Biaoqianjiemian {
     async xinzengbiaoqian() {
         const leixingjg = await this.luoji.leixing_chaxun_quanbu();
         if (!leixingjg || leixingjg.zhuangtaima !== 200 || !leixingjg.shuju || leixingjg.shuju.length === 0) {
-            alert('请先创建标签类型');
+            const nr = document.getElementById('biaoqian_neirong');
+            nr.innerHTML = '<p style="color:#F59E0B">请先创建标签类型</p><button class="aq-btn" onclick="biaoqian_quxiao()">返回</button>';
             return;
         }
-        const leixingid = prompt(`选择类型ID（${leixingjg.shuju.map(x => `${x.id}:${x.mingcheng}`).join(', ')}）：`);
-        if (!leixingid) return;
-        const zhi = prompt('输入标签值：');
-        if (!zhi) return;
+        this.gengxincaozuo('');
+        const xuanxiang = leixingjg.shuju.map(x => `<option value="${x.id}">${this.zhuanyihtml(x.mingcheng)}</option>`).join('');
+        const nr = document.getElementById('biaoqian_neirong');
+        nr.innerHTML = `<div class="aq-biaodan">
+            <div class="aq-hang"><label>标签类型</label>
+                <select id="bq_xinzeng_leixingid" class="aq-hang select" style="border:1px solid #E2E8F0;border-radius:8px;padding:8px 12px;font-size:14px;outline:none;color:#1E293B;background:#fff;cursor:pointer">
+                    ${xuanxiang}
+                </select>
+            </div>
+            <div class="aq-hang"><label>标签值</label><input id="bq_xinzeng_zhi" type="text" placeholder="输入标签值"></div>
+            <div style="margin-top:12px">
+                <button class="aq-btn aq-btn-lv" onclick="biaoqian_tijiaoxinzengbiaoqian()">提交</button>
+                <button class="aq-btn" onclick="biaoqian_quxiao()">取消</button>
+            </div></div>`;
+    }
+
+    async tijiaoxinzengbiaoqian() {
+        const leixingid = document.getElementById('bq_xinzeng_leixingid')?.value;
+        const zhi = document.getElementById('bq_xinzeng_zhi')?.value?.trim();
+        if (!leixingid || !zhi) return;
         const jg = await this.luoji.biaoqian_xinzeng(leixingid, zhi);
         if (jg && jg.zhuangtaima === 200) this.xianshibibaoqian();
     }
 
-    async xinzengbiaoqian_leixing(leixingid) {
-        const zhi = prompt('输入标签值：');
+    xinzengbiaoqian_leixing(leixingid) {
+        this.gengxincaozuo(`<button class="aq-btn" onclick="biaoqian_fanhuileixing('${leixingid}')">返回</button>`);
+        const nr = document.getElementById('biaoqian_neirong');
+        nr.innerHTML = `<div class="aq-biaodan">
+            <div class="aq-hang"><label>标签值</label><input id="bq_xinzeng_zhi" type="text" placeholder="输入标签值"></div>
+            <div style="margin-top:12px">
+                <button class="aq-btn aq-btn-lv" onclick="biaoqian_tijiaoxinzengbiaoqian_leixing('${leixingid}')">提交</button>
+                <button class="aq-btn" onclick="biaoqian_fanhuileixing('${leixingid}')">取消</button>
+            </div></div>`;
+    }
+
+    async tijiaoxinzengbiaoqian_leixing(leixingid) {
+        const zhi = document.getElementById('bq_xinzeng_zhi')?.value?.trim();
         if (!zhi) return;
         const jg = await this.luoji.biaoqian_xinzeng(leixingid, zhi);
         if (jg && jg.zhuangtaima === 200) this.bianjibiaoqian(leixingid);
@@ -182,12 +237,29 @@ export class Biaoqianjiemian {
     async bianjibiaoqian_danxiang(id) {
         const jg = await this.luoji.biaoqian_chaxun_id(id);
         if (!jg || jg.zhuangtaima !== 200) return;
-        const zhi = prompt('修改标签值：', jg.shuju.zhi);
-        if (!zhi) return;
-        const gxjg = await this.luoji.biaoqian_gengxin(id, zhi);
+        this.xuanzhongid_bianji = id;
+        this.gengxincaozuo('');
+        const nr = document.getElementById('biaoqian_neirong');
+        nr.innerHTML = `<div class="aq-biaodan">
+            <div class="aq-hang"><label>标签值</label><input id="bq_bianji_zhi" type="text" value="${this.zhuanyihtml(jg.shuju.zhi)}"></div>
+            <div style="margin-top:12px">
+                <button class="aq-btn aq-btn-huang" onclick="biaoqian_tijiaobjbiaoqian()">保存</button>
+                <button class="aq-btn" onclick="biaoqian_quxiao()">取消</button>
+            </div></div>`;
+    }
+
+    async tijiaobjbiaoqian() {
+        const zhi = document.getElementById('bq_bianji_zhi')?.value?.trim();
+        if (!zhi || !this.xuanzhongid_bianji) return;
+        const gxjg = await this.luoji.biaoqian_gengxin(this.xuanzhongid_bianji, zhi);
         if (gxjg && gxjg.zhuangtaima === 200) {
+            this.xuanzhongid_bianji = null;
             this.xuanzhongleixingid ? this.bianjibiaoqian(this.xuanzhongleixingid) : this.xianshibibaoqian();
         }
+    }
+
+    fanhuileixing(leixingid) {
+        this.bianjibiaoqian(leixingid);
     }
 
     async shanchubiaoqian(id) {
@@ -195,6 +267,17 @@ export class Biaoqianjiemian {
         const jg = await this.luoji.biaoqian_shanchu(id);
         if (jg && jg.zhuangtaima === 200) {
             this.xuanzhongleixingid ? this.bianjibiaoqian(this.xuanzhongleixingid) : this.xianshibibaoqian();
+        }
+    }
+
+    quxiao() {
+        this.xuanzhongid_bianji = null;
+        if (this.xuanzhongleixingid) {
+            this.bianjibiaoqian(this.xuanzhongleixingid);
+        } else if (this.dangqianshitu === 'biaoqian') {
+            this.xianshibibaoqian();
+        } else {
+            this.xianshileixing();
         }
     }
 

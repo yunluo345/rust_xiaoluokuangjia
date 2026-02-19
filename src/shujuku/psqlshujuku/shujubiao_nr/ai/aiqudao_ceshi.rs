@@ -12,6 +12,7 @@ pub async fn yunxingceshi() {
         "sk-test-key-123456",
         "gpt-4",
         "0.7",
+        "0",
         Some("第一个测试渠道")
     ).await {
         Some(id) => {
@@ -31,6 +32,7 @@ pub async fn yunxingceshi() {
         "sk-ant-test-key",
         "claude-3-opus",
         "0.5",
+        "4096",
         None
     ).await {
         Some(id) => {
@@ -51,6 +53,7 @@ pub async fn yunxingceshi() {
         "sk-test-key-789",
         "gpt-3.5-turbo",
         "0.8",
+        "8192",
         Some("第三个测试渠道")
     ).await {
         Some(id) => {

@@ -12,16 +12,15 @@ pub enum ReactJieguo {
     Gongjudiaoyong(Vec<llm::ToolCall>),
 }
 
-#[allow(non_upper_case_globals)]
-const zuida_lingpaishu: u32 = 4096;
-
 fn goujianshili(peizhi: &Aipeizhi, tishici: Option<&str>) -> Option<Box<dyn LLMProvider>> {
     let mut builder = LLMBuilder::new()
         .backend(peizhi.leixing.clone())
         .api_key(&peizhi.miyao)
         .model(&peizhi.moxing)
-        .temperature(peizhi.wendu)
-        .max_tokens(zuida_lingpaishu);
+        .temperature(peizhi.wendu);
+    if peizhi.zuida_token > 0 {
+        builder = builder.max_tokens(peizhi.zuida_token);
+    }
     if !peizhi.jiekoudizhi.is_empty() {
         builder = builder.base_url(&peizhi.jiekoudizhi);
     }
@@ -159,9 +158,11 @@ pub async fn liushiqingqiu(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli, dai_gongju:
         "model": peizhi.moxing,
         "messages": xiaoxilie,
         "stream": true,
-        "max_tokens": zuida_lingpaishu,
         "temperature": peizhi.wendu,
     });
+    if peizhi.zuida_token > 0 {
+        qingqiuti["max_tokens"] = serde_json::json!(peizhi.zuida_token);
+    }
     if dai_gongju {
         if let Some(gongjulie) = guanli.huoqu_gongjulie() {
             let tools: Vec<serde_json::Value> = gongjulie.iter().map(|g| {
