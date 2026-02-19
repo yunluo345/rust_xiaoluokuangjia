@@ -180,8 +180,7 @@ export class Aiduihualuoji {
         }
 
         try {
-            // 添加用户消息到历史
-            this.tianjiaxiaoxi('user', neirong);
+            // 用户消息已由界面层提前添加
 
             // 构建请求
             const xiaoxilie = this.huoqulishi().map(x => ({ juese: x.juese, neirong: x.neirong }));
@@ -242,8 +241,7 @@ export class Aiduihualuoji {
         }
 
         try {
-            // 添加用户消息到历史
-            this.tianjiaxiaoxi('user', neirong);
+            // 用户消息已由界面层提前添加
 
             // 构建请求
             const xiaoxilie = this.huoqulishi().map(x => ({ juese: x.juese, neirong: x.neirong }));

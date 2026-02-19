@@ -13,6 +13,7 @@ use jiekou_nr::xitong::jiamijiankang as jiamijiankangqq;
 use jiekou_nr::xitong::sseceshi as sseceshiqq;
 use jiekou_nr::xitong::jiamisseceshi as jiamisseceshiqq;
 use jiekou_nr::xitong::aiqudaoguanli as aiqudaoqq;
+use jiekou_nr::xitong::ribaoguanli as ribaoqq;
 use jiekou_nr::yonghu::denglujiekou as dengluqq;
 use jiekou_nr::ai::duihua as aiduihuaqq;
 use jiekou_nr::ai::duihualiushi as aiduihualiushiqq;
@@ -151,6 +152,24 @@ impl Kehuduanjiami {
         let jiemi_wenben = if self.neibu.xuyaochongshi(&jieguo) {
             self.neibu.chongxinxieshang().await?;
             self.neibu.zhixingrenzhengjiamiqingqiu(aiqudaoqq::fangshi, aiqudaoqq::lujing, Some(&ti), &lingpai).await?
+        } else {
+            jieguo?
+        };
+        Ok(jiemi_wenben)
+    }
+
+    pub async fn ribaoqingqiu(&mut self, caozuo: &str, canshu: Option<String>) -> Result<String, JsValue> {
+        let lingpai = self.neibu.lingpai.as_ref().ok_or_else(|| jiami_gongju::cuowu("尚未登录，请先登录"))?.clone();
+        self.neibu.quebaoxieshang().await?;
+        let canshu_zhi: serde_json::Value = match canshu {
+            Some(ref s) => fanxuliehua(s, "解析参数失败")?,
+            None => serde_json::json!({}),
+        };
+        let ti = xuliehua(&ribaoqq::Qingqiuti { caozuo: caozuo.to_string(), canshu: canshu_zhi })?;
+        let jieguo = self.neibu.zhixingrenzhengjiamiqingqiu(ribaoqq::fangshi, ribaoqq::lujing, Some(&ti), &lingpai).await;
+        let jiemi_wenben = if self.neibu.xuyaochongshi(&jieguo) {
+            self.neibu.chongxinxieshang().await?;
+            self.neibu.zhixingrenzhengjiamiqingqiu(ribaoqq::fangshi, ribaoqq::lujing, Some(&ti), &lingpai).await?
         } else {
             jieguo?
         };

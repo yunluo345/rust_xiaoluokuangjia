@@ -33,7 +33,7 @@ pub async fn shanchu_guanlian(ribaoid: &str, biaoqianid: &str) -> Option<u64> {
 /// 查询日报的所有标签
 pub async fn chaxun_ribaoid(ribaoid: &str) -> Option<Vec<Value>> {
     psqlcaozuo::chaxun(
-        &format!("SELECT b.* FROM biaoqian b INNER JOIN {} rb ON b.id = rb.biaoqianid WHERE rb.ribaoid = $1::BIGINT", biaoming),
+        &format!("SELECT rb.ribaoid, rb.biaoqianid, b.zhi, b.leixingid FROM {} rb INNER JOIN biaoqian b ON rb.biaoqianid = b.id WHERE rb.ribaoid = $1::BIGINT", biaoming),
         &[ribaoid],
     ).await
 }

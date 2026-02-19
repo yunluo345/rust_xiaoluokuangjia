@@ -195,24 +195,26 @@ export class Aiduihuajiemian {
             return;
         }
 
-        this.zhengzaifasong = true;
+    this.zhengzaifasong = true;
         this.shezhibtnzhuangtai(true);
+
+        // 立即显示用户消息并清空输入框
+        this.luoji.tianjiaxiaoxi('user', neirong);
+        shuru.value = '';
+        this.xuanranhuihualiebiao();
+        this.xuanranduihua();
         this.xianshijiazai();
 
         try {
             if (this.luoji.dangqianmoshi === 'feiliushi') {
                 // 非流式
-                const huifu = await this.luoji.feiliushiduihua(neirong);
-                if (huifu) {
-                    shuru.value = '';
-                    this.xuanranhuihualiebiao();
-                    this.xuanranduihua();
-                }
+                await this.luoji.feiliushiduihua(neirong);
+                this.xuanranhuihualiebiao();
+                this.xuanranduihua();
             } else {
                 // 流式
                 this.liushihuifu = '';
                 await this.luoji.liushiduihua(neirong, 'aiduihua_liushi_huidiao', 'aiduihua_duquqi_huidiao');
-                shuru.value = '';
             }
         } finally {
             // 流式模式：无论成功失败，保存已收到的内容并清理临时DOM

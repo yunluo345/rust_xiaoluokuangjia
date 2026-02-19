@@ -128,6 +128,7 @@ impl Kehuduanjiami {
         jiemixiangying(&xiangying_wenben, xinxi.miyao)
     }
 
+    #[allow(dead_code)]
     pub async fn zhixingrenzhengjiamiqingqiu_with_abort(&self, fangfa: &str, lujing: &str, qingqiuti: Option<&str>, lingpai: &str, abort_signal: &web_sys::AbortSignal) -> Result<String, JsValue> {
         let xinxi = self.huoqujiamixinxi()?;
         let jiami_ti = qingqiuti.map(|ti| jiamiqingqiuti(ti, xinxi.miyao)).transpose()?;
@@ -158,6 +159,7 @@ impl Kehuduanjiami {
         duqujiamiliushi(&xiangying, xinxi.miyao, huidiao, None).await
     }
 
+    #[allow(dead_code)]
     pub async fn zhixingsserenzhengjiamiqingqiu_with_abort(&self, lujing: &str, qingqiuti: Option<&str>, huidiao: &js_sys::Function, lingpai: &str, abort_signal: &web_sys::AbortSignal) -> Result<(), JsValue> {
         let xinxi = self.huoqujiamixinxi()?;
         let jiami_ti = qingqiuti.map(|ti| jiamiqingqiuti(ti, xinxi.miyao)).transpose()?;
