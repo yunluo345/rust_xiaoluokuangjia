@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>加密传输测试</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box-sizing: border-box; scrollbar-width: none; -ms-overflow-style: none; }
+        *::-webkit-scrollbar { display: none; width: 0; height: 0; }
+        html, body { scrollbar-width: none; -ms-overflow-style: none; }
+        html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; height: 0; }
         body { font-family: 'Noto Sans SC', Inter, sans-serif; background: #F8FAFC; color: #1E293B; padding: 24px; line-height: 1.6; }
         h1 { font-size: 20px; margin-bottom: 20px; color: #0F172A; }
         .card { background: rgba(255,255,255,0.9); border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin-bottom: 16px; }

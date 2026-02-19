@@ -1,4 +1,5 @@
 pub mod ai;
+pub mod ribao;
 pub mod shujubiao_jiekoujilubiao;
 pub mod shujubiao_shujubiaojilubiao;
 pub mod shujucaozuo_jiekoujilubiao;
@@ -8,6 +9,10 @@ use super::psqlshujukuzhuti::{Biaozhucexinxi, Shujubiaodinyi};
 use shujubiao_jiekoujilubiao::Jiekoujilubiao;
 use shujubiao_shujubiaojilubiao::Shujubiaojilubiao;
 use ai::shujubiao_aiqudao::Aiqudao;
+use ribao::shujubiao_ribao::Ribao;
+use ribao::shujubiao_biaoqianleixing::Biaoqianleixing;
+use ribao::shujubiao_biaoqian::Biaoqian;
+use ribao::shujubiao_ribao_biaoqian::Ribaobiaoqian;
 use yonghu::shujubiao_yonghu::Yonghu;
 use yonghu::shujubiao_yonghuzu::Yonghuzu;
 
@@ -19,5 +24,9 @@ pub fn huoqubiaolie() -> Vec<Biaozhucexinxi> {
         Biaozhucexinxi { biaoming: Aiqudao::biaoming(), biaonicheng: Aiqudao::biaonicheng(), biaojieshao: Aiqudao::biaojieshao(), ziduanlie: Aiqudao::ziduanlie() },
         Biaozhucexinxi { biaoming: Yonghuzu::biaoming(), biaonicheng: Yonghuzu::biaonicheng(), biaojieshao: Yonghuzu::biaojieshao(), ziduanlie: Yonghuzu::ziduanlie() },
         Biaozhucexinxi { biaoming: Yonghu::biaoming(), biaonicheng: Yonghu::biaonicheng(), biaojieshao: Yonghu::biaojieshao(), ziduanlie: Yonghu::ziduanlie() },
+        Biaozhucexinxi { biaoming: Biaoqianleixing::biaoming(), biaonicheng: Biaoqianleixing::biaonicheng(), biaojieshao: Biaoqianleixing::biaojieshao(), ziduanlie: Biaoqianleixing::ziduanlie() },
+        Biaozhucexinxi { biaoming: Biaoqian::biaoming(), biaonicheng: Biaoqian::biaonicheng(), biaojieshao: Biaoqian::biaojieshao(), ziduanlie: Biaoqian::ziduanlie() },
+        Biaozhucexinxi { biaoming: Ribao::biaoming(), biaonicheng: Ribao::biaonicheng(), biaojieshao: Ribao::biaojieshao(), ziduanlie: Ribao::ziduanlie() },
+        Biaozhucexinxi { biaoming: Ribaobiaoqian::biaoming(), biaonicheng: Ribaobiaoqian::biaonicheng(), biaojieshao: Ribaobiaoqian::biaojieshao(), ziduanlie: Ribaobiaoqian::ziduanlie() },
     ]
 }
