@@ -15,8 +15,12 @@ pub async fn xinzeng(mingcheng: &str) -> Option<String> {
     jieguo.first().and_then(|v| v.get("id")?.as_str().map(String::from))
 }
 
-/// 根据ID删除标签类型
+/// 根据ID删除标签类型（级联删除该类型下的所有标签）
 pub async fn shanchu(id: &str) -> Option<u64> {
+    psqlcaozuo::zhixing(
+        "DELETE FROM biaoqian WHERE leixingid = $1::BIGINT",
+        &[id],
+    ).await?;
     psqlcaozuo::zhixing(
         &format!("DELETE FROM {} WHERE id = $1::BIGINT", biaoming),
         &[id],

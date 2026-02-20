@@ -97,6 +97,12 @@ export class Ribaoluoji {
         return jg;
     }
 
+    async biaoqian_chaxun_leixing(biaoqianid) {
+        const jg = await this.zhixing('biaoqian_chaxun_leixing', { biaoqianid });
+        if (jg) this.rizhi('查询标签类型[' + biaoqianid + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
     async ribao_xinzeng(yonghuid, neirong, fabushijian) {
         const jg = await this.zhixing('ribao_xinzeng', { yonghuid, neirong, fabushijian });
         if (jg) this.rizhi('新增日报: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
@@ -142,6 +148,12 @@ export class Ribaoluoji {
     async ribao_chaxun_yonghuid_fenye(yonghuid, yeshu, meiyetiaoshu) {
         const jg = await this.zhixing('ribao_chaxun_yonghuid_fenye', { yonghuid, yeshu, meiyetiaoshu });
         if (jg) this.rizhi('分页查询用户日报: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async ribao_chaxun_guanjianci_fenye(guanjianci, yeshu, meiyetiaoshu) {
+        const jg = await this.zhixing('ribao_chaxun_guanjianci_fenye', { guanjianci, yeshu, meiyetiaoshu });
+        if (jg) this.rizhi('关键词查询日报: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
         return jg;
     }
 
@@ -196,6 +208,24 @@ export class Ribaoluoji {
     async guanlian_chaxun_biaoqianid(biaoqianid) {
         const jg = await this.zhixing('guanlian_chaxun_biaoqianid', { biaoqianid });
         if (jg) this.rizhi('查询标签关联[' + biaoqianid + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async guanlian_chaxun_leixingmingcheng_zhi(leixingmingcheng, zhi) {
+        const jg = await this.zhixing('guanlian_chaxun_leixingmingcheng_zhi', { leixingmingcheng, zhi });
+        if (jg) this.rizhi('查询类型标签关联[' + leixingmingcheng + ',' + zhi + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async guanlian_chaxun_ribaoid_daixinxi(ribaoid) {
+        const jg = await this.zhixing('guanlian_chaxun_ribaoid_daixinxi', { ribaoid });
+        if (jg) this.rizhi('查询日报关联详情[' + ribaoid + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async guanlian_chaxun_xiangguanbiaoqian(biaoqianid, leixingmingcheng) {
+        const jg = await this.zhixing('guanlian_chaxun_xiangguanbiaoqian', { biaoqianid, leixingmingcheng });
+        if (jg) this.rizhi('查询相关标签[' + biaoqianid + ',' + leixingmingcheng + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
         return jg;
     }
 

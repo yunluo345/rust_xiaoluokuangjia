@@ -282,7 +282,16 @@
         window.aiduihua_shanchuhuihua = (id) => { if (aiduihua_jm) aiduihua_jm.shanchuhuihua(id); };
         window.aiduihua_chongmingming = (id) => { if (aiduihua_jm) aiduihua_jm.chongmingming(id); };
 
-        window.ribao_shuaxin = () => { if (ribao_jm) ribao_jm.shuaxindangqianshitu(); };
+        window.ribao_shuaxin = () => { 
+            if (ribao_jm) {
+                ribao_jm.sousuobiaoqianid = null;
+                ribao_jm.sousuoleixing = null;
+                ribao_jm.sousuoguanjiancizhi = null;
+                ribao_jm.sousuoyonghuid = null;
+                ribao_jm.dangqianyeshu = 1;
+                ribao_jm.shuaxindangqianshitu();
+            }
+        };
         window.ribao_qiehuanshitu = (shitu) => { if (ribao_jm) ribao_jm.qiehuanshitu(shitu); };
         window.ribao_xinzengshitu = () => { if (ribao_jm) ribao_jm.xinzengshitu(); };
         window.ribao_tijiaoxinzeng = () => { if (ribao_jm) ribao_jm.tijiaoxinzeng(); };
@@ -303,6 +312,13 @@
         window.ribao_xinzengguanlian = (ribaoid, biaoqianid) => { if (ribao_jm) ribao_jm.xinzengguanlian(ribaoid, biaoqianid); };
         window.ribao_shanchuguanlian = (ribaoid, biaoqianid) => { if (ribao_jm) ribao_jm.shanchuguanlian(ribaoid, biaoqianid); };
         window.ribao_quxiao = () => { if (ribao_jm) ribao_jm.quxiao(); };
+        window.ribao_sousuoguanjianci = () => { if (ribao_jm) ribao_jm.sousuoguanjianci(); };
+        window.ribao_sousuobiaoqian_xuanze = () => { if (ribao_jm) ribao_jm.sousuobiaoqian_xuanze(); };
+        window.ribao_sousuoyonghuid_xuanze = () => { if (ribao_jm) ribao_jm.sousuoyonghuid_xuanze(); };
+        window.ribao_dianjibibaoqian = (leixing, zhi) => { if (ribao_jm) ribao_jm.dianjibibaoqian(leixing, zhi); };
+        window.ribao_qingchusousuo = () => { if (ribao_jm) ribao_jm.qingchusousuo(); };
+        window.ribao_chakanguanlian = (bqid, lx) => { if (ribao_jm) ribao_jm.chakanguanlian(bqid, lx); };
+        window.ribao_chakanleixingribao = (lx, z) => { if (ribao_jm) ribao_jm.chakanleixingribao(lx, z); };
 
         window.biaoqian_shuaxin = () => { if (biaoqian_jm) biaoqian_jm.shuaxin(); };
         window.biaoqian_qiehuanshitu = (shitu) => { if (biaoqian_jm) biaoqian_jm.qiehuanshitu(shitu); };

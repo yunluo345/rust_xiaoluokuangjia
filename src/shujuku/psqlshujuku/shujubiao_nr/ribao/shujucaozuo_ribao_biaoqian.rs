@@ -80,7 +80,7 @@ pub async fn chaxun_leixingmingcheng_zhi(leixingmingcheng: &str, zhi: &str) -> O
 /// 查询日报的所有标签（包含类型信息）
 pub async fn chaxun_ribaoid_daixinxi(ribaoid: &str) -> Option<Vec<Value>> {
     psqlcaozuo::chaxun(
-        "SELECT b.id, b.zhi, b.leixingid, l.mingcheng AS leixingmingcheng FROM ribao_biaoqian rb INNER JOIN biaoqian b ON rb.biaoqianid = b.id INNER JOIN biaoqianleixing l ON b.leixingid = l.id WHERE rb.ribaoid = $1::BIGINT",
+        "SELECT b.id AS biaoqianid, b.zhi, b.leixingid, l.mingcheng AS leixingmingcheng FROM ribao_biaoqian rb INNER JOIN biaoqian b ON rb.biaoqianid = b.id INNER JOIN biaoqianleixing l ON b.leixingid = l.id WHERE rb.ribaoid = $1::BIGINT",
         &[ribaoid],
     ).await
 }

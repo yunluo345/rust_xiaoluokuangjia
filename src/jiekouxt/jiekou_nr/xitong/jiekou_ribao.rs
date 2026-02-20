@@ -86,6 +86,9 @@ struct Leixingmingchengzhicanshu { leixingmingcheng: String, zhi: String }
 #[derive(Deserialize)]
 struct Xiangguanbiaoqiancanshu { biaoqianid: String, leixingmingcheng: String }
 
+#[derive(Deserialize)]
+struct Guanjiancifenyecanshu { guanjianci: String, yeshu: i64, meiyetiaoshu: i64 }
+
 macro_rules! jiexi_canshu {
     ($qingqiu:expr, $canshu_leixing:ty, $miyao:expr) => {
         match serde_json::from_value::<$canshu_leixing>($qingqiu.canshu) {
@@ -318,6 +321,12 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
                 Some(zongshu) => jiamichenggong("统计成功", serde_json::json!({"count": zongshu}), miyao),
                 None => jiamishibai(&cuowu::tongjishibai, miyao),
             }
+        }
+        "ribao_chaxun_guanjianci_fenye" => {
+            let canshu = jiexi_canshu!(qingqiu, Guanjiancifenyecanshu, miyao);
+            let liebiao = shujucaozuo_ribao::chaxun_guanjianci_fenye(&canshu.guanjianci, canshu.yeshu, canshu.meiyetiaoshu).await.unwrap_or_default();
+            let zongshu = shujucaozuo_ribao::tongji_guanjianci_zongshu(&canshu.guanjianci).await.unwrap_or(0);
+            jiamichenggong("查询成功", serde_json::json!({"liebiao": liebiao, "zongshu": zongshu}), miyao)
         }
         "guanlian_xinzeng" => {
             let canshu = jiexi_canshu!(qingqiu, Guanlianxinzengcanshu, miyao);

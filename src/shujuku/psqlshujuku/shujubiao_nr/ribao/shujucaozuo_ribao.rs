@@ -100,3 +100,23 @@ pub async fn tongji_yonghuid_zongshu(yonghuid: &str) -> Option<i64> {
     ).await?;
     jieguo.first()?.get("count")?.as_str()?.parse().ok()
 }
+
+/// 根据关键词分页查询日报
+pub async fn chaxun_guanjianci_fenye(guanjianci: &str, yeshu: i64, meiyetiaoshu: i64) -> Option<Vec<Value>> {
+    let pianyi = (yeshu - 1) * meiyetiaoshu;
+    let mohu = format!("%{}%", guanjianci);
+    psqlcaozuo::chaxun(
+        &format!("SELECT * FROM {} WHERE neirong LIKE $1 ORDER BY fabushijian DESC LIMIT $2::BIGINT OFFSET $3::BIGINT", biaoming),
+        &[&mohu, &meiyetiaoshu.to_string(), &pianyi.to_string()],
+    ).await
+}
+
+/// 统计关键词日报总数
+pub async fn tongji_guanjianci_zongshu(guanjianci: &str) -> Option<i64> {
+    let mohu = format!("%{}%", guanjianci);
+    let jieguo = psqlcaozuo::chaxun(
+        &format!("SELECT COUNT(*)::TEXT as count FROM {} WHERE neirong LIKE $1", biaoming),
+        &[&mohu],
+    ).await?;
+    jieguo.first()?.get("count")?.as_str()?.parse().ok()
+}
