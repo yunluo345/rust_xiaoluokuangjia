@@ -34,8 +34,8 @@ pub fn shifouhuihuaguoqi(xiangying_wenben: &str) -> bool {
     xiangying_wenben.contains("\"zhuangtaima\":401") || xiangying_wenben.contains("\"zhuangtaima\": 401")
 }
 
-pub struct Jiamixinxi<'a> {
-    pub miyao: &'a [u8],
-    pub huihuaid: &'a str,
-    pub kehugongyao: &'a str,
+pub struct Jiamixinxi {
+    pub miyao: Vec<u8>,
+    pub huihuaid: String,
+    pub kehugongyao: String,
 }
