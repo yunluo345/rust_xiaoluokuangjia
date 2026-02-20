@@ -175,6 +175,12 @@ export class Ribaoluoji {
             : this.ribao_chaxun_yonghuid_fenye('', yeshu, meiyetiaoshu);
     }
 
+    async guanjiancichaxunfenye_shipei(guanjianci, yeshu, meiyetiaoshu) {
+        return this.shifouquanxian
+            ? this.ribao_chaxun_guanjianci_fenye(guanjianci, yeshu, meiyetiaoshu)
+            : this.ribao_chaxun_yonghuid_fenye('', yeshu, meiyetiaoshu);
+    }
+
     async tongjizongshu_shipei() {
         return this.shifouquanxian
             ? this.ribao_tongji_zongshu()

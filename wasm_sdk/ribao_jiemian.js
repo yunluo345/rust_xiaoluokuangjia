@@ -60,7 +60,7 @@ export class Ribaojiemian {
             liebiao = jg?.zhuangtaima === 200 ? jg.shuju || [] : [];
             zongshu = liebiao.length;
         } else if (this.sousuoguanjiancizhi) {
-            jg = await this.luoji.ribao_chaxun_guanjianci_fenye(this.sousuoguanjiancizhi, this.dangqianyeshu, this.meiyetiaoshu);
+            jg = await this.luoji.guanjiancichaxunfenye_shipei(this.sousuoguanjiancizhi, this.dangqianyeshu, this.meiyetiaoshu);
             liebiao = jg?.zhuangtaima === 200 ? jg.shuju?.liebiao || [] : [];
             zongshu = jg?.zhuangtaima === 200 ? jg.shuju?.zongshu || 0 : 0;
         } else if (this.sousuoyonghuid) {
@@ -84,14 +84,11 @@ export class Ribaojiemian {
         html += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">';
         html += '<button class="aq-btn aq-btn-lv" onclick="ribao_xinzengshitu()" style="height:36px">新增日报</button>';
         html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
-        html += '<input id="rb_gjc" type="text" placeholder="搜索内容关键词" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;width:160px;font-size:13px;box-sizing:border-box">';
+        html += '<input id="rb_gjc" type="text" value="' + (this.sousuoguanjiancizhi || '') + '" onkeydown="ribao_sousuoshuru_huiche(event)" placeholder="搜索内容关键词" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;width:160px;font-size:13px;box-sizing:border-box">';
         html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_sousuoguanjianci()" style="height:36px">搜索</button>';
-        
-        if (this.shifouquanxian) {
-            html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
-            html += '<input id="rb_yhid" type="text" placeholder="用户ID" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;width:120px;font-size:13px;box-sizing:border-box">';
-            html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_sousuoyonghuid_xuanze()" style="height:36px">查询</button>';
-        }
+        html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
+        html += '<input id="rb_yhid" type="text" placeholder="用户ID" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;width:120px;font-size:13px;box-sizing:border-box">';
+        html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_sousuoyonghuid_xuanze()" style="height:36px">查询</button>';
         
         if (suoyoubiaoqian.length > 0) {
             html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
@@ -108,6 +105,10 @@ export class Ribaojiemian {
             html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_qingchusousuo()" style="height:36px">清除筛选</button>';
         }
         html += '</div></div>';
+
+        if (jg?.zhuangtaima === 200 && this.sousuoguanjiancizhi && !this.shifouquanxian) {
+            this.luoji.rizhi('普通用户关键词搜索按当前用户分页展示', 'info');
+        }
         
         if (liebiao.length === 0) {
             nr.innerHTML = html + '<p style="color:#64748B">暂无日报数据</p>';
@@ -129,12 +130,9 @@ export class Ribaojiemian {
         html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
         html += '<input id="rb_gjc" type="text" placeholder="搜索内容关键词" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;width:160px;font-size:13px;box-sizing:border-box">';
         html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_sousuoguanjianci()" style="height:36px">搜索</button>';
-        
-        if (this.shifouquanxian) {
-            html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
-            html += '<input id="rb_yhid" type="text" placeholder="用户ID" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;width:120px;font-size:13px;box-sizing:border-box">';
-            html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_sousuoyonghuid_xuanze()" style="height:36px">查询</button>';
-        }
+        html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
+        html += '<input id="rb_yhid" type="text" placeholder="用户ID" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;width:120px;font-size:13px;box-sizing:border-box">';
+        html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_sousuoyonghuid_xuanze()" style="height:36px">查询</button>';
         
         if (suoyoubiaoqian.length > 0) {
             html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
@@ -565,7 +563,12 @@ export class Ribaojiemian {
 
     sousuoguanjianci() {
         const v = document.getElementById('rb_gjc')?.value?.trim();
-        if (!v) return this.luoji.rizhi('请输入搜索关键词', 'warn');
+        if (!v) {
+            this.sousuoguanjiancizhi = null;
+            this.dangqianyeshu = 1;
+            this.shuaxinribaoliebiao();
+            return;
+        }
         this.sousuoguanjiancizhi = v;
         this.sousuobiaoqianid = null;
         this.sousuoleixing = null;
@@ -612,6 +615,12 @@ export class Ribaojiemian {
         this.sousuoyonghuid = null;
         this.dangqianyeshu = 1;
         this.shuaxinribaoliebiao();
+    }
+
+    sousuoshuru_huiche(shijian) {
+        if (shijian.key === 'Enter') {
+            this.sousuoguanjianci();
+        }
     }
 
     shezhiquanxian(shifouquanxian) {
