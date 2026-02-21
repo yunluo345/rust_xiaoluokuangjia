@@ -1,6 +1,8 @@
 use std::future::Future;
 use std::pin::Pin;
+use serde_json::Value;
 
+pub mod gongjutexing;
 mod gongju_shijianchaxun;
 pub mod gongju_aiqudaoguanli;
 pub mod ribao;
@@ -95,73 +97,41 @@ impl Gongjusuoyin {
 /// 工具注册项：定义 + 执行函数 + 信息
 struct Gongjuzhuce {
     dinyi: Tool,
-    zhixing: fn(&str, &str) -> Pin<Box<dyn Future<Output = String> + Send + 'static>>,
+    zhixing: fn(Value, &str) -> Pin<Box<dyn Future<Output = String> + Send + 'static>>,
     xinxi: Gongjuxinxi,
+}
+
+/// 宏：自动生成工具注册代码
+#[macro_export]
+macro_rules! zhuce_gongju {
+    ($mokuai:ident) => {
+        Gongjuzhuce {
+            dinyi: $mokuai::dinyi(),
+            zhixing: |canshu: Value, lingpai: &str| {
+                let canshu_str = canshu.to_string();
+                let lingpai = lingpai.to_string();
+                Box::pin(async move {
+                    $mokuai::zhixing(&canshu_str, &lingpai).await
+                })
+            },
+            xinxi: Gongjuxinxi {
+                mingcheng: $mokuai::dinyi().function.name,
+                guanjianci: $mokuai::huoqu_guanjianci(),
+                fenzu: $mokuai::huoqu_fenzu(),
+            },
+        }
+    };
 }
 
 /// 所有已注册的工具列表
 fn suoyouzhuce() -> Vec<Gongjuzhuce> {
     vec![
-        Gongjuzhuce {
-            dinyi: gongju_shijianchaxun::dinyi(),
-            zhixing: gongju_shijianchaxun_wrapper,
-            xinxi: Gongjuxinxi {
-                mingcheng: "shijian_chaxun".to_string(),
-                guanjianci: gongju_shijianchaxun::huoqu_guanjianci(),
-                fenzu: match gongju_shijianchaxun::huoqu_fenzu() {
-                    gongju_shijianchaxun::Gongjufenzu::Guanli => Gongjufenzu::Guanli,
-                    gongju_shijianchaxun::Gongjufenzu::Xitong => Gongjufenzu::Xitong,
-                },
-            },
-        },
-        Gongjuzhuce {
-            dinyi: gongju_aiqudaoguanli::dinyi(),
-            zhixing: gongju_aiqudaoguanli_wrapper,
-            xinxi: Gongjuxinxi {
-                mingcheng: "aiqudao_guanli".to_string(),
-                guanjianci: gongju_aiqudaoguanli::huoqu_guanjianci(),
-                fenzu: match gongju_aiqudaoguanli::huoqu_fenzu() {
-                    gongju_aiqudaoguanli::Gongjufenzu::Guanli => Gongjufenzu::Guanli,
-                    gongju_aiqudaoguanli::Gongjufenzu::Xitong => Gongjufenzu::Xitong,
-                },
-            },
-        },
-        Gongjuzhuce {
-            dinyi: gongju_ribaojiancha::dinyi(),
-            zhixing: gongju_ribaojiancha_wrapper,
-            xinxi: Gongjuxinxi {
-                mingcheng: "ribao_jiancha".to_string(),
-                guanjianci: gongju_ribaojiancha::huoqu_guanjianci(),
-                fenzu: match gongju_ribaojiancha::huoqu_fenzu() {
-                    gongju_ribaojiancha::Gongjufenzu::Guanli => Gongjufenzu::Guanli,
-                    gongju_ribaojiancha::Gongjufenzu::Xitong => Gongjufenzu::Xitong,
-                },
-            },
-        },
-        Gongjuzhuce {
-            dinyi: gongju_ribaotijiao::dinyi(),
-            zhixing: gongju_ribaotijiao_wrapper,
-            xinxi: Gongjuxinxi {
-                mingcheng: "ribao_tijiao".to_string(),
-                guanjianci: gongju_ribaotijiao::huoqu_guanjianci(),
-                fenzu: match gongju_ribaotijiao::huoqu_fenzu() {
-                    gongju_ribaotijiao::Gongjufenzu::Guanli => Gongjufenzu::Guanli,
-                    gongju_ribaotijiao::Gongjufenzu::Xitong => Gongjufenzu::Xitong,
-                },
-            },
-        },
-        Gongjuzhuce {
-            dinyi: gongju_ribaorenwuchuli::dinyi(),
-            zhixing: gongju_ribaorenwuchuli_wrapper,
-            xinxi: Gongjuxinxi {
-                mingcheng: "ribao_renwubiaoqian_chuli".to_string(),
-                guanjianci: gongju_ribaorenwuchuli::huoqu_guanjianci(),
-                fenzu: match gongju_ribaorenwuchuli::huoqu_fenzu() {
-                    gongju_ribaorenwuchuli::Gongjufenzu::Guanli => Gongjufenzu::Guanli,
-                    gongju_ribaorenwuchuli::Gongjufenzu::Xitong => Gongjufenzu::Xitong,
-                },
-            },
-        },
+        // 使用宏简化注册
+        zhuce_gongju!(gongju_shijianchaxun),
+        zhuce_gongju!(gongju_aiqudaoguanli),
+        zhuce_gongju!(gongju_ribaojiancha),
+        zhuce_gongju!(gongju_ribaotijiao),
+        zhuce_gongju!(gongju_ribaorenwuchuli),
     ]
 }
 
@@ -345,9 +315,13 @@ pub fn huoqu_fenzu_yingshe() -> std::collections::HashMap<String, Vec<String>> {
 
 /// 按工具名称分发执行，返回结果字符串
 pub async fn zhixing(gongjuming: &str, canshu: &str, lingpai: &str) -> String {
+    use serde_json::from_str;
+    
+    let canshu_value: Value = from_str(canshu).unwrap_or(Value::Null);
+    
     for zhuce in suoyouzhuce() {
         if zhuce.dinyi.function.name == gongjuming {
-            return (zhuce.zhixing)(canshu, lingpai).await;
+            return (zhuce.zhixing)(canshu_value, lingpai).await;
         }
     }
     format!("未知工具: {}", gongjuming)

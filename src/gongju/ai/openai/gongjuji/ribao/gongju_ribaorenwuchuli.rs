@@ -15,12 +15,7 @@ use llm::chat::Tool;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
-
-#[derive(Debug, Clone)]
-pub enum Gongjufenzu {
-    Guanli,
-    Xitong,
-}
+use super::super::Gongjufenzu;
 
 #[derive(Deserialize)]
 struct Qingqiucanshu {

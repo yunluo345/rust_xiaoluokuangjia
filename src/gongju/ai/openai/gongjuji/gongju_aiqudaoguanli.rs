@@ -3,13 +3,7 @@ use crate::shujuku::psqlshujuku::shujubiao_nr::ai::shujucaozuo_aiqudao;
 use llm::chat::Tool;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-
-/// 工具分组枚举
-#[derive(Debug, Clone)]
-pub enum Gongjufenzu {
-    Guanli,  // 管理组
-    Xitong,  // 系统组
-}
+use super::Gongjufenzu;
 
 /// 操作类型枚举
 #[derive(Debug)]

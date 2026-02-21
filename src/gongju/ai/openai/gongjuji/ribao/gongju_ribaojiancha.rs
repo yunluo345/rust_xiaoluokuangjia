@@ -4,12 +4,7 @@ use crate::gongju::ai::openai::{aipeizhi, aixiaoxiguanli, openaizhuti};
 use llm::chat::Tool;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-
-#[derive(Debug, Clone)]
-pub enum Gongjufenzu {
-    Guanli,
-    Xitong,
-}
+use super::super::Gongjufenzu;
 
 #[derive(Deserialize)]
 struct Qingqiucanshu {

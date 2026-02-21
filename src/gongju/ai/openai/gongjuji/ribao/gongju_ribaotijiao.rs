@@ -10,12 +10,7 @@ use llm::chat::Tool;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use super::{gongju_ribaorenwuchuli, gongju_ribaojiancha};
-
-#[derive(Debug, Clone)]
-pub enum Gongjufenzu {
-    Guanli,
-    Xitong,
-}
+use super::super::Gongjufenzu;
 
 #[derive(Deserialize)]
 struct Qingqiucanshu {

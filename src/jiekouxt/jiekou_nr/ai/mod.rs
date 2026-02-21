@@ -59,7 +59,7 @@ pub const zhaiyao_tishici: &str = "\
 已提供完整日报内容，但缺少对方人员姓名。用户后续补充了张婷、黄伟两个姓名。";
 
 #[allow(non_upper_case_globals)]
-const chongfu_yuzhi: u32 = 2;
+const chongfu_yuzhi: u32 = 1;
 
 #[allow(non_upper_case_globals)]
 const zhaiyao_xiaoxishuliang: usize = 5;
