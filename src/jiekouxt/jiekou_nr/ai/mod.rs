@@ -15,7 +15,14 @@ pub const xitongtishici: &str = "\
 你的职责是帮助员工处理工作日报相关事务，包括日报的撰写、整理、总结等。\
 你只能处理与工作相关的问题，不允许回答与工作无关的内容。\
 对于简单的问候（如你好、早上好等），你可以友好地回复。\
-工具使用规则：避免无意义地重复调用相同工具。如果用户明确要求重新执行操作，可以再次调用。";
+工具使用规则：避免无意义地重复调用相同工具。如果用户明确要求重新执行操作，可以再次调用。\
+当用户反馈任务未处理、处理失败、未完成时，必须优先调用可用工具自动处理，不要要求用户提供任务ID列表。\
+当可用工具不为空且用户请求属于提交、检查、处理、完成等操作时，先调用工具，再基于工具结果回复，不要直接给结论。\
+处理任务后必须基于工具返回结果回复：\
+- 若返回zongshu为0，明确告知当前无可处理任务；\
+- 若返回chenggong为true且zongshu大于0，明确告知已处理数量；\
+- 若返回cuowu，直接说明失败原因并建议用户重试。\
+不要输出“请提供任务ID列表”或“请指示我是否再次执行”这类反问。";
 
 #[allow(non_upper_case_globals)]
 pub const yitu_tishici: &str = "\
@@ -25,9 +32,10 @@ pub const yitu_tishici: &str = "\
 - gongjudiaoyong：用户需要获取实时信息、查询数据、执行操作、管理系统、检查或验证或审核日报或文档等（如查时间、几点了、今天日期、管理渠道、检查日报、验证日报是否合格等）\
 - putongduihua：普通问候、闲聊、不需要实时数据的知识问答等\
 关键词提取规则：\
-1. 从用户消息中提取核心语义词，包括原词和同义词/近义词\
-2. 例如'现在几点了'应提取['时间','几点','当前时间']，'帮我检查日报'应提取['日报','检查','验证']\
-3. 每条消息提取2-5个关键词，覆盖用户意图的各个维度\
+1. 只根据当前最后一条用户消息提取关键词，不要引用历史消息中的实体词、动作词或日期\
+2. 从用户消息中提取核心语义词，包括原词和同义词/近义词\
+3. 例如'现在几点了'应提取['时间','几点','当前时间']，'帮我检查日报'应提取['日报','检查','验证']\
+4. 每条消息提取2-5个关键词，覆盖用户意图的各个维度\
 注意：只要用户消息中包含时间、几点、日期、检查、验证、审核、日报、渠道等需要查询或操作的词语，必须判断为gongjudiaoyong。";
 
 #[allow(non_upper_case_globals)]
@@ -93,16 +101,12 @@ pub async fn huoqu_peizhi() -> Option<aipeizhi::Aipeizhi> {
 
 /// 意图分析：用AI判断用户本次消息的意图
 async fn fenxi_yitu(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi]) -> Option<YituJieguo> {
+    let benci_neirong = xiaoxilie.last().map(|x| x.neirong.as_str()).unwrap_or("");
     let mut guanli = aixiaoxiguanli::Xiaoxiguanli::xingjian()
         .shezhi_xitongtishici(yitu_tishici);
-    for xiaoxi in xiaoxilie {
-        match xiaoxi.juese.as_str() {
-            "user" => guanli.zhuijia_yonghuxiaoxi(&xiaoxi.neirong),
-            "assistant" => guanli.zhuijia_zhushouneirong(&xiaoxi.neirong),
-            _ => {}
-        }
+    if !benci_neirong.is_empty() {
+        guanli.zhuijia_yonghuxiaoxi(benci_neirong);
     }
-    let benci_neirong = xiaoxilie.last().map(|x| x.neirong.as_str()).unwrap_or("");
     println!("[意图分析] 开始分析: {}", benci_neirong);
     let huifu = openaizhuti::putongqingqiu(peizhi, &guanli).await?;
     println!("[意图分析] AI返回: {}", huifu);
@@ -208,17 +212,14 @@ pub async fn huoqu_yitu_gongju(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi]
 
 /// 并发执行工具调用
 async fn zhixing_gongjudiaoyong(qz: &str, lie: &[llm::ToolCall], lingpai: &str) -> Vec<llm::ToolCall> {
-    let renwu: Vec<_> = lie.iter().map(|d| {
-        let mut d = d.clone();
-        let qz = qz.to_string();
-        let lingpai = lingpai.to_string();
-        async move {
-            println!("[{}] 执行工具: {} 参数: {}", qz, d.function.name, d.function.arguments);
-            d.function.arguments = gongjuji::zhixing(&d.function.name, &d.function.arguments, &lingpai).await;
-            d
-        }
-    }).collect();
-    futures::future::join_all(renwu).await
+    let mut jieguolie: Vec<llm::ToolCall> = Vec::with_capacity(lie.len());
+    for d in lie {
+        let mut dan = d.clone();
+        println!("[{}] 执行工具: {} 参数: {}", qz, dan.function.name, dan.function.arguments);
+        dan.function.arguments = gongjuji::zhixing(&dan.function.name, &dan.function.arguments, lingpai).await;
+        jieguolie.push(dan);
+    }
+    jieguolie
 }
 
 /// 工具调用签名，用于重复检测

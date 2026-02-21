@@ -29,7 +29,7 @@ impl Aipeizhi {
                 let zhi: u32 = quziduan(shuju, "zuida_token").parse().unwrap_or(0);
                 if zhi == 0 { 22767 } else { zhi }
             },
-            chaoshishijian: 30,
+            chaoshishijian: 240,
             chongshicishu: 0,
         })
     }

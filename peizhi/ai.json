@@ -1,41 +1,77 @@
 {
   "ribao_biaoqian": [
     {
+      "biecheng": [
+        "汇报人",
+        "我方参与人员",
+        "负责人"
+      ],
       "bitian": true,
       "miaoshu": "我方公司参与人员姓名",
-      "mingcheng": "wofangrenyuan"
+      "mingcheng": "我方人员"
     },
     {
+      "biecheng": [
+        "客户方人员",
+        "客户参与人员",
+        "对方联系人"
+      ],
       "bitian": true,
       "miaoshu": "对方公司参与人员姓名",
-      "mingcheng": "duifangrenyuan"
+      "mingcheng": "对方人员"
     },
     {
+      "biecheng": [
+        "日期",
+        "时间",
+        "日报日期",
+        "工作日报日期"
+      ],
       "bitian": true,
       "miaoshu": "日报记录的工作日期",
-      "mingcheng": "ribaoshijian"
+      "mingcheng": "日报时间"
     },
     {
+      "biecheng": [
+        "沟通内容",
+        "沟通记录",
+        "客户沟通"
+      ],
       "bitian": true,
       "miaoshu": "与客户交流的具体内容",
-      "mingcheng": "jiaoliuneirong"
+      "mingcheng": "交流内容"
     },
     {
+      "biecheng": [
+        "客户姓名",
+        "客户联系人",
+        "对方联系人"
+      ],
       "bitian": true,
       "miaoshu": "客户姓名",
-      "mingcheng": "kehuminzi"
+      "mingcheng": "客户名字"
     },
     {
+      "biecheng": [
+        "工作地点",
+        "办公地点"
+      ],
       "bitian": true,
       "miaoshu": "工作发生的地点信息",
-      "mingcheng": "didian"
+      "mingcheng": "地点"
     },
     {
+      "biecheng": [
+        "今日工作",
+        "今日主要工作",
+        "今日主要围绕"
+      ],
       "bitian": true,
       "miaoshu": "本次工作的具体内容描述",
-      "mingcheng": "gonguoneirong"
+      "mingcheng": "工作内容"
     }
   ],
+  "ribao_biaoqianrenwu_bingfashuliang": 1,
   "ribao_biaoqianrenwu_chongshi_cishu": 3,
   "zuida_xunhuancishu": 20
 }

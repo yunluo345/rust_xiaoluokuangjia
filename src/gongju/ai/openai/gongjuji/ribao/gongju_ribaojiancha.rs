@@ -59,7 +59,7 @@ pub fn dinyi() -> Tool {
                 "properties": {
                     "ribaoneirong": {
                         "type": "string",
-                        "description": "从日报原文中严格提取的JSON字符串。只填写原文中明确出现的信息，找不到的字段必须留空字符串\"\"。字段包括：wofangrenyuan（我方人员姓名）、duifangrenyuan（对方人员具体姓名，非公司名、非职位）、ribaoshijian（日期）、jiaoliuneirong（交流内容）、kehuminzi（客户具体姓名，非公司名）、didian（地点）、gonguoneirong（工作内容）"
+                        "description": "从日报原文中严格提取的JSON字符串。只填写原文中明确出现的信息，找不到的字段必须留空字符串\"\"。字段包括：我方人员（我方人员姓名）、对方人员（对方人员具体姓名，非公司名、非职位）、日报时间（日期）、交流内容（交流内容）、客户名字（客户具体姓名，非公司名）、地点（地点）、工作内容（工作内容）"
                     }
                 },
                 "required": ["ribaoneirong"]

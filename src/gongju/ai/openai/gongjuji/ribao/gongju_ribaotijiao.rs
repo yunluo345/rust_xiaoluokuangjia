@@ -9,6 +9,7 @@ use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::{
 use llm::chat::Tool;
 use serde::Deserialize;
 use serde_json::{json, Value};
+use super::gongju_ribaorenwuchuli;
 
 #[derive(Debug, Clone)]
 pub enum Gongjufenzu {
@@ -108,6 +109,15 @@ pub async fn zhixing(canshu: &str, lingpai: &str) -> String {
                 shuju.as_object_mut().map(|obj| obj.insert("guanlianshuliang".to_string(), json!(n)));
             }
             None => return json!({"cuowu": "日报提交成功但标签关联失败", "ribaoid": ribaoid, "renwuid": renwuid}).to_string(),
+        }
+    }
+
+    match gongju_ribaorenwuchuli::zhixing_neibu(1).await {
+        Ok(chulishuju) => {
+            shuju.as_object_mut().map(|obj| obj.insert("biaoqianchuli".to_string(), chulishuju));
+        }
+        Err(cuowu) => {
+            shuju.as_object_mut().map(|obj| obj.insert("biaoqianchuli_cuowu".to_string(), json!(cuowu)));
         }
     }
 

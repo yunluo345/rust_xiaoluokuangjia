@@ -66,25 +66,20 @@ async fn zhixing_gongju_liushi(
     lingpai: &str,
     fasongqi: &futures::channel::mpsc::UnboundedSender<Result<web::Bytes, actix_web::Error>>,
 ) -> Vec<llm::ToolCall> {
-    let renwu: Vec<_> = lie.iter().map(|d| {
-        let mut d = d.clone();
-        let qz = qz.to_string();
-        let lingpai = lingpai.to_string();
-        async move {
-            println!("[{}] 执行工具: {} 参数: {}", qz, d.function.name, d.function.arguments);
-            d.function.arguments = gongjuji::zhixing(&d.function.name, &d.function.arguments, &lingpai).await;
-            d
-        }
-    }).collect();
-    let jieguolie = futures::future::join_all(renwu).await;
-    for jieguo in &jieguolie {
+    let mut jieguolie: Vec<llm::ToolCall> = Vec::with_capacity(lie.len());
+    for d in lie {
+        let mut dan = d.clone();
+        println!("[{}] 执行工具: {} 参数: {}", qz, dan.function.name, dan.function.arguments);
+        dan.function.arguments = gongjuji::zhixing(&dan.function.name, &dan.function.arguments, lingpai).await;
         if !fasongshuju(fasongqi, serde_json::json!({
             "shijian": "gongjujieguo",
-            "mingcheng": jieguo.function.name,
-            "neirong": format!("工具{}执行完成", jieguo.function.name),
+            "mingcheng": dan.function.name,
+            "neirong": format!("工具{}执行完成", dan.function.name),
         })) {
+            jieguolie.push(dan);
             return jieguolie;
         }
+        jieguolie.push(dan);
     }
     jieguolie
 }

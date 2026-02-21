@@ -3,13 +3,13 @@ use std::pin::Pin;
 
 mod gongju_shijianchaxun;
 pub mod gongju_aiqudaoguanli;
-mod ribao;
+pub mod ribao;
 pub mod ceshi_gongjufenzu;
 pub mod guanjianci_suoyin;
 
 use llm::chat::Tool;
 use guanjianci_suoyin::Guanjiancipeiqi;
-use ribao::{gongju_ribaojiancha, gongju_ribaotijiao};
+use self::ribao::{gongju_ribaojiancha, gongju_ribaorenwuchuli, gongju_ribaotijiao};
 
 /// 工具分组枚举
 #[derive(Debug, Clone, PartialEq)]
@@ -150,6 +150,18 @@ fn suoyouzhuce() -> Vec<Gongjuzhuce> {
                 },
             },
         },
+        Gongjuzhuce {
+            dinyi: gongju_ribaorenwuchuli::dinyi(),
+            zhixing: gongju_ribaorenwuchuli_wrapper,
+            xinxi: Gongjuxinxi {
+                mingcheng: "ribao_renwubiaoqian_chuli".to_string(),
+                guanjianci: gongju_ribaorenwuchuli::huoqu_guanjianci(),
+                fenzu: match gongju_ribaorenwuchuli::huoqu_fenzu() {
+                    gongju_ribaorenwuchuli::Gongjufenzu::Guanli => Gongjufenzu::Guanli,
+                    gongju_ribaorenwuchuli::Gongjufenzu::Xitong => Gongjufenzu::Xitong,
+                },
+            },
+        },
     ]
 }
 
@@ -186,6 +198,15 @@ fn gongju_ribaotijiao_wrapper(canshu: &str, lingpai: &str) -> Pin<Box<dyn Future
     let lingpai = lingpai.to_string();
     Box::pin(async move {
         gongju_ribaotijiao::zhixing(&canshu, &lingpai).await
+    })
+}
+
+/// 日报任务标签处理工具包装函数
+fn gongju_ribaorenwuchuli_wrapper(canshu: &str, lingpai: &str) -> Pin<Box<dyn Future<Output = String> + Send + 'static>> {
+    let canshu = canshu.to_string();
+    let lingpai = lingpai.to_string();
+    Box::pin(async move {
+        gongju_ribaorenwuchuli::zhixing(&canshu, &lingpai).await
     })
 }
 

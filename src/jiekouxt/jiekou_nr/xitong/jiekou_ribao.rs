@@ -7,6 +7,7 @@ use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::{
     shujucaozuo_biaoqianleixing, shujucaozuo_biaoqian,
     shujucaozuo_ribao, shujucaozuo_ribao_biaoqian
 };
+use crate::gongju::ai::openai::gongjuji::ribao::gongju_ribaorenwuchuli;
 use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::{shujucaozuo_yonghuzu, yonghuyanzheng};
 use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::yonghuyanzheng::Lingpaicuowu;
 use crate::gongju::zhuangtaima::ribaojiekou_zhuangtai::{Zhuangtai, cuowu};
@@ -88,6 +89,9 @@ struct Xiangguanbiaoqiancanshu { biaoqianid: String, leixingmingcheng: String }
 
 #[derive(Deserialize)]
 struct Guanjiancifenyecanshu { guanjianci: String, yeshu: i64, meiyetiaoshu: i64 }
+
+#[derive(Deserialize)]
+struct Renwuchulicanshu { shuliang: Option<i64> }
 
 macro_rules! jiexi_canshu {
     ($qingqiu:expr, $canshu_leixing:ty, $miyao:expr) => {
@@ -371,6 +375,13 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
                 None => jiamishibai(&cuowu::piliangguanlianshibai, miyao),
             }
         }
+        "renwu_biaoqian_ai_chuli" => {
+            let canshu = jiexi_canshu!(qingqiu, Renwuchulicanshu, miyao);
+            match gongju_ribaorenwuchuli::zhixing_neibu(canshu.shuliang.unwrap_or(0)).await {
+                Ok(shuju) => jiamichenggong("处理成功", shuju, miyao),
+                Err(xiaoxi) => jiamishibai_dongtai(500, xiaoxi, miyao),
+            }
+        }
         _ => jiamishibai(&cuowu::bucaozuoleixing, miyao),
     }
 }
@@ -409,7 +420,7 @@ pub async fn chuli(req: HttpRequest, ti: web::Bytes) -> HttpResponse {
         return jiamishibai(&cuowu::quanxianbuzu, &miyao);
     }
 
-    if !shifouquanxian {
+if !shifouquanxian {
         if !xieruwodeyonghuid(&mut qingqiu, &zaiti.yonghuid) {
             return jiamishibai(&cuowu::putongkezhixianshibai, &miyao);
         }
