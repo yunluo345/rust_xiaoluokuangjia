@@ -10,6 +10,7 @@ use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::{
 use crate::gongju::ai::openai::gongjuji::ribao::gongju_ribaorenwuchuli;
 use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::{shujucaozuo_yonghuzu, yonghuyanzheng};
 use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::yonghuyanzheng::Lingpaicuowu;
+
 use crate::gongju::zhuangtaima::ribaojiekou_zhuangtai::{Zhuangtai, cuowu};
 
 #[allow(non_upper_case_globals)]
@@ -170,16 +171,19 @@ fn huoqutoken(req: &HttpRequest) -> Option<String> {
         .map(String::from)
 }
 
-async fn shifouquanxianyonghu(yonghuzuid: &str) -> bool {
-    let jieguo = shujucaozuo_yonghuzu::chaxun_id(yonghuzuid).await;
-    if jieguo.is_none() {
+async fn shifouguanlicaozuoquanxian(yonghuzuid: &str) -> bool {
+    let shifoujiekouyunxu = yonghuyanzheng::jianchajiekouquanxian(yonghuzuid, "/jiekou/xitong/ribao")
+        .await
+        .is_ok();
+    if !shifoujiekouyunxu {
         return false;
     }
-    let zu = jieguo.unwrap();
+    let zu = match shujucaozuo_yonghuzu::chaxun_id(yonghuzuid).await {
+        Some(v) => v,
+        None => return false,
+    };
     let mingcheng = zu.get("mingcheng").and_then(|v| v.as_str()).unwrap_or("");
-    let beizhu = zu.get("beizhu").and_then(|v| v.as_str()).unwrap_or("");
-    let shifouguanliyuan = mingcheng == "root" || beizhu.contains("root授权");
-    shifouguanliyuan
+    mingcheng != "user"
 }
 
 fn xieruwodeyonghuid(qingqiu: &mut Qingqiuti, yonghuid: &str) -> bool {
@@ -415,12 +419,12 @@ pub async fn chuli(req: HttpRequest, ti: web::Bytes) -> HttpResponse {
         Err(Lingpaicuowu::Quanxianbuzu) => return jiamishibai(&cuowu::quanxianbuzu, &miyao),
     };
 
-    let shifouquanxian = shifouquanxianyonghu(&zaiti.yonghuzuid).await;
+    let shifouquanxian = shifouguanlicaozuoquanxian(&zaiti.yonghuzuid).await;
     if !shifouquanxian && !shifouputongkezhixing(&qingqiu.caozuo) {
         return jiamishibai(&cuowu::quanxianbuzu, &miyao);
     }
 
-if !shifouquanxian {
+    if !shifouquanxian {
         if !xieruwodeyonghuid(&mut qingqiu, &zaiti.yonghuid) {
             return jiamishibai(&cuowu::putongkezhixianshibai, &miyao);
         }

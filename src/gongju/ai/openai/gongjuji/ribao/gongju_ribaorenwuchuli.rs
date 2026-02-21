@@ -9,12 +9,14 @@ use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::{
     shujucaozuo_ribao_biaoqian,
     shujucaozuo_ribao_biaoqianrenwu,
 };
-use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::shujucaozuo_yonghuzu;
+use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::{shujucaozuo_yonghuzu, yonghuyanzheng};
 use futures::stream::{self, StreamExt};
+
 use llm::chat::Tool;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
+
 use super::super::Gongjufenzu;
 
 #[derive(Deserialize)]
@@ -258,15 +260,19 @@ fn tichubiaoqianxiang(neirong: &str, peizhi: &Ai) -> Vec<(String, String)> {
     jieguo
 }
 
-async fn shifouquanxianyonghu(yonghuzuid: &str) -> bool {
-    shujucaozuo_yonghuzu::chaxun_id(yonghuzuid)
+async fn shifouyouquanxian(yonghuzuid: &str) -> bool {
+    if yonghuyanzheng::jianchajiekouquanxian(yonghuzuid, "/jiekou/xitong/ribao")
         .await
-        .map(|zu| {
-            let mingcheng = zu.get("mingcheng").and_then(|v| v.as_str()).unwrap_or("");
-            let beizhu = zu.get("beizhu").and_then(|v| v.as_str()).unwrap_or("");
-            mingcheng == "root" || beizhu.contains("root授权")
-        })
-        .unwrap_or(false)
+        .is_err()
+    {
+        return false;
+    }
+    let zu = match shujucaozuo_yonghuzu::chaxun_id(yonghuzuid).await {
+        Some(v) => v,
+        None => return false,
+    };
+    let mingcheng = zu.get("mingcheng").and_then(|v| v.as_str()).unwrap_or("");
+    mingcheng != "user"
 }
 
 async fn huoquhuochuangjian_leixingid(
@@ -479,7 +485,7 @@ pub async fn zhixing(canshu: &str, lingpai: &str) -> String {
         None => return json!({"cuowu": "令牌无效或已过期"}).to_string(),
     };
 
-    if !shifouquanxianyonghu(&zaiti.yonghuzuid).await {
+    if !shifouyouquanxian(&zaiti.yonghuzuid).await {
         return json!({"cuowu": "权限不足"}).to_string();
     }
 
