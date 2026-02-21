@@ -89,10 +89,28 @@ pub async fn putongqingqiu_react(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli) -> Op
                     }
                 }
                 if let Some(wenben) = xiangying.text() {
-                    println!("[ReAct] AI 返回文本回复");
-                    return Some(ReactJieguo::Wenben(wenben));
+                    if !wenben.trim().is_empty() {
+                        println!("[ReAct] AI 返回文本回复，长度: {}, 内容: {:?}", wenben.len(), wenben);
+                        return Some(ReactJieguo::Wenben(wenben));
+                    } else {
+                        println!("[ReAct] AI 返回空文本，已过滤");
+                    }
                 }
-                println!("[ReAct] 响应无文本也无工具调用");
+                println!("[ReAct] 响应无文本也无工具调用，移除工具列表重试");
+                if guanli.huoqu_gongjulie().is_some() {
+                    let chongshi = actix_web::rt::time::timeout(
+                        chaoshi,
+                        shili.chat_with_tools(guanli.huoqu_xiaoxilie(), None),
+                    ).await;
+                    if let Ok(Ok(xiang)) = chongshi {
+                        if let Some(wen) = xiang.text() {
+                            if !wen.trim().is_empty() {
+                                println!("[ReAct] 移除工具后成功获取文本回复");
+                                return Some(ReactJieguo::Wenben(wen));
+                            }
+                        }
+                    }
+                }
             }
             Ok(Err(e)) => println!("[ReAct] 调用失败: {:?}", e),
             Err(_) => println!("[ReAct] 调用超时"),

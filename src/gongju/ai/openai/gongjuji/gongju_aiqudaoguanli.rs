@@ -42,29 +42,10 @@ enum Caozuoleixing {
 /// 获取工具关键词
 pub fn huoqu_guanjianci() -> Vec<String> {
     vec![
-        // 中文关键词
-        "渠道".to_string(),
-        "AI".to_string(),
-        "ai".to_string(),
-        "管理".to_string(),
         "AI渠道".to_string(),
-        "渠道管理".to_string(),
-        "查询渠道".to_string(),
-        "新增渠道".to_string(),
-        "删除渠道".to_string(),
-        "更新渠道".to_string(),
         "渠道配置".to_string(),
-        "AI配置".to_string(),
-        // 英文关键词
-        "channel".to_string(),
-        "ai channel".to_string(),
-        "manage".to_string(),
-        "query".to_string(),
-        "add".to_string(),
-        "delete".to_string(),
-        "update".to_string(),
-        "config".to_string(),
-        "configuration".to_string(),
+        "渠道管理".to_string(),
+        "AI渠道管理".to_string(),
     ]
 }
 
@@ -79,7 +60,7 @@ pub fn dinyi() -> Tool {
         tool_type: "function".to_string(),
         function: llm::chat::FunctionTool {
             name: "aiqudao_guanli".to_string(),
-            description: "管理AI渠道的增删改查操作。操作流程：1)查询操作可直接调用 2)删除/更新操作需先用chaxun_quanbu获取渠道列表找到目标ID，再用该ID执行操作。支持的操作：查询全部(chaxun_quanbu)、查询启用(chaxun_qiyong)、按ID查询(chaxun_id)、新增(xinzeng)、更新(gengxin)、删除(shanchu)、切换状态(qiehuanzhuangtai)、更新优先级(gengxinyouxianji)".to_string(),
+            description: "管理AI渠道配置：查询全部渠道、查询启用渠道、按ID查询、新增渠道、更新渠道、删除渠道、切换启用状态、更新优先级".to_string(),
             parameters: json!({
                 "type": "object",
                 "properties": {
@@ -90,7 +71,7 @@ pub fn dinyi() -> Tool {
                     },
                     "id": {
                         "type": "string",
-                        "description": "渠道ID（数字字符串），用于chaxun_id、gengxin、shanchu、qiehuanzhuangtai、gengxinyouxianji操作。删除或更新前需先通过chaxun_quanbu查询获取目标渠道的ID"
+                        "description": "渠道ID（数字字符串），用于chaxun_id、gengxin、shanchu、qiehuanzhuangtai、gengxinyouxianji操作"
                     },
                     "mingcheng": {
                         "type": "string",

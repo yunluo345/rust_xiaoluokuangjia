@@ -1,5 +1,6 @@
 use crate::peizhixt::peizhixitongzhuti;
 use crate::peizhixt::peizhi_nr::peizhi_ai::Ai;
+use crate::gongju::ai::openai::{aipeizhi, aixiaoxiguanli, openaizhuti};
 use llm::chat::Tool;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -19,15 +20,16 @@ struct Qingqiucanshu {
 struct Jianchajieguo {
     hege: bool,
     queshaoziduanlie: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    aiyijian: Option<String>,
 }
 
 /// 获取工具关键词
 pub fn huoqu_guanjianci() -> Vec<String> {
     vec![
-        "日报".to_string(),
-        "检查".to_string(),
         "日报检查".to_string(),
-        "验证".to_string(),
+        "检查日报".to_string(),
+        "验证日报".to_string(),
         "日报验证".to_string(),
         "标签".to_string(),
         "日报标签".to_string(),
@@ -49,23 +51,47 @@ pub fn dinyi() -> Tool {
         tool_type: "function".to_string(),
         function: llm::chat::FunctionTool {
             name: "ribao_jiancha".to_string(),
-            description: "检查日报原文中是否明确包含所有必需字段的信息。\
-            严格规则：只有原文中明确写出的信息才算存在，不得推断、脑补或用模糊表述代替。\
-            例如：'对方公司参与人员姓名'必须是具体人名（如张三），'客户方'、'相关负责人'等模糊表述不算；\
-            '客户姓名'必须是具体人名，公司名不算。\
-            将原文中能明确找到的字段填入对应key，找不到的字段留空字符串\"\"，由系统判断是否缺失。".to_string(),
+            description: "检查日报内容是否包含必填字段，返回缺失字段列表".to_string(),
             parameters: json!({
                 "type": "object",
                 "properties": {
                     "ribaoneirong": {
                         "type": "string",
-                        "description": "从日报原文中严格提取的JSON字符串。只填写原文中明确出现的信息，找不到的字段必须留空字符串\"\"。字段包括：我方人员（我方人员姓名）、对方人员（对方人员具体姓名，非公司名、非职位）、日报时间（日期）、交流内容（交流内容）、客户名字（客户具体姓名，非公司名）、地点（地点）、工作内容（工作内容）"
+                        "description": "日报内容的JSON字符串，包含字段：我方人员、对方人员、日报时间、交流内容、客户名字、地点、工作内容"
                     }
                 },
                 "required": ["ribaoneirong"]
             }),
         },
     }
+}
+
+pub async fn ai_jiancha(neirong: &str, peizhi: &Ai) -> Option<String> {
+    let bitian_biaoqian: Vec<String> = peizhi.ribao_biaoqian.iter()
+        .filter(|bq| bq.bitian)
+        .map(|bq| format!("【{}】{}", bq.mingcheng, bq.miaoshu))
+        .collect();
+    
+    let xitongtishici = format!(
+        "你是严格的日报审核助手。请逐项检查以下必填标签是否都有具体内容：\n\n{}\n\n\
+        审核标准：\n\
+        1. 每个必填标签必须有明确的具体信息（如姓名必须是真实姓名，不能是「客户方」「相关负责人」等泛指）\n\
+        2. 日期必须是完整日期格式\n\
+        3. 地点必须是具体地点\n\
+        4. 内容描述必须清晰具体\n\n\
+        如果所有必填标签都完整且具体，回复「内容完整规范」。\n\
+        如果有任何必填标签缺失或不够具体，明确指出问题（30字以内）。",
+        bitian_biaoqian.join("\n")
+    );
+    
+    let aipeizhi = crate::jiekouxt::jiekou_nr::ai::huoqu_peizhi().await?
+        .shezhi_chaoshi(30).shezhi_chongshi(1);
+    
+    let mut guanli = aixiaoxiguanli::Xiaoxiguanli::xingjian()
+        .shezhi_xitongtishici(&xitongtishici);
+    guanli.zhuijia_yonghuxiaoxi(format!("日报内容：\n{}", neirong));
+    
+    openaizhuti::putongqingqiu(&aipeizhi, &guanli).await
 }
 
 /// 工具执行
@@ -98,9 +124,16 @@ pub async fn zhixing(canshu: &str, _lingpai: &str) -> String {
         })
         .collect();
 
+    let aiyijian = ai_jiancha(&qingqiu.ribaoneirong, &peizhi).await;
+    
+    let ai_hege = aiyijian.as_ref()
+        .map(|yj| yj.contains("内容完整规范"))
+        .unwrap_or(true);
+
     let jieguo = Jianchajieguo {
-        hege: queshaoziduanlie.is_empty(),
+        hege: queshaoziduanlie.is_empty() && ai_hege,
         queshaoziduanlie,
+        aiyijian,
     };
 
     json!({"chenggong": true, "shuju": jieguo}).to_string()

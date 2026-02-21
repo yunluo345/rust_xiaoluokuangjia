@@ -15,9 +15,12 @@ pub const xitongtishici: &str = "\
 你的职责是帮助员工处理工作日报相关事务，包括日报的撰写、整理、总结等。\
 你只能处理与工作相关的问题，不允许回答与工作无关的内容。\
 对于简单的问候（如你好、早上好等），你可以友好地回复。\
+严禁随机生成或伪造虚假日报内容：不得为用户编造姓名、对接人、工作内容等信息。工作日报必须基于用户提供的真实信息。\
 工具使用规则：避免无意义地重复调用相同工具。如果用户明确要求重新执行操作，可以再次调用。\
 当用户反馈任务未处理、处理失败、未完成时，必须优先调用可用工具自动处理，不要要求用户提供任务ID列表。\
-当可用工具不为空且用户请求属于提交、检查、处理、完成等操作时，先调用工具，再基于工具结果回复，不要直接给结论。\
+区分询问与执行：\
+- 询问性问题（能不能、可以吗、是否可以、怎么做）：直接回答，不调用工具；\
+- 执行命令（提交、检查、处理、完成、帮我做）：先调用工具，再基于工具结果回复。\
 处理任务后必须基于工具返回结果回复：\
 - 若返回zongshu为0，明确告知当前无可处理任务；\
 - 若返回chenggong为true且zongshu大于0，明确告知已处理数量；\
@@ -29,17 +32,37 @@ pub const yitu_tishici: &str = "\
 你是意图分析助手。根据用户消息判断意图类型，并提取多个语义关键词。\
 只返回JSON，不要返回其他任何内容。\
 格式：{\"leixing\":\"gongjudiaoyong\"或\"putongduihua\",\"guanjianci\":[\"关键词1\",\"关键词2\",\"关键词3\"]}\
-- gongjudiaoyong：用户需要获取实时信息、查询数据、执行操作、管理系统、检查或验证或审核日报或文档等（如查时间、几点了、今天日期、管理渠道、检查日报、验证日报是否合格等）\
-- putongduihua：普通问候、闲聊、不需要实时数据的知识问答等\
+意图判断规则：\
+- 数据补充（仅提供姓名、日期、数字等简短信息，无完整句子）→ gongjudiaoyong\
+- 询问性问题（能不能、可以吗、是否可以、怎么做、如何、为什么）→ putongduihua\
+- 执行命令（帮我、请、立即、马上 + 动词）→ gongjudiaoyong\
+- 查询实时信息（几点了、今天日期、当前时间）→ gongjudiaoyong\
+- 普通问候、闲聊、知识问答 → putongduihua\
+- 指代性表达（上面、刚才、那个）结合上下文判断 → 优先 gongjudiaoyong\
 关键词提取规则：\
-1. 只根据当前最后一条用户消息提取关键词，不要引用历史消息中的实体词、动作词或日期\
+1. 结合上下文摘要和当前消息提取关键词\
 2. 从用户消息中提取核心语义词，包括原词和同义词/近义词\
 3. 例如'现在几点了'应提取['时间','几点','当前时间']，'帮我检查日报'应提取['日报','检查','验证']\
-4. 每条消息提取2-5个关键词，覆盖用户意图的各个维度\
-注意：只要用户消息中包含时间、几点、日期、检查、验证、审核、日报、渠道等需要查询或操作的词语，必须判断为gongjudiaoyong。";
+4. 每条消息提取2-5个关键词，覆盖用户意图的各个维度";
+
+#[allow(non_upper_case_globals)]
+pub const zhaiyao_tishici: &str = "\
+你是上下文摘要助手。将对话历史压缩为简短摘要，保留关键信息。\
+只返回摘要文本，不要返回其他内容。\
+摘要规则：\
+1. 提取关键实体：人名、日期、客户名、地点等\
+2. 概括当前任务：用户正在做什么（提交日报、检查信息、补充数据等）\
+3. 标注待补充信息：缺少哪些字段或数据\
+4. 控制长度：50-150字\
+示例输出：\
+用户正在提交2026年2月14日的工作日报，汇报人林哲，服务客户阿里巴巴和联想。\
+已提供完整日报内容，但缺少对方人员姓名。用户后续补充了张婷、黄伟两个姓名。";
 
 #[allow(non_upper_case_globals)]
 const chongfu_yuzhi: u32 = 2;
+
+#[allow(non_upper_case_globals)]
+const zhaiyao_xiaoxishuliang: usize = 5;
 
 #[derive(Deserialize)]
 pub struct Xiaoxi {
@@ -68,7 +91,12 @@ pub fn goujian_guanli(qingqiu: &Qingqiuti) -> aixiaoxiguanli::Xiaoxiguanli {
     for xiaoxi in &qingqiu.xiaoxilie {
         match xiaoxi.juese.as_str() {
             "user" => guanli.zhuijia_yonghuxiaoxi(&xiaoxi.neirong),
-            "assistant" => guanli.zhuijia_zhushouneirong(&xiaoxi.neirong),
+            "assistant" => {
+                let neirong = xiaoxi.neirong.trim();
+                if !neirong.starts_with('[') {
+                    guanli.zhuijia_zhushouneirong(&xiaoxi.neirong);
+                }
+            }
             _ => {}
         }
     }
@@ -85,7 +113,12 @@ pub fn goujian_guanli_anyitu(qingqiu: &Qingqiuti, gongjulie: Vec<llm::chat::Tool
     for xiaoxi in &qingqiu.xiaoxilie {
         match xiaoxi.juese.as_str() {
             "user" => guanli.zhuijia_yonghuxiaoxi(&xiaoxi.neirong),
-            "assistant" => guanli.zhuijia_zhushouneirong(&xiaoxi.neirong),
+            "assistant" => {
+                let neirong = xiaoxi.neirong.trim();
+                if !neirong.starts_with('[') {
+                    guanli.zhuijia_zhushouneirong(&xiaoxi.neirong);
+                }
+            }
             _ => {}
         }
     }
@@ -99,11 +132,39 @@ pub async fn huoqu_peizhi() -> Option<aipeizhi::Aipeizhi> {
     aipeizhi::Aipeizhi::cong_qudaoshuju(&qudao)
 }
 
+/// 生成上下文摘要：将历史对话压缩为简短摘要
+async fn shengcheng_zhaiyao(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi]) -> Option<String> {
+    let changdu = xiaoxilie.len();
+    if changdu <= 2 {
+        return None;
+    }
+    let kaishi = changdu.saturating_sub(zhaiyao_xiaoxishuliang);
+    let lishi_xiaoxi = &xiaoxilie[kaishi..changdu.saturating_sub(1)];
+    let mut guanli = aixiaoxiguanli::Xiaoxiguanli::xingjian()
+        .shezhi_xitongtishici(zhaiyao_tishici);
+    for xiaoxi in lishi_xiaoxi {
+        match xiaoxi.juese.as_str() {
+            "user" => guanli.zhuijia_yonghuxiaoxi(&xiaoxi.neirong),
+            "assistant" => guanli.zhuijia_zhushouneirong(&xiaoxi.neirong),
+            _ => {}
+        }
+    }
+    println!("[上下文摘要] 开始生成摘要，历史消息数: {}", lishi_xiaoxi.len());
+    let zhaiyao = openaizhuti::putongqingqiu(peizhi, &guanli).await?;
+    println!("[上下文摘要] 摘要: {}", zhaiyao);
+    Some(zhaiyao)
+}
+
 /// 意图分析：用AI判断用户本次消息的意图
 async fn fenxi_yitu(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi]) -> Option<YituJieguo> {
     let benci_neirong = xiaoxilie.last().map(|x| x.neirong.as_str()).unwrap_or("");
+    let zhaiyao = shengcheng_zhaiyao(peizhi, xiaoxilie).await;
+    let tishici = match &zhaiyao {
+        Some(z) => format!("{}\n\n上下文摘要：{}", yitu_tishici, z),
+        None => yitu_tishici.to_string()
+    };
     let mut guanli = aixiaoxiguanli::Xiaoxiguanli::xingjian()
-        .shezhi_xitongtishici(yitu_tishici);
+        .shezhi_xitongtishici(&tishici);
     if !benci_neirong.is_empty() {
         guanli.zhuijia_yonghuxiaoxi(benci_neirong);
     }

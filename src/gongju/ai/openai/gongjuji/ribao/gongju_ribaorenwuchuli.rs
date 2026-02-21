@@ -1,4 +1,5 @@
 use crate::gongju::jwtgongju;
+use crate::gongju::ai::openai::{aixiaoxiguanli, openaizhuti};
 use crate::peizhixt::peizhi_nr::peizhi_ai::Ai;
 use crate::peizhixt::peizhixitongzhuti;
 use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::{
@@ -28,13 +29,9 @@ struct Qingqiucanshu {
 
 pub fn huoqu_guanjianci() -> Vec<String> {
     vec![
-        "日报".to_string(),
-        "任务".to_string(),
-        "标签".to_string(),
-        "自动标签".to_string(),
-        "任务处理".to_string(),
-        "日报任务".to_string(),
-        "自动打标签".to_string(),
+        "日报标签任务".to_string(),
+        "处理日报任务".to_string(),
+        "标签提取任务".to_string(),
     ]
 }
 
@@ -43,17 +40,32 @@ pub fn huoqu_fenzu() -> Gongjufenzu {
 }
 
 pub fn dinyi() -> Tool {
+    let peizhi = peizhixitongzhuti::duqupeizhi::<Ai>(Ai::wenjianming()).unwrap_or_default();
+    
+    let biaoqian_tishi = peizhi.ribao_biaoqian.iter()
+        .map(|bq| {
+            let biecheng_str = bq.biecheng.join("、");
+            format!("{}（{}，别名：{}）", bq.mingcheng, bq.miaoshu, biecheng_str)
+        })
+        .collect::<Vec<_>>()
+        .join("；");
+    
+    let miaoshu = format!(
+        "处理日报标签提取任务，从日报内容中提取标签并绑定。支持的标签：{}",
+        biaoqian_tishi
+    );
+    
     Tool {
         tool_type: "function".to_string(),
         function: llm::chat::FunctionTool {
             name: "ribao_renwubiaoqian_chuli".to_string(),
-            description: "处理日报标签任务。自动领取未处理任务，并依据ai配置的日报标签规则提取与绑定标签。支持从原文键值或由模型整理出的结构化内容中识别标签。".to_string(),
+            description: miaoshu,
             parameters: json!({
                 "type": "object",
                 "properties": {
                     "shuliang": {
                         "type": "integer",
-                    "description": "本次处理任务数量，未传时使用系统配置并发数量"
+                        "description": "本次处理任务数量，未传时使用系统配置并发数量"
                     }
                 }
             }),
@@ -68,6 +80,75 @@ fn huoquzifuchuan(shuju: &Value, ziduan: &str) -> Option<String> {
             .or_else(|| v.as_i64().map(|n| n.to_string()))
             .or_else(|| v.as_u64().map(|n| n.to_string()))
     })
+}
+
+fn yanzheng_bitian_biaoqian(tiquxiang: &[(String, String)], peizhi: &Ai) -> Option<Vec<String>> {
+    let bitian_mingcheng: HashSet<String> = peizhi.ribao_biaoqian.iter()
+        .filter(|bq| bq.bitian)
+        .map(|bq| bq.mingcheng.clone())
+        .collect();
+    
+    let yitiqumingcheng: HashSet<String> = tiquxiang.iter()
+        .map(|(ming, _)| ming.clone())
+        .collect();
+    
+    let queshi: Vec<String> = bitian_mingcheng.difference(&yitiqumingcheng)
+        .cloned()
+        .collect();
+    
+    (!queshi.is_empty()).then_some(queshi)
+}
+
+async fn ai_tiqu_biaoqian(neirong: &str, peizhi: &Ai) -> Option<Vec<(String, String)>> {
+    let biaoqian_tishi = peizhi.ribao_biaoqian.iter()
+        .map(|bq| {
+            let biecheng_str = bq.biecheng.join("、");
+            let bitian_str = if bq.bitian { "【必填】" } else { "" };
+            format!("{}{}（{}，别名：{}）", bitian_str, bq.mingcheng, bq.miaoshu, biecheng_str)
+        })
+        .collect::<Vec<_>>()
+        .join("；");
+    
+    let xitongtishici = format!(
+        "你是日报标签提取助手。从日报内容中提取以下标签信息：{}\n\
+        请仔细阅读日报内容，提取所有相关标签。\n\
+        返回JSON格式：{{\"标签名1\": \"值1\", \"标签名2\": \"值2\"}}\n\
+        注意：\n\
+        1. 标签名必须使用配置中的标准名称（不要使用别名）\n\
+        2. 如果日报中没有某个标签的信息，不要返回该标签\n\
+        3. 只返回JSON，不要返回其他内容",
+        biaoqian_tishi
+    );
+    
+    let aipeizhi = match crate::jiekouxt::jiekou_nr::ai::huoqu_peizhi().await {
+        Some(p) => p.shezhi_chaoshi(60).shezhi_chongshi(1),
+        None => {
+            println!("[AI标签提取] 获取AI配置失败");
+            return None;
+        }
+    };
+    
+    let mut guanli = aixiaoxiguanli::Xiaoxiguanli::xingjian()
+        .shezhi_xitongtishici(&xitongtishici);
+    guanli.zhuijia_yonghuxiaoxi(format!("请从以下日报中提取标签：\n\n{}", neirong));
+    
+    let huifu = match openaizhuti::putongqingqiu(&aipeizhi, &guanli).await {
+        Some(h) => h,
+        None => {
+            println!("[AI标签提取] AI调用失败");
+            return None;
+        }
+    };
+    
+    println!("[AI标签提取] AI返回: {}", huifu);
+    
+    let tiquxiang = tichubiaoqianxiang(&huifu, peizhi);
+    if tiquxiang.is_empty() {
+        println!("[AI标签提取] 解析AI返回失败");
+        return None;
+    }
+    
+    Some(tiquxiang)
 }
 
 fn tichubiaoqianxiang(neirong: &str, peizhi: &Ai) -> Vec<(String, String)> {
@@ -275,15 +356,36 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
         _ => return chuli_shibai(&renwuid, &ribaoid, "日报内容为空").await,
     };
 
-    let biaoqianxiang = tichubiaoqianxiang(neirong, peizhi);
-    if biaoqianxiang.is_empty() {
-        return chuli_shibai(&renwuid, &ribaoid, "未提取到可用标签").await;
+    println!("[标签提取] 开始处理日报 {}", ribaoid);
+    
+    let biaoqianxiang = match ai_tiqu_biaoqian(neirong, peizhi).await {
+        Some(xiang) => {
+            println!("[标签提取] AI提取成功，提取到 {} 个标签", xiang.len());
+            xiang
+        }
+        None => {
+            println!("[标签提取] AI提取失败，回退到字符串匹配");
+            let xiang = tichubiaoqianxiang(neirong, peizhi);
+            if xiang.is_empty() {
+                return chuli_shibai(&renwuid, &ribaoid, "AI和字符串匹配均未提取到标签").await;
+            }
+            xiang
+        }
+    };
+
+    if let Some(queshi) = yanzheng_bitian_biaoqian(&biaoqianxiang, peizhi) {
+        let xiaoxi = format!("缺少必填标签: {}", queshi.join("、"));
+        return chuli_shibai(&renwuid, &ribaoid, &xiaoxi).await;
     }
 
     let mut leixinghuancun: HashMap<String, String> = HashMap::new();
     let mut biaoqianhuancun: HashMap<String, String> = HashMap::new();
     let mut bangdingshu: u64 = 0;
     let mut jieguolie: Vec<Value> = Vec::new();
+    
+    let tiqujieguo: HashMap<String, String> = biaoqianxiang.iter()
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
 
     for (leixingmingcheng, zhi) in biaoqianxiang {
         let leixingid = match huoquhuochuangjian_leixingid(&leixingmingcheng, &mut leixinghuancun).await {
@@ -332,6 +434,7 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
         "renwuid": renwuid,
         "ribaoid": ribaoid,
         "bangdingshu": bangdingshu,
+        "tiqujieguo": tiqujieguo,
     })
 }
 

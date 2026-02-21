@@ -12,18 +12,10 @@ pub enum Gongjufenzu {
 /// 获取工具关键词
 pub fn huoqu_guanjianci() -> Vec<String> {
     vec![
-        // 中文关键词
-        "时间".to_string(),
         "现在几点".to_string(),
         "当前时间".to_string(),
-        "时间戳".to_string(),
         "服务器时间".to_string(),
-        // 英文关键词
-        "time".to_string(),
-        "now".to_string(),
-        "current".to_string(),
-        "timestamp".to_string(),
-        "server time".to_string(),
+        "查询时间".to_string(),
     ]
 }
 

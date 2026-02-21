@@ -9,7 +9,7 @@ use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::{
 use llm::chat::Tool;
 use serde::Deserialize;
 use serde_json::{json, Value};
-use super::gongju_ribaorenwuchuli;
+use super::{gongju_ribaorenwuchuli, gongju_ribaojiancha};
 
 #[derive(Debug, Clone)]
 pub enum Gongjufenzu {
@@ -27,10 +27,9 @@ struct Qingqiucanshu {
 /// 获取工具关键词
 pub fn huoqu_guanjianci() -> Vec<String> {
     vec![
-        "日报".to_string(),
-        "提交".to_string(),
         "提交日报".to_string(),
         "发布日报".to_string(),
+        "保存日报".to_string(),
         "新增日报".to_string(),
         "写日报".to_string(),
         "report".to_string(),
@@ -50,13 +49,13 @@ pub fn dinyi() -> Tool {
         tool_type: "function".to_string(),
         function: llm::chat::FunctionTool {
             name: "ribao_tijiao".to_string(),
-            description: "提交日报。自动使用当前登录用户身份提交，无需手动指定用户ID。可选择关联标签。".to_string(),
+            description: "提交日报内容并创建标签提取任务。提交成功后必须立即调用任务处理工具完成标签提取。".to_string(),
             parameters: json!({
                 "type": "object",
                 "properties": {
                     "neirong": {
                         "type": "string",
-                        "description": "日报完整原文（必须包含用户提交的原始内容和所有补充信息，保持原文格式，不要只提交结构化字段）"
+                        "description": "日报完整内容"
                     },
                     "fabushijian": {
                         "type": "string",
@@ -86,6 +85,23 @@ pub async fn zhixing(canshu: &str, lingpai: &str) -> String {
         Err(_) => return json!({"cuowu": "参数格式错误"}).to_string(),
     };
 
+    let peizhi = match peizhixitongzhuti::duqupeizhi::<Ai>(Ai::wenjianming()) {
+        Some(p) => p,
+        None => return json!({"cuowu": "无法读取配置"}).to_string(),
+    };
+
+    let aiyijian = gongju_ribaojiancha::ai_jiancha(&qingqiu.neirong, &peizhi).await;
+    let ai_hege = aiyijian.as_ref()
+        .map(|yj| yj.contains("内容完整规范"))
+        .unwrap_or(false);
+
+    if !ai_hege {
+        return json!({
+            "cuowu": "日报审核未通过",
+            "yuanyin": aiyijian.unwrap_or_else(|| "内容不符合规范，请补充完整信息后重试".to_string())
+        }).to_string();
+    }
+
     let ribaoid = match shujucaozuo_ribao::xinzeng(&zaiti.yonghuid, &qingqiu.neirong, &qingqiu.fabushijian).await {
         Some(id) => id,
         None => return json!({"cuowu": "日报提交失败"}).to_string(),
@@ -100,26 +116,5 @@ pub async fn zhixing(canshu: &str, lingpai: &str) -> String {
         None => return json!({"cuowu": "日报提交成功但任务发布失败", "ribaoid": ribaoid}).to_string(),
     };
 
-    let mut shuju = json!({"ribaoid": ribaoid, "renwuid": renwuid});
-
-    if let Some(biaoqianidlie) = qingqiu.biaoqianidlie.as_ref().filter(|lie| !lie.is_empty()) {
-        let biaoqianlie: Vec<&str> = biaoqianidlie.iter().map(|s| s.as_str()).collect();
-        match shujucaozuo_ribao_biaoqian::piliang_xinzeng(&ribaoid, &biaoqianlie).await {
-            Some(n) => {
-                shuju.as_object_mut().map(|obj| obj.insert("guanlianshuliang".to_string(), json!(n)));
-            }
-            None => return json!({"cuowu": "日报提交成功但标签关联失败", "ribaoid": ribaoid, "renwuid": renwuid}).to_string(),
-        }
-    }
-
-    match gongju_ribaorenwuchuli::zhixing_neibu(1).await {
-        Ok(chulishuju) => {
-            shuju.as_object_mut().map(|obj| obj.insert("biaoqianchuli".to_string(), chulishuju));
-        }
-        Err(cuowu) => {
-            shuju.as_object_mut().map(|obj| obj.insert("biaoqianchuli_cuowu".to_string(), json!(cuowu)));
-        }
-    }
-
-    json!({"chenggong": true, "shuju": shuju}).to_string()
+    json!({"chenggong": true, "ribaoid": ribaoid, "renwuid": renwuid}).to_string()
 }
