@@ -17,13 +17,20 @@ fn moren_bitian() -> bool {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Ai {
     pub zuida_xunhuancishu: u32,
+    #[serde(default = "moren_ribao_biaoqianrenwu_chongshi_cishu")]
+    pub ribao_biaoqianrenwu_chongshi_cishu: u32,
     pub ribao_biaoqian: Vec<Ribaobiaoqian>,
+}
+
+fn moren_ribao_biaoqianrenwu_chongshi_cishu() -> u32 {
+    3
 }
 
 impl Default for Ai {
     fn default() -> Self {
         Self {
             zuida_xunhuancishu: 20,
+            ribao_biaoqianrenwu_chongshi_cishu: 3,
             ribao_biaoqian: vec![
                 Ribaobiaoqian {
                     mingcheng: "wofangrenyuan".to_string(),

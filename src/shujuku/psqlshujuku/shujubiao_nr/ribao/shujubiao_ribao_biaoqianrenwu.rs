@@ -9,14 +9,9 @@ const ziduanlie: &[Ziduandinyi] = &[
     Ziduandinyi { mingcheng: "id", nicheng: "任务ID", jieshao: "队列任务唯一标识", leixing: "BIGSERIAL PRIMARY KEY", morenzhi: None },
     Ziduandinyi { mingcheng: "ribaoid", nicheng: "日报ID", jieshao: "关联的日报ID", leixing: "BIGINT NOT NULL UNIQUE REFERENCES ribao(id) ON DELETE CASCADE", morenzhi: None },
     Ziduandinyi { mingcheng: "yonghuid", nicheng: "用户ID", jieshao: "关联的用户ID", leixing: "BIGINT NOT NULL REFERENCES yonghu(id) ON DELETE CASCADE", morenzhi: None },
-    Ziduandinyi { mingcheng: "zhuangtai", nicheng: "任务状态", jieshao: "任务状态，支持等待、执行、成功、失败", leixing: "TEXT NOT NULL CHECK (zhuangtai IN ('dengdai','zhixing','chenggong','shibai'))", morenzhi: Some("dengdai") },
-    Ziduandinyi { mingcheng: "youxianji", nicheng: "优先级", jieshao: "数值越小优先级越高", leixing: "INT NOT NULL", morenzhi: Some("100") },
+    Ziduandinyi { mingcheng: "zhuangtai", nicheng: "任务状态", jieshao: "任务状态，true已处理，false待处理", leixing: "TEXT NOT NULL CHECK (zhuangtai IN ('true','false'))", morenzhi: Some("false") },
     Ziduandinyi { mingcheng: "changshicishu", nicheng: "已尝试次数", jieshao: "当前已执行次数", leixing: "INT NOT NULL CHECK (changshicishu >= 0)", morenzhi: Some("0") },
     Ziduandinyi { mingcheng: "zuidachangshicishu", nicheng: "最大尝试次数", jieshao: "达到后不再自动重试", leixing: "INT NOT NULL CHECK (zuidachangshicishu >= 0)", morenzhi: Some("3") },
-    Ziduandinyi { mingcheng: "xiacizhixingshijian", nicheng: "下次执行时间", jieshao: "失败后计划重试时间", leixing: "TEXT", morenzhi: None },
-    Ziduandinyi { mingcheng: "lingqushijian", nicheng: "领取时间", jieshao: "任务被工作进程领取时间", leixing: "TEXT", morenzhi: None },
-    Ziduandinyi { mingcheng: "wanchengshijian", nicheng: "完成时间", jieshao: "任务成功或最终失败时间", leixing: "TEXT", morenzhi: None },
-    Ziduandinyi { mingcheng: "shibaiyuanyin", nicheng: "失败原因", jieshao: "最近一次失败信息", leixing: "TEXT", morenzhi: None },
     Ziduandinyi { mingcheng: "biaoqianjieguo", nicheng: "标签结果", jieshao: "AI产出的标签结果JSON字符串", leixing: "TEXT", morenzhi: None },
     Ziduandinyi { mingcheng: "chuangjianshijian", nicheng: "创建时间", jieshao: "记录创建时间", leixing: "TEXT NOT NULL", morenzhi: None },
     Ziduandinyi { mingcheng: "gengxinshijian", nicheng: "更新时间", jieshao: "记录最后更新时间", leixing: "TEXT NOT NULL", morenzhi: None },
@@ -25,6 +20,6 @@ const ziduanlie: &[Ziduandinyi] = &[
 impl Shujubiaodinyi for Ribaobiaoqianrenwu {
     fn biaoming() -> &'static str { "ribao_biaoqianrenwu" }
     fn biaonicheng() -> &'static str { "日报标签任务队列表" }
-    fn biaojieshao() -> &'static str { "存储日报AI打标签任务，支持排队、重试、状态追踪" }
+    fn biaojieshao() -> &'static str { "存储日报AI打标签任务，支持排队与重试" }
     fn ziduanlie() -> &'static [Ziduandinyi] { ziduanlie }
 }

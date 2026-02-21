@@ -8,5 +8,6 @@ pub mod shujucaozuo_ribao;
 pub mod shujucaozuo_biaoqianleixing;
 pub mod shujucaozuo_biaoqian;
 pub mod shujucaozuo_ribao_biaoqian;
+pub mod shujucaozuo_ribao_biaoqianrenwu;
 
 pub mod ribao_ceshi;

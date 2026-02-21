@@ -1,5 +1,11 @@
 use crate::gongju::jwtgongju;
-use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::{shujucaozuo_ribao, shujucaozuo_ribao_biaoqian};
+use crate::peizhixt::peizhi_nr::peizhi_ai::Ai;
+use crate::peizhixt::peizhixitongzhuti;
+use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::{
+    shujucaozuo_ribao,
+    shujucaozuo_ribao_biaoqian,
+    shujucaozuo_ribao_biaoqianrenwu,
+};
 use llm::chat::Tool;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -84,17 +90,24 @@ pub async fn zhixing(canshu: &str, lingpai: &str) -> String {
         None => return json!({"cuowu": "日报提交失败"}).to_string(),
     };
 
-    let mut shuju = json!({"ribaoid": ribaoid});
+    let zuidachangshicishu = peizhixitongzhuti::duqupeizhi::<Ai>(Ai::wenjianming())
+        .map(|p| p.ribao_biaoqianrenwu_chongshi_cishu as i64)
+        .unwrap_or(3);
 
-    if let Some(biaoqianidlie) = qingqiu.biaoqianidlie {
-        if !biaoqianidlie.is_empty() {
-            let biaoqianlie: Vec<&str> = biaoqianidlie.iter().map(|s| s.as_str()).collect();
-            match shujucaozuo_ribao_biaoqian::piliang_xinzeng(&ribaoid, &biaoqianlie).await {
-                Some(n) => {
-                    shuju.as_object_mut().map(|obj| obj.insert("guanlianshuliang".to_string(), json!(n)));
-                }
-                None => return json!({"cuowu": "日报提交成功但标签关联失败", "ribaoid": ribaoid}).to_string(),
+    let renwuid = match shujucaozuo_ribao_biaoqianrenwu::faburenwu(&ribaoid, &zaiti.yonghuid, zuidachangshicishu).await {
+        Some(id) => id,
+        None => return json!({"cuowu": "日报提交成功但任务发布失败", "ribaoid": ribaoid}).to_string(),
+    };
+
+    let mut shuju = json!({"ribaoid": ribaoid, "renwuid": renwuid});
+
+    if let Some(biaoqianidlie) = qingqiu.biaoqianidlie.as_ref().filter(|lie| !lie.is_empty()) {
+        let biaoqianlie: Vec<&str> = biaoqianidlie.iter().map(|s| s.as_str()).collect();
+        match shujucaozuo_ribao_biaoqian::piliang_xinzeng(&ribaoid, &biaoqianlie).await {
+            Some(n) => {
+                shuju.as_object_mut().map(|obj| obj.insert("guanlianshuliang".to_string(), json!(n)));
             }
+            None => return json!({"cuowu": "日报提交成功但标签关联失败", "ribaoid": ribaoid, "renwuid": renwuid}).to_string(),
         }
     }
 
