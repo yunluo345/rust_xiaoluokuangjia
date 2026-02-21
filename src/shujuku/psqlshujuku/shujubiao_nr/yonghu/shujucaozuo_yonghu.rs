@@ -128,3 +128,22 @@ pub async fn chaxun_zongshu() -> Option<Value> {
     ).await?;
     jieguo.into_iter().next()
 }
+
+/// 模糊搜索用户（分页）
+pub async fn sousuo_mohu(guanjianci: &str, pianyi: &str, shuliang: &str) -> Option<Vec<Value>> {
+    let moshi = format!("%{}%", guanjianci);
+    psqlcaozuo::chaxun(
+        &format!("SELECT * FROM {} WHERE zhanghao ILIKE $1 OR nicheng ILIKE $1 ORDER BY chuangjianshijian ASC LIMIT $2::BIGINT OFFSET $3::BIGINT", biaoming),
+        &[&moshi, shuliang, pianyi],
+    ).await
+}
+
+/// 模糊搜索用户总数
+pub async fn sousuo_zongshu(guanjianci: &str) -> Option<Value> {
+    let moshi = format!("%{}%", guanjianci);
+    let jieguo = psqlcaozuo::chaxun(
+        &format!("SELECT COUNT(*) as shuliang FROM {} WHERE zhanghao ILIKE $1 OR nicheng ILIKE $1", biaoming),
+        &[&moshi],
+    ).await?;
+    jieguo.into_iter().next()
+}

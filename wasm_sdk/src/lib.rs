@@ -15,6 +15,7 @@ use jiekou_nr::xitong::jiamisseceshi as jiamisseceshiqq;
 use jiekou_nr::xitong::aiqudaoguanli as aiqudaoqq;
 use jiekou_nr::xitong::ribaoguanli as ribaoqq;
 use jiekou_nr::yonghu::denglujiekou as dengluqq;
+use jiekou_nr::yonghu::yonghuguanlijiekou as yonghuguanliqq;
 use jiekou_nr::ai::duihua as aiduihuaqq;
 use jiekou_nr::ai::duihualiushi as aiduihualiushiqq;
 
@@ -124,6 +125,19 @@ impl Kehuduanjiami {
             self.neibu.baocunlingpai();
         }
         xuliehua(&xiangying)
+    }
+
+    pub async fn yonghuguanliqingqiu(&self, caozuo: &str, canshu: Option<String>) -> Result<String, JsValue> {
+        let lingpai = self.huoqubixu_lingpai()?;
+        let canshu_zhi = self.jieximoren_canshu(canshu)?;
+        let ti = xuliehua(&yonghuguanliqq::Qingqiuti {
+            caozuo: caozuo.to_string(),
+            dangqianyeshu: canshu_zhi.get("dangqianyeshu").and_then(|v| v.as_i64()).map(|v| v as i32),
+            meiyeshuliang: canshu_zhi.get("meiyeshuliang").and_then(|v| v.as_i64()).map(|v| v as i32),
+            guanjianci: canshu_zhi.get("guanjianci").and_then(|v| v.as_str()).map(String::from),
+            id: canshu_zhi.get("id").and_then(|v| v.as_str()).map(String::from),
+        })?;
+        self.zhixingdaichongshi(|| self.neibu.zhixingrenzhengjiamiqingqiu(yonghuguanliqq::fangshi, yonghuguanliqq::lujing, Some(&ti), &lingpai)).await
     }
 
     pub fn yixieshang(&self) -> bool {

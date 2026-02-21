@@ -54,6 +54,26 @@
         .aq-hang input:disabled { background: #F1F5F9; color: #94A3B8; }
         .aq-hang select { border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; font-size: 14px; outline: none; transition: border-color 200ms; color: #1E293B; background: #fff; cursor: pointer; }
         .aq-hang select:focus { border-color: #3B82F6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
+        .yh-btn { display:inline-flex;align-items:center;gap:5px;border:none;border-radius:8px;padding:0 14px;font-size:13px;font-weight:500;color:#fff;cursor:pointer;transition:all 200ms;min-height:38px;margin:0;white-space:nowrap; }
+        .yh-btn:disabled { opacity:0.45;cursor:not-allowed;filter:grayscale(0.3); }
+        .yh-btn:focus { outline:none;box-shadow:0 0 0 2px rgba(59,130,246,0.35); }
+        .yh-btn-zhu { background:linear-gradient(135deg,#3B82F6,#2563EB); }
+        .yh-btn-zhu:hover:not(:disabled) { background:linear-gradient(135deg,#2563EB,#1D4ED8);box-shadow:0 2px 8px rgba(37,99,235,0.3); }
+        .yh-btn-cheng { background:linear-gradient(135deg,#F59E0B,#D97706); }
+        .yh-btn-cheng:hover:not(:disabled) { background:linear-gradient(135deg,#D97706,#B45309);box-shadow:0 2px 8px rgba(217,119,6,0.3); }
+        .yh-btn-zi { background:linear-gradient(135deg,#8B5CF6,#7C3AED); }
+        .yh-btn-zi:hover:not(:disabled) { background:linear-gradient(135deg,#7C3AED,#6D28D9);box-shadow:0 2px 8px rgba(124,58,237,0.3); }
+        .yh-btn-qing { background:linear-gradient(135deg,#06B6D4,#0891B2); }
+        .yh-btn-qing:hover:not(:disabled) { background:linear-gradient(135deg,#0891B2,#0E7490);box-shadow:0 2px 8px rgba(8,145,178,0.3); }
+        .yh-xq-ka { background:#fff;border:1px solid #E2E8F0;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+        .yh-xq-tou { display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(135deg,#F8FAFC,#EFF6FF);border-bottom:1px solid #E2E8F0; }
+        .yh-xq-hang { display:flex;border-bottom:1px solid #F1F5F9;transition:background 150ms; }
+        .yh-xq-hang:last-child { border-bottom:none; }
+        .yh-xq-hang:hover { background:#F8FAFC; }
+        .yh-xq-biaoti { width:130px;flex-shrink:0;padding:10px 16px;font-size:13px;font-weight:600;color:#475569;background:#FAFBFC; }
+        .yh-xq-zhi { flex:1;padding:10px 16px;font-size:13px;color:#1E293B;word-break:break-all; }
+        .yh-lb-ka { background:#fff;border:1px solid #E2E8F0;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+        .yh-lb-tou { display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:linear-gradient(135deg,#F8FAFC,#EFF6FF);border-bottom:1px solid #E2E8F0; }
     </style>
 </head>
 <body>
@@ -89,6 +109,57 @@
                 <button id="btn_denglu" onclick="dengluqingqiu()" disabled>加密登录</button>
             </div>
         </div>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid #E2E8F0;background:linear-gradient(135deg,#F8FAFC,#EFF6FF)">
+            <svg style="width:22px;height:22px;color:#3B82F6;flex-shrink:0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            <h2 style="font-size:16px;color:#0F172A;margin:0;font-weight:700">用户管理</h2>
+        </div>
+        <div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+                <div style="display:flex;flex-direction:column;gap:4px">
+                    <label for="yh_yeshu" style="font-size:12px;color:#64748B;font-weight:500">页码</label>
+                    <input id="yh_yeshu" type="number" value="1" min="1" style="width:72px;padding:8px 10px;min-height:38px;font-size:13px">
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px">
+                    <label for="yh_shuliang" style="font-size:12px;color:#64748B;font-weight:500">每页</label>
+                    <input id="yh_shuliang" type="number" value="10" min="1" max="100" style="width:72px;padding:8px 10px;min-height:38px;font-size:13px">
+                </div>
+                <button id="btn_yonghuguanli" onclick="yonghuguanliqingqiu()" disabled class="yh-btn yh-btn-zhu" style="min-height:38px;padding:0 16px">
+                    <svg style="width:15px;height:15px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>分页查询
+                </button>
+                <div style="height:1px;flex:0 0 1px;background:#E2E8F0;align-self:stretch;margin:0 4px;display:none"></div>
+                <div style="display:flex;align-items:flex-end;gap:4px">
+                    <div style="display:flex;flex-direction:column;gap:4px">
+                        <label for="yh_sousuo_id" style="font-size:12px;color:#64748B;font-weight:500">ID精确查询</label>
+                        <input id="yh_sousuo_id" type="text" placeholder="用户ID" style="width:100px;padding:8px 10px;min-height:38px;font-size:13px">
+                    </div>
+                    <button id="btn_yh_sousuo_id" onclick="yonghusousuoid()" disabled class="yh-btn yh-btn-cheng" style="min-height:38px;padding:0 12px">
+                        <svg style="width:15px;height:15px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0"/></svg>查询
+                    </button>
+                </div>
+                <div style="display:flex;align-items:flex-end;gap:4px">
+                    <div style="display:flex;flex-direction:column;gap:4px">
+                        <label for="yh_sousuo_zhanghao" style="font-size:12px;color:#64748B;font-weight:500">搜索用户名</label>
+                        <input id="yh_sousuo_zhanghao" type="text" placeholder="关键词" style="width:110px;padding:8px 10px;min-height:38px;font-size:13px">
+                    </div>
+                    <button id="btn_yh_sousuo_zhanghao" onclick="yonghusousuozhanghao()" disabled class="yh-btn yh-btn-zi" style="min-height:38px;padding:0 12px">
+                        <svg style="width:15px;height:15px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>搜索
+                    </button>
+                </div>
+                <div style="display:flex;align-items:flex-end;gap:4px">
+                    <div style="display:flex;flex-direction:column;gap:4px">
+                        <label for="yh_sousuo_nicheng" style="font-size:12px;color:#64748B;font-weight:500">搜索昵称</label>
+                        <input id="yh_sousuo_nicheng" type="text" placeholder="关键词" style="width:110px;padding:8px 10px;min-height:38px;font-size:13px">
+                    </div>
+                    <button id="btn_yh_sousuo_nicheng" onclick="yonghusousuonicheng()" disabled class="yh-btn yh-btn-qing" style="min-height:38px;padding:0 12px">
+                        <svg style="width:15px;height:15px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>搜索
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div id="yonghu_liebiao" style="padding:0 20px 16px;max-height:520px;overflow-y:auto"></div>
     </div>
 
     <div class="card">
@@ -164,6 +235,10 @@
                 document.getElementById('btn_jiamisseceshi').disabled = false;
                 document.getElementById('btn_chongzhi').disabled = false;
                 document.getElementById('btn_denglu').disabled = false;
+                document.getElementById('btn_yonghuguanli').disabled = false;
+                document.getElementById('btn_yh_sousuo_id').disabled = false;
+                document.getElementById('btn_yh_sousuo_zhanghao').disabled = false;
+                document.getElementById('btn_yh_sousuo_nicheng').disabled = false;
                 const aiqudao_lj = new Aiqudaoluoji(kehu, rizhi);
                 aiqudao_jm = new Aiqudaojiemian(aiqudao_lj, 'aiqudao_mianban');
                 await aiqudao_jm.xuanran();
@@ -237,6 +312,149 @@
                 shifouquanxian = yonghuzuid === '1';
             } catch (_) {}
             if (ribao_jm) ribao_jm.shezhiquanxian(shifouquanxian);
+        });
+
+        window.yonghuguanliqingqiu = () => zhixinganniu('btn_yonghuguanli', async () => {
+            const yeshu = parseInt(document.getElementById('yh_yeshu').value) || 1;
+            const shuliang = parseInt(document.getElementById('yh_shuliang').value) || 10;
+            if (yeshu < 1 || shuliang < 1) return rizhi('页数和数量必须大于0', 'warn');
+            const jieguo = await kehu.yonghuguanliqingqiu('fenye', JSON.stringify({ dangqianyeshu: yeshu, meiyeshuliang: shuliang }));
+            rizhi('用户查询结果: ' + jieguo, 'ok');
+            try {
+                const jieguozhi = JSON.parse(jieguo);
+                if (jieguozhi.zhuangtaima === 200 && jieguozhi.shuju) {
+                    xuanranyonghuliebiao(jieguozhi.shuju.liebiao || [], jieguozhi.shuju.zongshu || 0, `第 ${yeshu} 页`);
+                } else {
+                    document.getElementById('yonghu_liebiao').innerHTML = `<div style="color:#EF4444;font-size:13px">${jieguozhi.xiaoxi || '查询失败'}</div>`;
+                }
+            } catch (e) {
+                rizhi('解析用户数据失败: ' + e, 'err');
+            }
+        });
+
+        function xuanranyonghuliebiao(liebiao, zongshu, shuoming) {
+            let html = '<div class="yh-lb-ka">';
+            html += `<div class="yh-lb-tou"><span style="font-size:13px;font-weight:600;color:#0F172A">${shuoming}</span><span style="font-size:12px;color:#64748B;background:#F1F5F9;padding:3px 10px;border-radius:12px">共 ${zongshu} 条</span></div>`;
+            if (liebiao.length === 0) {
+                html += '<div style="padding:40px;text-align:center;color:#94A3B8"><svg style="width:40px;height:40px;margin:0 auto 10px;display:block;opacity:0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg><div style="font-size:13px">暂无数据</div></div>';
+            } else {
+                html += '<table style="width:100%;border-collapse:collapse"><thead><tr>';
+                ['ID','账号','昵称','用户组','创建时间','操作'].forEach(t => {
+                    html += `<th style="padding:10px 14px;text-align:left;font-size:12px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #E2E8F0;background:#FAFBFC">${t}</th>`;
+                });
+                html += '</tr></thead><tbody>';
+                liebiao.forEach((yh, i) => {
+                    const bg = i % 2 === 0 ? '#fff' : '#FAFBFC';
+                    html += `<tr style="background:${bg};transition:background 150ms" onmouseover="this.style.background='#EFF6FF'" onmouseout="this.style.background='${bg}'">`;
+                    html += `<td style="padding:10px 14px;font-size:13px;color:#64748B;font-variant-numeric:tabular-nums">${yh.id || ''}</td>`;
+                    html += `<td style="padding:10px 14px;font-size:13px;color:#0F172A;font-weight:500">${yh.zhanghao || ''}</td>`;
+                    html += `<td style="padding:10px 14px;font-size:13px;color:#475569">${yh.nicheng || '-'}</td>`;
+                    html += `<td style="padding:10px 14px"><span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:500;background:#EEF2FF;color:#4338CA">${yh.yonghuzuid || '-'}</span></td>`;
+                    html += `<td style="padding:10px 14px;font-size:12px;color:#94A3B8;font-variant-numeric:tabular-nums">${yh.chuangjianshijian || '-'}</td>`;
+                    html += `<td style="padding:10px 14px"><button onclick="yonghuxiangqing('${yh.id}')" class="yh-btn yh-btn-zhu" style="min-height:30px;padding:0 10px;font-size:12px;border-radius:6px"><svg style="width:13px;height:13px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>详情</button></td>`;
+                    html += '</tr>';
+                });
+                html += '</tbody></table>';
+            }
+            html += '</div>';
+            document.getElementById('yonghu_liebiao').innerHTML = html;
+        }
+
+        function xuanranyonghuxiangqing(yh) {
+            const fengjinzhi = yh.fengjin === '1' ? '<span style="color:#EF4444;font-weight:500">已封禁</span>' : '<span style="color:#10B981;font-weight:500">正常</span>';
+            const ziduanlie = [
+                ['ID', yh.id, 'id'], ['账号', yh.zhanghao, 'text'], ['密码', yh.mima, 'code'],
+                ['昵称', yh.nicheng, 'text'], ['用户组ID', yh.yonghuzuid, 'badge'],
+                ['备注', yh.beizhu, 'text'], ['封禁状态', fengjinzhi, 'html'],
+                ['封禁原因', yh.fengjinyuanyin, 'text'], ['封禁结束', yh.fengjinjieshu, 'text'],
+                ['最后登录', yh.zuihoudenglu, 'time'], ['创建时间', yh.chuangjianshijian, 'time'],
+                ['更新时间', yh.gengxinshijian, 'time'],
+            ];
+            let html = '<div class="yh-xq-ka">';
+            html += `<div class="yh-xq-tou"><div style="display:flex;align-items:center;gap:8px"><svg style="width:18px;height:18px;color:#3B82F6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg><span style="font-size:14px;font-weight:600;color:#0F172A">用户详情</span></div><button onclick="yonghuguanliqingqiu()" class="yh-btn yh-btn-zhu" style="min-height:30px;padding:0 10px;font-size:12px;border-radius:6px"><svg style="width:13px;height:13px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>返回列表</button></div>`;
+            ziduanlie.forEach(([biaoti, zhi, leixing]) => {
+                let xianshi = zhi ?? '-';
+                if (leixing === 'html') xianshi = zhi || '-';
+                else if (leixing === 'code' && zhi) xianshi = `<code style="background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px">${zhi}</code>`;
+                else if (leixing === 'badge' && zhi) xianshi = `<span style="display:inline-block;padding:2px 10px;border-radius:6px;font-size:12px;font-weight:500;background:#EEF2FF;color:#4338CA">${zhi}</span>`;
+                else if (leixing === 'time' && zhi) xianshi = `<span style="font-variant-numeric:tabular-nums;color:#64748B">${zhi}</span>`;
+                else if (leixing === 'id' && zhi) xianshi = `<span style="font-weight:600;color:#3B82F6">#${zhi}</span>`;
+                else if (!zhi) xianshi = '<span style="color:#CBD5E1">-</span>';
+                html += `<div class="yh-xq-hang"><div class="yh-xq-biaoti">${biaoti}</div><div class="yh-xq-zhi">${xianshi}</div></div>`;
+            });
+            html += '</div>';
+            document.getElementById('yonghu_liebiao').innerHTML = html;
+        }
+
+        window.yonghuxiangqing = async (id) => {
+            if (!kehu) return rizhi('尚未初始化', 'warn');
+            try {
+                const jieguo = await kehu.yonghuguanliqingqiu('xiangqing', JSON.stringify({ id }));
+                rizhi('用户详情: ' + jieguo, 'ok');
+                const jieguozhi = JSON.parse(jieguo);
+                if (jieguozhi.zhuangtaima === 200 && jieguozhi.shuju) {
+                    xuanranyonghuxiangqing(jieguozhi.shuju);
+                } else {
+                    document.getElementById('yonghu_liebiao').innerHTML = `<div style="color:#EF4444;font-size:13px">${jieguozhi.xiaoxi || '查询失败'}</div>`;
+                }
+            } catch (e) {
+                rizhi('解析用户详情失败: ' + e, 'err');
+            }
+        };
+
+        window.yonghusousuoid = () => zhixinganniu('btn_yh_sousuo_id', async () => {
+            const id = document.getElementById('yh_sousuo_id').value.trim();
+            if (!id) return rizhi('请输入用户ID', 'warn');
+            const jieguo = await kehu.yonghuguanliqingqiu('xiangqing', JSON.stringify({ id }));
+            rizhi('ID查询结果: ' + jieguo, 'ok');
+            try {
+                const jieguozhi = JSON.parse(jieguo);
+                if (jieguozhi.zhuangtaima === 200 && jieguozhi.shuju) {
+                    xuanranyonghuxiangqing(jieguozhi.shuju);
+                } else {
+                    document.getElementById('yonghu_liebiao').innerHTML = `<div style="color:#EF4444;font-size:13px">${jieguozhi.xiaoxi || '用户不存在'}</div>`;
+                }
+            } catch (e) {
+                rizhi('解析查询结果失败: ' + e, 'err');
+            }
+        });
+
+        window.yonghusousuozhanghao = () => zhixinganniu('btn_yh_sousuo_zhanghao', async () => {
+            const guanjianci = document.getElementById('yh_sousuo_zhanghao').value.trim();
+            if (!guanjianci) return rizhi('请输入用户名关键词', 'warn');
+            const yeshu = parseInt(document.getElementById('yh_yeshu').value) || 1;
+            const shuliang = parseInt(document.getElementById('yh_shuliang').value) || 10;
+            const jieguo = await kehu.yonghuguanliqingqiu('sousuo', JSON.stringify({ guanjianci, dangqianyeshu: yeshu, meiyeshuliang: shuliang }));
+            rizhi('用户名搜索结果: ' + jieguo, 'ok');
+            try {
+                const jieguozhi = JSON.parse(jieguo);
+                if (jieguozhi.zhuangtaima === 200 && jieguozhi.shuju) {
+                    xuanranyonghuliebiao(jieguozhi.shuju.liebiao || [], jieguozhi.shuju.zongshu || 0, `搜索用户名"${guanjianci}"`);
+                } else {
+                    document.getElementById('yonghu_liebiao').innerHTML = `<div style="color:#EF4444;font-size:13px">${jieguozhi.xiaoxi || '搜索失败'}</div>`;
+                }
+            } catch (e) {
+                rizhi('解析搜索结果失败: ' + e, 'err');
+            }
+        });
+
+        window.yonghusousuonicheng = () => zhixinganniu('btn_yh_sousuo_nicheng', async () => {
+            const guanjianci = document.getElementById('yh_sousuo_nicheng').value.trim();
+            if (!guanjianci) return rizhi('请输入昵称关键词', 'warn');
+            const yeshu = parseInt(document.getElementById('yh_yeshu').value) || 1;
+            const shuliang = parseInt(document.getElementById('yh_shuliang').value) || 10;
+            const jieguo = await kehu.yonghuguanliqingqiu('sousuo', JSON.stringify({ guanjianci, dangqianyeshu: yeshu, meiyeshuliang: shuliang }));
+            rizhi('昵称搜索结果: ' + jieguo, 'ok');
+            try {
+                const jieguozhi = JSON.parse(jieguo);
+                if (jieguozhi.zhuangtaima === 200 && jieguozhi.shuju) {
+                    xuanranyonghuliebiao(jieguozhi.shuju.liebiao || [], jieguozhi.shuju.zongshu || 0, `搜索昵称"${guanjianci}"`);
+                } else {
+                    document.getElementById('yonghu_liebiao').innerHTML = `<div style="color:#EF4444;font-size:13px">${jieguozhi.xiaoxi || '搜索失败'}</div>`;
+                }
+            } catch (e) {
+                rizhi('解析搜索结果失败: ' + e, 'err');
+            }
         });
 
         window.qingkongrizhi = function() {
