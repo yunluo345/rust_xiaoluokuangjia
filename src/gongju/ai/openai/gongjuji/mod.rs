@@ -11,7 +11,7 @@ pub mod guanjianci_suoyin;
 
 use llm::chat::Tool;
 use guanjianci_suoyin::Guanjiancipeiqi;
-use self::ribao::{gongju_ribaojiancha, gongju_ribaorenwuchuli, gongju_ribaotijiao};
+use self::ribao::{gongju_ribaojiancha, gongju_ribaorenwuchuli};
 
 /// 工具分组枚举
 #[derive(Debug, Clone, PartialEq)]
@@ -130,7 +130,6 @@ fn suoyouzhuce() -> Vec<Gongjuzhuce> {
         zhuce_gongju!(gongju_shijianchaxun),
         zhuce_gongju!(gongju_aiqudaoguanli),
         zhuce_gongju!(gongju_ribaojiancha),
-        zhuce_gongju!(gongju_ribaotijiao),
         zhuce_gongju!(gongju_ribaorenwuchuli),
     ]
 }
@@ -159,15 +158,6 @@ fn gongju_ribaojiancha_wrapper(canshu: &str, lingpai: &str) -> Pin<Box<dyn Futur
     let lingpai = lingpai.to_string();
     Box::pin(async move {
         gongju_ribaojiancha::zhixing(&canshu, &lingpai).await
-    })
-}
-
-/// 日报提交工具包装函数
-fn gongju_ribaotijiao_wrapper(canshu: &str, lingpai: &str) -> Pin<Box<dyn Future<Output = String> + Send + 'static>> {
-    let canshu = canshu.to_string();
-    let lingpai = lingpai.to_string();
-    Box::pin(async move {
-        gongju_ribaotijiao::zhixing(&canshu, &lingpai).await
     })
 }
 

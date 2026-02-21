@@ -129,12 +129,12 @@ async fn chuliqingqiu(ti: &[u8], lingpai: &str) -> HttpResponse {
                     return;
                 }
                 Some(openaizhuti::ReactJieguo::Gongjudiaoyong(lie)) => {
-                    let hash = gongju_qianming(&lie);
-                    if hash == shangci_hash && shangci_hash != 0 {
-                        chongfu += 1;
-                    if chongfu >= 1 {
-                            println!("[流式ReAct] 工具重复调用，移除工具做最终回复");
-                            guanli.qingkong_gongjulie();
+                let hash = gongju_qianming(&lie);
+                if hash == shangci_hash && shangci_hash != 0 {
+                    chongfu += 1;
+                if chongfu >= 2 {
+                        println!("[流式ReAct] 工具重复调用，移除工具做最终回复");
+                        guanli.qingkong_gongjulie();
                             if let Some(huifu) = openaizhuti::putongqingqiu(&peizhi, &guanli).await {
                                 zhuzi_fasong(&fasongqi, &huifu).await;
                             } else {
