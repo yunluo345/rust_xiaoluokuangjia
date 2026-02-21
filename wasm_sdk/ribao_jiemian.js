@@ -160,7 +160,7 @@ export class Ribaojiemian {
                 <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px">
                     <div style="flex:1">
                         <div style="font-size:12px;color:#64748B;margin-bottom:4px">ID: ${rb.id} | ${rb.fabushijian}</div>
-                        <div style="font-size:14px;color:#1E293B;line-height:1.6">${neirong}</div>
+                        <div style="font-size:14px;color:#1E293B;line-height:1.6;white-space:pre-wrap">${neirong}</div>
                     </div>
                     <div style="display:flex;gap:6px;margin-left:12px">
                         <button class="aq-btn aq-btn-xiao aq-btn-huang" onclick="ribao_bianji('${rb.id}')">编辑</button>

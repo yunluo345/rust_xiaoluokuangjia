@@ -13,6 +13,7 @@ use ribao::shujubiao_ribao::Ribao;
 use ribao::shujubiao_biaoqianleixing::Biaoqianleixing;
 use ribao::shujubiao_biaoqian::Biaoqian;
 use ribao::shujubiao_ribao_biaoqian::Ribaobiaoqian;
+use ribao::shujubiao_ribao_biaoqianrenwu::Ribaobiaoqianrenwu;
 use yonghu::shujubiao_yonghu::Yonghu;
 use yonghu::shujubiao_yonghuzu::Yonghuzu;
 
@@ -28,5 +29,6 @@ pub fn huoqubiaolie() -> Vec<Biaozhucexinxi> {
         Biaozhucexinxi { biaoming: Biaoqian::biaoming(), biaonicheng: Biaoqian::biaonicheng(), biaojieshao: Biaoqian::biaojieshao(), ziduanlie: Biaoqian::ziduanlie() },
         Biaozhucexinxi { biaoming: Ribao::biaoming(), biaonicheng: Ribao::biaonicheng(), biaojieshao: Ribao::biaojieshao(), ziduanlie: Ribao::ziduanlie() },
         Biaozhucexinxi { biaoming: Ribaobiaoqian::biaoming(), biaonicheng: Ribaobiaoqian::biaonicheng(), biaojieshao: Ribaobiaoqian::biaojieshao(), ziduanlie: Ribaobiaoqian::ziduanlie() },
+        Biaozhucexinxi { biaoming: Ribaobiaoqianrenwu::biaoming(), biaonicheng: Ribaobiaoqianrenwu::biaonicheng(), biaojieshao: Ribaobiaoqianrenwu::biaojieshao(), ziduanlie: Ribaobiaoqianrenwu::ziduanlie() },
     ]
 }
