@@ -5,6 +5,8 @@ use crate::jiekouxt::jiamichuanshu::jiamichuanshuzhongjian;
 use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::shujucaozuo_yonghu;
 use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::shujucaozuo_yonghuzu;
 use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::yonghuyanzheng;
+use crate::shujuku::psqlshujuku::shujubiao_nr::shujucaozuo_jiekoujilubiao;
+use crate::shujuku::redisshujuku::rediscaozuo;
 use crate::gongju::jwtgongju;
 
 #[allow(non_upper_case_globals)]
@@ -36,6 +38,7 @@ struct Qingqiuti {
     yonghuzu: Option<String>,
     yonghuzu_id: Option<String>,
     mingcheng: Option<String>,
+    jinjiekou: Option<Vec<String>>,
 }
 
 #[derive(Serialize)]
@@ -62,6 +65,9 @@ enum Caozuoleixing {
     Yonghuzuxinzeng { mingcheng: String, beizhu: Option<String> },
     Yonghuzuxiugai { id: String, mingcheng: String, beizhu: Option<String> },
     Yonghuzushanchu(String),
+    Yonghuzujiekouliebiao,
+    Yonghuzuhuoqujinjiekou(String),
+    Yonghuzugengxinjinjiekou { id: String, jinjiekou: Vec<String> },
 }
 
 fn jiamishibai(zhuangtaima: u16, xiaoxi: impl Into<String>, miyao: &[u8]) -> HttpResponse {
@@ -179,6 +185,16 @@ fn jiexi_caozuo(qingqiu: Qingqiuti, miyao: &[u8]) -> Result<Caozuoleixing, HttpR
         "yonghuzu_shanchu" => {
             let id = tiqucansu(qingqiu.id, "id", miyao)?;
             Ok(Caozuoleixing::Yonghuzushanchu(id))
+        }
+        "yonghuzu_jiekouliebiao" => Ok(Caozuoleixing::Yonghuzujiekouliebiao),
+        "yonghuzu_huoqujinjiekou" => {
+            let id = tiqucansu(qingqiu.id, "id", miyao)?;
+            Ok(Caozuoleixing::Yonghuzuhuoqujinjiekou(id))
+        }
+        "yonghuzu_gengxinjinjiekou" => {
+            let id = tiqucansu(qingqiu.id, "id", miyao)?;
+            let jinjiekou = qingqiu.jinjiekou.unwrap_or_default();
+            Ok(Caozuoleixing::Yonghuzugengxinjinjiekou { id, jinjiekou })
         }
         _ => Err(jiamishibai(400, "无效的操作类型", miyao)),
     }
@@ -365,6 +381,43 @@ async fn zhixing_caozuo(caozuo: Caozuoleixing, miyao: &[u8]) -> HttpResponse {
             match shujucaozuo_yonghuzu::shanchu(&id).await {
                 Some(_) => jiamichuanshuzhongjian::jiamixiangying(jiekouxtzhuti::chenggong_wushuju("删除用户组成功"), miyao),
                 None => jiamishibai(500, "删除用户组失败", miyao),
+            }
+        }
+        Caozuoleixing::Yonghuzujiekouliebiao => {
+            match shujucaozuo_jiekoujilubiao::chaxun_quanbu().await {
+                Some(liebiao) => jiamichuanshuzhongjian::jiamixiangying(jiekouxtzhuti::chenggong("查询成功", liebiao), miyao),
+                None => jiamishibai(500, "查询接口列表失败", miyao),
+            }
+        }
+        Caozuoleixing::Yonghuzuhuoqujinjiekou(id) => {
+            let zu = match shujucaozuo_yonghuzu::chaxun_id(&id).await {
+                Some(z) => z,
+                None => return jiamishibai(404, "用户组不存在", miyao),
+            };
+            let jinjiekou: Vec<String> = zu.get("jinjiekou")
+                .and_then(|v| v.as_str())
+                .and_then(|s| serde_json::from_str(s).ok())
+                .unwrap_or_default();
+            jiamichuanshuzhongjian::jiamixiangying(jiekouxtzhuti::chenggong("查询成功", jinjiekou), miyao)
+        }
+        Caozuoleixing::Yonghuzugengxinjinjiekou { id, jinjiekou } => {
+            let zu = match shujucaozuo_yonghuzu::chaxun_id(&id).await {
+                Some(z) => z,
+                None => return jiamishibai(404, "用户组不存在", miyao),
+            };
+            if zu.get("mingcheng").and_then(|v| v.as_str()).is_some_and(|m| m == "root") {
+                return jiamishibai(403, "root用户组不可修改接口权限", miyao);
+            }
+            let jinjiekou_json = match serde_json::to_string(&jinjiekou) {
+                Ok(j) => j,
+                Err(_) => return jiamishibai(400, "禁用接口列表格式错误", miyao),
+            };
+            match shujucaozuo_yonghuzu::gengxinjinjiekou(&id, &jinjiekou_json).await {
+                Some(_) => {
+                    let _ = rediscaozuo::shanchu(&format!("yonghuzu:jinjiekou:{}", id)).await;
+                    jiamichuanshuzhongjian::jiamixiangying(jiekouxtzhuti::chenggong_wushuju("接口权限更新成功"), miyao)
+                }
+                None => jiamishibai(500, "接口权限更新失败", miyao),
             }
         }
     }

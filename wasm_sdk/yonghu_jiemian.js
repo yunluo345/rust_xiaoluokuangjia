@@ -299,15 +299,52 @@ export class Yonghujiemian {
     async yonghuzu_bianji(id) {
         const nr = document.getElementById('yonghu_neirong');
         nr.innerHTML = this._jiazaizhong();
-        const jg = await this.luoji.yonghuzu_xiangqing(id);
+        const [jg, jkjg, jnjg] = await Promise.all([
+            this.luoji.yonghuzu_xiangqing(id),
+            this.luoji.yonghuzu_jiekouliebiao(),
+            this.luoji.yonghuzu_huoqujinjiekou(id),
+        ]);
         if (!jg || jg.zhuangtaima !== 200) { nr.innerHTML = this._cuowuhtml('加载失败: ' + (jg ? jg.xiaoxi : '请求错误')); return; }
         const zu = jg.shuju || {};
-        let html = '<div style="background:white;border:1px solid #E2E8F0;border-radius:12px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,0.05);max-width:500px">';
+        const shifouroot = zu.mingcheng === 'root';
+        const jiekoulie = (jkjg && jkjg.zhuangtaima === 200) ? (jkjg.shuju || []) : [];
+        const jinjiekoulie = (jnjg && jnjg.zhuangtaima === 200) ? (jnjg.shuju || []) : [];
+        const jinjiekouji = new Set(jinjiekoulie);
+        let html = '<div style="background:white;border:1px solid #E2E8F0;border-radius:12px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,0.05);max-width:700px">';
         html += '<h3 style="font-size:18px;font-weight:600;color:#0F172A;margin:0 0 20px">编辑用户组</h3><div style="display:grid;gap:12px">';
         html += this._hanghtml('ID', `<span style="font-size:14px;color:#0F172A">${zu.id}</span>`, false);
         html += this._bianji_hang('组名称', 'zu_bj_mingcheng', zu.mingcheng || '', true);
         html += this._bianji_hang('备注', 'zu_bj_beizhu', zu.beizhu || '', false);
-        html += `<div style="display:flex;gap:12px;margin-top:8px"><button class="aq-btn aq-btn-zhu" onclick="yonghuzu_tijiaobian('${zu.id}')" style="cursor:pointer">保存</button>${this._fanhuianniu('yonghuzu_shuaxin()')}</div>`;
+        html += `<div style="display:flex;gap:12px;margin-top:8px"><button class="aq-btn aq-btn-zhu" onclick="yonghuzu_tijiaobian('${zu.id}')" style="cursor:pointer">保存基本信息</button>${this._fanhuianniu('yonghuzu_shuaxin()')}</div>`;
+        html += '</div>';
+        html += '<div style="margin-top:24px;padding-top:20px;border-top:1px solid #E2E8F0">';
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px"><h4 style="font-size:16px;font-weight:600;color:#0F172A;margin:0">接口权限管理</h4>';
+        if (!shifouroot) {
+            html += `<button class="aq-btn aq-btn-zhu" onclick="yonghuzu_baocunquanxian('${zu.id}')" style="cursor:pointer;padding:8px 20px">保存权限</button>`;
+        }
+        html += '</div>';
+        if (shifouroot) {
+            html += '<div style="padding:12px 16px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;color:#166534;font-size:14px">root用户组拥有所有权限，无法修改</div>';
+        } else if (!jiekoulie.length) {
+            html += '<div style="padding:12px 16px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;color:#991B1B;font-size:14px">暂无接口数据</div>';
+        } else {
+            html += '<div style="font-size:13px;color:#64748B;margin-bottom:12px">勾选表示<span style="color:#EF4444;font-weight:600">禁用</span>该接口，取消勾选表示允许访问</div>';
+            html += '<div style="display:grid;gap:8px">';
+            for (const jk of jiekoulie) {
+                const lujing = jk.lujing || '';
+                const nicheng = jk.nicheng || '';
+                const fangshi = jk.fangshi || '';
+                const xudenglu = jk.xudenglu === '1';
+                if (!xudenglu) continue;
+                const yijin = jinjiekouji.has(lujing);
+                const cbid = 'zu_qx_' + lujing.replace(/\//g, '_');
+                html += `<label for="${cbid}" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:${yijin ? '#FEF2F2' : '#F8FAFC'};border:1px solid ${yijin ? '#FCA5A5' : '#E2E8F0'};border-radius:8px;cursor:pointer;transition:all 200ms" onmouseover="this.style.borderColor='#3B82F6'" onmouseout="this.style.borderColor='${yijin ? '#FCA5A5' : '#E2E8F0'}'">`;
+                html += `<input type="checkbox" id="${cbid}" data-lujing="${this._zhuanyi(lujing)}" ${yijin ? 'checked' : ''} style="width:18px;height:18px;accent-color:#EF4444;cursor:pointer">`;
+                html += `<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:500;color:#0F172A">${this._zhuanyi(nicheng)}</span><span style="padding:2px 8px;background:#E0E7FF;color:#3730A3;border-radius:4px;font-size:12px;font-weight:500">${fangshi}</span></div>`;
+                html += `<div style="font-size:12px;color:#64748B;margin-top:2px;font-family:monospace">${this._zhuanyi(lujing)}</div></div></label>`;
+            }
+            html += '</div>';
+        }
         html += '</div></div>';
         nr.innerHTML = html;
     }
@@ -317,7 +354,15 @@ export class Yonghujiemian {
         if (!mingcheng) { this.luoji.rizhi('组名称不能为空', 'warn'); return; }
         const beizhu = document.getElementById('zu_bj_beizhu')?.value?.trim() || '';
         const jg = await this.luoji.yonghuzu_xiugai(id, mingcheng, beizhu);
-        if (jg && jg.zhuangtaima === 200) await this.shuaxinyonghuzuliebiao();
+        if (jg && jg.zhuangtaima === 200) await this.yonghuzu_bianji(id);
+    }
+
+    async yonghuzu_baocunquanxian(id) {
+        const checkboxes = document.querySelectorAll('input[type="checkbox"][data-lujing]');
+        const jinjiekou = [];
+        checkboxes.forEach(cb => { if (cb.checked) jinjiekou.push(cb.dataset.lujing); });
+        const jg = await this.luoji.yonghuzu_gengxinjinjiekou(id, jinjiekou);
+        if (jg && jg.zhuangtaima === 200) await this.yonghuzu_bianji(id);
     }
 
     async yonghuzu_shanchu(id) {

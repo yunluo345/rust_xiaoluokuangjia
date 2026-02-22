@@ -151,6 +151,9 @@ impl Kehuduanjiami {
                         .or_else(|| v.as_u64().map(|n| n.to_string()))
                 }),
             mingcheng: canshu_zhi.get("mingcheng").and_then(|v| v.as_str()).map(String::from),
+            jinjiekou: canshu_zhi.get("jinjiekou").and_then(|v| v.as_array()).map(|arr|
+                arr.iter().filter_map(|v| v.as_str().map(String::from)).collect()
+            ),
         })?;
         self.zhixingdaichongshi(|| self.neibu.zhixingrenzhengjiamiqingqiu(yonghuguanliqq::fangshi, yonghuguanliqq::lujing, Some(&ti), &lingpai)).await
     }

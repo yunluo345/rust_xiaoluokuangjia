@@ -121,4 +121,22 @@ export class Yonghuluoji {
         if (jg) this.rizhi('删除用户组[' + id + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
         return jg;
     }
+
+    async yonghuzu_jiekouliebiao() {
+        const jg = await this.zhixing('yonghuzu_jiekouliebiao');
+        if (jg) this.rizhi('查询接口列表: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async yonghuzu_huoqujinjiekou(id) {
+        const jg = await this.zhixing('yonghuzu_huoqujinjiekou', { id });
+        if (jg) this.rizhi('查询禁用接口[' + id + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async yonghuzu_gengxinjinjiekou(id, jinjiekou) {
+        const jg = await this.zhixing('yonghuzu_gengxinjinjiekou', { id, jinjiekou });
+        if (jg) this.rizhi('更新接口权限[' + id + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
 }

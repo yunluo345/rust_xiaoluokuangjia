@@ -32,4 +32,6 @@ pub struct Qingqiuti {
     pub yonghuzuid: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mingcheng: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub jinjiekou: Option<Vec<String>>,
 }
