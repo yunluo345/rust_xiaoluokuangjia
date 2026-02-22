@@ -150,7 +150,7 @@ export class Biaoqianjiemian {
     }
 
     async shanchuleixing(id) {
-        if (!confirm('确认删除此类型？')) return;
+        if (!await aqqueren('删除类型', '确认删除此类型？')) return;
         const jg = await this.luoji.leixing_shanchu(id);
         if (jg && jg.zhuangtaima === 200) this.xianshileixing();
     }
@@ -263,7 +263,7 @@ export class Biaoqianjiemian {
     }
 
     async shanchubiaoqian(id) {
-        if (!confirm('确认删除此标签？')) return;
+        if (!await aqqueren('删除标签', '确认删除此标签？')) return;
         const jg = await this.luoji.biaoqian_shanchu(id);
         if (jg && jg.zhuangtaima === 200) {
             this.xuanzhongleixingid ? this.bianjibiaoqian(this.xuanzhongleixingid) : this.xianshibibaoqian();

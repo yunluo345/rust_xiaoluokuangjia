@@ -100,7 +100,7 @@ export class Aiqudaojiemian {
     }
 
     async shanchuid(id) {
-        if (!confirm('确定要删除该渠道吗？此操作不可恢复。')) return;
+        if (!await aqqueren('删除渠道', '确定要删除该渠道吗？此操作不可恢复。')) return;
         const jg = await this.luoji.shanchu(id);
         if (jg && jg.zhuangtaima === 200) await this.shuaxinliebiao();
     }

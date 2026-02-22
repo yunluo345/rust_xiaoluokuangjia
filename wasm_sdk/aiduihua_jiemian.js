@@ -361,19 +361,17 @@ export class Aiduihuajiemian {
         this.liushishijianlie = [];
     }
 
-    qingkonglishi() {
-        if (confirm('确定要清空当前对话历史吗？')) {
-            this.luoji.qingkonglishi();
-            this.xuanranhuihualiebiao();
-            this.xuanranduihua();
-        }
+    async qingkonglishi() {
+        if (!await aqqueren('清空对话', '确定要清空当前对话历史吗？')) return;
+        this.luoji.qingkonglishi();
+        this.xuanranhuihualiebiao();
+        this.xuanranduihua();
     }
 
-    shanchuxiaoxi(suoyin) {
-        if (confirm('确定要删除这条消息吗？')) {
-            this.luoji.shanchuxiaoxi(suoyin);
-            this.xuanranduihua();
-        }
+    async shanchuxiaoxi(suoyin) {
+        if (!await aqqueren('删除消息', '确定要删除这条消息吗？')) return;
+        this.luoji.shanchuxiaoxi(suoyin);
+        this.xuanranduihua();
     }
 
     daochulishi() {
@@ -395,20 +393,18 @@ export class Aiduihuajiemian {
     }
 
     // 删除会话
-    shanchuhuihua(id) {
-        if (confirm('确定要删除这个对话吗？')) {
-            this.luoji.shanchuhuihua(id);
-            this.xuanranhuihualiebiao();
-            this.xuanranduihua();
-        }
+    async shanchuhuihua(id) {
+        if (!await aqqueren('删除对话', '确定要删除这个对话吗？')) return;
+        this.luoji.shanchuhuihua(id);
+        this.xuanranhuihualiebiao();
+        this.xuanranduihua();
     }
 
-    // 重命名会话
-    chongmingming(id) {
+    async chongmingming(id) {
         const liebiao = this.luoji.huoquhuihualiebiao();
         const huihua = liebiao.find(h => h.id === id);
         if (!huihua) return;
-        const xinming = prompt('请输入新名称:', huihua.mingcheng);
+        const xinming = await aqshuru('重命名对话', '请输入新名称', huihua.mingcheng, '输入对话名称');
         if (xinming && xinming.trim()) {
             this.luoji.chongmingminghuihua(id, xinming.trim());
             this.xuanranhuihualiebiao();

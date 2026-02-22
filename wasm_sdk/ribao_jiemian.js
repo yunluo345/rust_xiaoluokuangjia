@@ -283,7 +283,7 @@ export class Ribaojiemian {
     }
 
     async shanchuribao(id) {
-        if (!confirm('确认删除此日报？')) return;
+        if (!await aqqueren('删除日报', '确认删除此日报？')) return;
         const jg = await this.luoji.ribao_shanchu(id);
         if (jg && jg.zhuangtaima === 200) {
             this.shuaxinribaoliebiao();
@@ -320,7 +320,7 @@ export class Ribaojiemian {
     }
 
     async shanchubiaoqian(id) {
-        if (!confirm('确认删除此标签？')) return;
+        if (!await aqqueren('删除标签', '确认删除此标签？')) return;
         const jg = await this.luoji.biaoqian_shanchu(id);
         if (jg && jg.zhuangtaima === 200) {
             this.shuaxinbiaoqianliebiao();
@@ -354,7 +354,7 @@ export class Ribaojiemian {
     }
 
     async shanchuleixing(id) {
-        if (!confirm('确认删除此类型？')) return;
+        if (!await aqqueren('删除类型', '确认删除此类型？')) return;
         const jg = await this.luoji.leixing_shanchu(id);
         if (jg && jg.zhuangtaima === 200) {
             this.shuaxinleixingliebiao();
