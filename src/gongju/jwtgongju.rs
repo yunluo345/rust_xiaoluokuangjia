@@ -12,7 +12,7 @@ const redis_qianzhui: &str = "jwt:yonghu:";
 #[allow(non_upper_case_globals)]
 static miyao_huancun: OnceLock<String> = OnceLock::new();
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Zaiti {
     pub yonghuid: String,
     pub zhanghao: String,

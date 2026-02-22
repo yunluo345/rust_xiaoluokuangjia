@@ -41,14 +41,8 @@ async fn chuliqingqiu(ti: &[u8], lingpai: &str) -> HttpResponse {
 }
 
 pub async fn chuli(req: HttpRequest, ti: web::Bytes) -> HttpResponse {
-    let lingpai = match jiekouxtzhuti::tiqulingpai(&req) {
-        Some(l) => {
-            println!("[AI对话] 用户令牌: {}", l);
-            l
-        }
-        None => return jiekouxtzhuti::shibai(401, "缺少授权令牌"),
-    };
-    
+    let lingpai = jiekouxtzhuti::tiqulingpai(&req).unwrap_or_default();
+    println!("[AI对话] 用户令牌: {}", lingpai);
     println!("[AI对话] 前端请求内容: {}", String::from_utf8_lossy(&ti));
     if let Ok(json) = serde_json::from_slice::<serde_json::Value>(&ti) {
         if let Some(zuihou) = json["xiaoxilie"].as_array().and_then(|arr| arr.last()) {

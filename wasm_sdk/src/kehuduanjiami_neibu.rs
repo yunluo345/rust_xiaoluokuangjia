@@ -199,7 +199,11 @@ impl Kehuduanjiami {
             ("Authorization", auth_header.as_str()),
         ];
         let xiangying_wenben = putongqingqiu_neibu(fangfa, &url, jiami_ti.as_deref(), Some(&ewaiqingqiutou)).await?;
-        jiemixiangying(&xiangying_wenben, &xinxi.miyao)
+        match jiemixiangying(&xiangying_wenben, &xinxi.miyao) {
+            Ok(mingwen) => Ok(mingwen),
+            Err(_) if xiangying_wenben.starts_with('{') && xiangying_wenben.contains("\"zhuangtaima\"") => Ok(xiangying_wenben),
+            Err(e) => Err(e),
+        }
     }
 
     #[allow(dead_code)]
@@ -217,7 +221,11 @@ impl Kehuduanjiami {
         let xiangying = fasongqingqiu(&request).await?;
         let wenben = JsFuture::from(xiangying.text()?).await?;
         let xiangying_wenben = wenben.as_string().ok_or_else(|| cuowu("响应不是文本"))?;
-        jiemixiangying(&xiangying_wenben, &xinxi.miyao)
+        match jiemixiangying(&xiangying_wenben, &xinxi.miyao) {
+            Ok(mingwen) => Ok(mingwen),
+            Err(_) if xiangying_wenben.starts_with('{') && xiangying_wenben.contains("\"zhuangtaima\"") => Ok(xiangying_wenben),
+            Err(e) => Err(e),
+        }
     }
 
     pub async fn zhixingssejiamiqingqiu(&self, lujing: &str, qingqiuti: Option<&str>, huidiao: &js_sys::Function) -> Result<(), JsValue> {

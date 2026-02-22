@@ -115,3 +115,39 @@ pub async fn yonghushuliang(id: &str) -> Option<Value> {
     ).await?;
     jieguo.into_iter().next()
 }
+
+/// 分页查询用户组
+pub async fn chaxun_fenye(pianyi: &str, shuliang: &str) -> Option<Vec<Value>> {
+    psqlcaozuo::chaxun(
+        &format!("SELECT * FROM {} ORDER BY chuangjianshijian ASC LIMIT $1::BIGINT OFFSET $2::BIGINT", biaoming),
+        &[shuliang, pianyi],
+    ).await
+}
+
+/// 查询用户组总数
+pub async fn chaxun_zongshu() -> Option<Value> {
+    let jieguo = psqlcaozuo::chaxun(
+        &format!("SELECT COUNT(*) as shuliang FROM {}", biaoming),
+        &[],
+    ).await?;
+    jieguo.into_iter().next()
+}
+
+/// 模糊搜索用户组（分页）
+pub async fn sousuo_mohu(guanjianci: &str, pianyi: &str, shuliang: &str) -> Option<Vec<Value>> {
+    let moshi = format!("%{}%", guanjianci);
+    psqlcaozuo::chaxun(
+        &format!("SELECT * FROM {} WHERE mingcheng ILIKE $1 ORDER BY chuangjianshijian ASC LIMIT $2::BIGINT OFFSET $3::BIGINT", biaoming),
+        &[&moshi, shuliang, pianyi],
+    ).await
+}
+
+/// 模糊搜索用户组总数
+pub async fn sousuo_zongshu(guanjianci: &str) -> Option<Value> {
+    let moshi = format!("%{}%", guanjianci);
+    let jieguo = psqlcaozuo::chaxun(
+        &format!("SELECT COUNT(*) as shuliang FROM {} WHERE mingcheng ILIKE $1", biaoming),
+        &[&moshi],
+    ).await?;
+    jieguo.into_iter().next()
+}

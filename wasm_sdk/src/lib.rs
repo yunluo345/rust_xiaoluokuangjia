@@ -136,6 +136,21 @@ impl Kehuduanjiami {
             meiyeshuliang: canshu_zhi.get("meiyeshuliang").and_then(|v| v.as_i64()).map(|v| v as i32),
             guanjianci: canshu_zhi.get("guanjianci").and_then(|v| v.as_str()).map(String::from),
             id: canshu_zhi.get("id").and_then(|v| v.as_str()).map(String::from),
+            zhanghao: canshu_zhi.get("zhanghao").and_then(|v| v.as_str()).map(String::from),
+            nicheng: canshu_zhi.get("nicheng").and_then(|v| v.as_str()).map(String::from),
+            mima: canshu_zhi.get("mima").and_then(|v| v.as_str()).map(String::from),
+            beizhu: canshu_zhi.get("beizhu").and_then(|v| v.as_str()).map(String::from),
+            yuanyin: canshu_zhi.get("yuanyin").and_then(|v| v.as_str()).map(String::from),
+            jieshu: canshu_zhi.get("jieshu").and_then(|v| v.as_str()).map(String::from),
+            yonghuzuid: canshu_zhi.get("yonghuzuid")
+                .or_else(|| canshu_zhi.get("yonghuzu"))
+                .or_else(|| canshu_zhi.get("yonghuzu_id"))
+                .and_then(|v| {
+                    v.as_str().map(String::from)
+                        .or_else(|| v.as_i64().map(|n| n.to_string()))
+                        .or_else(|| v.as_u64().map(|n| n.to_string()))
+                }),
+            mingcheng: canshu_zhi.get("mingcheng").and_then(|v| v.as_str()).map(String::from),
         })?;
         self.zhixingdaichongshi(|| self.neibu.zhixingrenzhengjiamiqingqiu(yonghuguanliqq::fangshi, yonghuguanliqq::lujing, Some(&ti), &lingpai)).await
     }

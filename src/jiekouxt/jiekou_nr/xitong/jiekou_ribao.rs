@@ -1,4 +1,4 @@
-use actix_web::{HttpRequest, HttpResponse, web};
+use actix_web::{HttpMessage, HttpRequest, HttpResponse, web};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use crate::jiekouxt::jiekouxtzhuti::{self, Jiekoudinyi, Qingqiufangshi};
@@ -9,7 +9,7 @@ use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::{
 };
 use crate::gongju::ai::openai::gongjuji::ribao::gongju_ribaorenwuchuli;
 use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::{shujucaozuo_yonghuzu, yonghuyanzheng};
-use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::yonghuyanzheng::Lingpaicuowu;
+use crate::gongju::jwtgongju;
 
 use crate::gongju::zhuangtaima::ribaojiekou_zhuangtai::{Zhuangtai, cuowu};
 
@@ -163,13 +163,6 @@ fn shifouputongkezhixing(caozuo: &str) -> bool {
     putongkezhicaozuo.iter().any(|v| *v == caozuo)
 }
 
-fn huoqutoken(req: &HttpRequest) -> Option<String> {
-    req.headers()
-        .get("Authorization")
-        .and_then(|h| h.to_str().ok())
-        .and_then(|s| s.strip_prefix("Bearer "))
-        .map(String::from)
-}
 
 async fn shifouguanlicaozuoquanxian(yonghuzuid: &str) -> bool {
     let shifoujiekouyunxu = yonghuyanzheng::jianchajiekouquanxian(yonghuzuid, "/jiekou/xitong/ribao")
@@ -407,17 +400,7 @@ pub async fn chuli(req: HttpRequest, ti: web::Bytes) -> HttpResponse {
         Err(_) => return jiekouxtzhuti::shibai(400, "请求参数格式错误"),
     };
 
-    let token = match huoqutoken(&req) {
-        Some(t) => t,
-        None => return jiamishibai(&cuowu::queshouquanlingpai, &miyao),
-    };
-
-    let zaiti = match yonghuyanzheng::yanzhenglingpai(&token).await {
-        Ok(z) => z,
-        Err(Lingpaicuowu::Wuxiao) => return jiamishibai(&cuowu::lingpaiwuxiao, &miyao),
-        Err(Lingpaicuowu::Yibeifengjin(yuanyin)) => return jiamishibai_dongtai(403, format!("账号已被封禁：{}", yuanyin), &miyao),
-        Err(Lingpaicuowu::Quanxianbuzu) => return jiamishibai(&cuowu::quanxianbuzu, &miyao),
-    };
+    let zaiti = req.extensions().get::<jwtgongju::Zaiti>().cloned().unwrap();
 
     let shifouquanxian = shifouguanlicaozuoquanxian(&zaiti.yonghuzuid).await;
     if !shifouquanxian && !shifouputongkezhixing(&qingqiu.caozuo) {

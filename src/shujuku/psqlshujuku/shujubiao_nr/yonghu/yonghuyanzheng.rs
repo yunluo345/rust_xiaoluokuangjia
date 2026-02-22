@@ -28,6 +28,16 @@ fn quziduan<'a>(yonghu: &'a serde_json::Value, ming: &str) -> &'a str {
     yonghu.get(ming).and_then(|v| v.as_str()).unwrap_or("")
 }
 
+#[allow(non_upper_case_globals)]
+const root_zumingcheng: &str = "root";
+
+/// 检查用户组ID是否为root组
+pub async fn shifouroot(yonghuzuid: &str) -> bool {
+    shujucaozuo_yonghuzu::chaxun_id(yonghuzuid).await
+        .and_then(|zu| zu.get("mingcheng").and_then(|v| v.as_str()).map(|m| m == root_zumingcheng))
+        .unwrap_or(false)
+}
+
 fn jianchafengjin(yonghu: &serde_json::Value) -> Option<String> {
     if quziduan(yonghu, "fengjin") != "1" {
         return None;
@@ -43,11 +53,13 @@ pub async fn denglu(zhanghao: &str, mima: &str) -> Result<Denglujieguo, Denglucu
         Some(y) if quziduan(&y, "mima") == mima => y,
         _ => return Err(Denglucuowu::Zhanghaomimacuowu),
     };
-    if let Some(yuanyin) = jianchafengjin(&yonghu) {
-        return Err(Denglucuowu::Yibeifengjin(yuanyin));
+    let yonghuzuid = quziduan(&yonghu, "yonghuzuid");
+    if !shifouroot(yonghuzuid).await {
+        if let Some(yuanyin) = jianchafengjin(&yonghu) {
+            return Err(Denglucuowu::Yibeifengjin(yuanyin));
+        }
     }
     let yonghuid = quziduan(&yonghu, "id");
-    let yonghuzuid = quziduan(&yonghu, "yonghuzuid");
     let lingpai = jwtgongju::qianfa(yonghuid, zhanghao, yonghuzuid).await
         .ok_or(Denglucuowu::Lingpaishibai)?;
     let _ = shujucaozuo_yonghu::gengxindenglu(yonghuid).await;
@@ -62,9 +74,11 @@ pub async fn denglu(zhanghao: &str, mima: &str) -> Result<Denglujieguo, Denglucu
 /// 验证令牌有效性，同时检查用户封禁状态
 pub async fn yanzhenglingpai(lingpai: &str) -> Result<jwtgongju::Zaiti, Lingpaicuowu> {
     let zaiti = jwtgongju::yanzheng(lingpai).await.ok_or(Lingpaicuowu::Wuxiao)?;
-    let yonghu = shujucaozuo_yonghu::chaxun_id(&zaiti.yonghuid).await.ok_or(Lingpaicuowu::Wuxiao)?;
-    if let Some(yuanyin) = jianchafengjin(&yonghu) {
-        return Err(Lingpaicuowu::Yibeifengjin(yuanyin));
+    if !shifouroot(&zaiti.yonghuzuid).await {
+        let yonghu = shujucaozuo_yonghu::chaxun_id(&zaiti.yonghuid).await.ok_or(Lingpaicuowu::Wuxiao)?;
+        if let Some(yuanyin) = jianchafengjin(&yonghu) {
+            return Err(Lingpaicuowu::Yibeifengjin(yuanyin));
+        }
     }
     Ok(zaiti)
 }

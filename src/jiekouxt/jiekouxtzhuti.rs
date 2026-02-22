@@ -1,6 +1,9 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use serde::Serialize;
+use std::collections::HashSet;
+use std::sync::Arc;
 use super::jiekou_nr;
+use super::quanxianyanzheng::quanxianyanzhengzhongjian::Quanxianyanzheng;
 use crate::gongju::jichugongju;
 use crate::shujuku::psqlshujuku::psqlcaozuo;
 
@@ -53,6 +56,11 @@ fn goujianxiangying<T: Serialize>(zhuangtaima: u16, xiaoxi: impl Into<String>, s
 /// 成功响应，携带数据
 pub fn chenggong<T: Serialize>(xiaoxi: impl Into<String>, shuju: T) -> HttpResponse {
     goujianxiangying(200, xiaoxi, Some(shuju))
+}
+
+/// 成功响应，不携带数据
+pub fn chenggong_wushuju(xiaoxi: impl Into<String>) -> HttpResponse {
+    goujianxiangying::<()>(200, xiaoxi, None)
 }
 
 /// 失败响应，仅携带业务状态码和消息
@@ -119,10 +127,19 @@ pub fn huoqufangfa(fangshi: Qingqiufangshi) -> fn() -> actix_web::Route {
     }
 }
 
+fn goujianmianyanzhenglie() -> HashSet<String> {
+    jiekou_nr::huoqujiekoulie().iter()
+        .filter(|j| !j.dinyi.xudenglu)
+        .map(|j| j.wanzhenglujing())
+        .collect()
+}
+
 /// 配置所有接口路由，挂载到 App
 pub fn peizhi(cfg: &mut web::ServiceConfig) {
+    let mianyanzhenglie = goujianmianyanzhenglie();
     cfg.service(
         web::scope("/jiekou")
+            .wrap(Quanxianyanzheng(Arc::new(mianyanzhenglie)))
             .configure(jiekou_nr::zhuce)
     );
 }
