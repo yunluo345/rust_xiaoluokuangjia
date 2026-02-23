@@ -67,19 +67,19 @@ pub async fn chaxun_quanbu() -> Option<Vec<Value>> {
 
 /// 分页查询日报
 pub async fn chaxun_fenye(yeshu: i64, meiyetiaoshu: i64) -> Option<Vec<Value>> {
-    let pianyi = (yeshu - 1) * meiyetiaoshu;
+    let (tiaoshu, pianyi) = jichugongju::jisuanfenye(yeshu, meiyetiaoshu);
     psqlcaozuo::chaxun(
         &format!("SELECT r.*, y.nicheng as fabuzhemingcheng, y.zhanghao as fabuzhezhanghao FROM {} r LEFT JOIN yonghu y ON r.yonghuid = y.id ORDER BY r.fabushijian DESC LIMIT $1::BIGINT OFFSET $2::BIGINT", biaoming),
-        &[&meiyetiaoshu.to_string(), &pianyi.to_string()],
+        &[&tiaoshu, &pianyi],
     ).await
 }
 
 /// 根据用户ID分页查询日报
 pub async fn chaxun_yonghuid_fenye(yonghuid: &str, yeshu: i64, meiyetiaoshu: i64) -> Option<Vec<Value>> {
-    let pianyi = (yeshu - 1) * meiyetiaoshu;
+    let (tiaoshu, pianyi) = jichugongju::jisuanfenye(yeshu, meiyetiaoshu);
     psqlcaozuo::chaxun(
         &format!("SELECT r.*, y.nicheng as fabuzhemingcheng, y.zhanghao as fabuzhezhanghao FROM {} r LEFT JOIN yonghu y ON r.yonghuid = y.id WHERE r.yonghuid = $1::BIGINT ORDER BY r.fabushijian DESC LIMIT $2::BIGINT OFFSET $3::BIGINT", biaoming),
-        &[yonghuid, &meiyetiaoshu.to_string(), &pianyi.to_string()],
+        &[yonghuid, &tiaoshu, &pianyi],
     ).await
 }
 
@@ -103,11 +103,11 @@ pub async fn tongji_yonghuid_zongshu(yonghuid: &str) -> Option<i64> {
 
 /// 根据关键词分页查询日报
 pub async fn chaxun_guanjianci_fenye(guanjianci: &str, yeshu: i64, meiyetiaoshu: i64) -> Option<Vec<Value>> {
-    let pianyi = (yeshu - 1) * meiyetiaoshu;
+    let (tiaoshu, pianyi) = jichugongju::jisuanfenye(yeshu, meiyetiaoshu);
     let mohu = format!("%{}%", guanjianci);
     psqlcaozuo::chaxun(
         &format!("SELECT * FROM {} WHERE neirong LIKE $1 ORDER BY fabushijian DESC LIMIT $2::BIGINT OFFSET $3::BIGINT", biaoming),
-        &[&mohu, &meiyetiaoshu.to_string(), &pianyi.to_string()],
+        &[&mohu, &tiaoshu, &pianyi],
     ).await
 }
 

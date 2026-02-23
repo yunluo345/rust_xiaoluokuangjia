@@ -19,6 +19,8 @@ export class Ribaojiemian {
         this.shifouquanxian = !!(luoji && luoji.shifouquanxian);
         this.chakanquanbu = false;
         this.renwushaixuan = null;
+        this.renwuyeshu = 1;
+        this.renwumeiyetiaoshu = 10;
         this.sousuobiaoqianid = null;
         this.sousuoleixing = null;
         this.sousuoguanjiancizhi = null;
@@ -663,17 +665,20 @@ export class Ribaojiemian {
     async shuaxinrenwuliebiao() {
         const nr = document.getElementById('ribao_neirong');
         nr.innerHTML = '<p style="color:#64748B">加载中...</p>';
-        const [liebiaoqj, yichuli, kechuli, chulizhong, zhuangtaijg] = await Promise.all([
-            this.luoji.renwu_chaxun_fenye(this.renwushaixuan, 50),
+        const [liebiaoqj, yichuli, kechuli, chulizhong, shibaishu_jg, zhuangtaijg] = await Promise.all([
+            this.luoji.renwu_chaxun_fenye(this.renwushaixuan, this.renwuyeshu, this.renwumeiyetiaoshu),
             this.luoji.renwu_tongji_zhuangtai('true'),
             this.luoji.renwu_tongji_kechuli(),
             this.luoji.renwu_tongji_zhuangtai('processing'),
+            this.luoji.renwu_tongji_zhuangtai('shibai'),
             this.luoji.renwu_biaoqian_ai_zhuangtai()
         ]);
-        const liebiao = liebiaoqj?.zhuangtaima === 200 ? liebiaoqj.shuju || [] : [];
+        const liebiao = liebiaoqj?.zhuangtaima === 200 ? liebiaoqj.shuju?.liebiao || [] : [];
+        const zongshu = liebiaoqj?.zhuangtaima === 200 ? liebiaoqj.shuju?.zongshu || 0 : 0;
         const yichulishu = yichuli?.zhuangtaima === 200 ? yichuli.shuju?.count ?? 0 : 0;
         const kechulishu = kechuli?.zhuangtaima === 200 ? kechuli.shuju?.count ?? 0 : 0;
         const chulizhongshu = chulizhong?.zhuangtaima === 200 ? chulizhong.shuju?.count ?? 0 : 0;
+        const shibaishu = shibaishu_jg?.zhuangtaima === 200 ? shibaishu_jg.shuju?.count ?? 0 : 0;
         const yunxingzhong = zhuangtaijg?.zhuangtaima === 200 && zhuangtaijg.shuju?.yunxingzhong === true;
         const sx = this.renwushaixuan;
         let html = `<div style="display:flex;gap:16px;margin-bottom:16px">
@@ -689,6 +694,10 @@ export class Ribaojiemian {
                 <div style="font-size:24px;font-weight:600;color:#2563EB">${yichulishu}</div>
                 <div style="font-size:12px;color:#60A5FA">已完成</div>
             </div>
+            <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:12px 20px;flex:1;text-align:center">
+                <div style="font-size:24px;font-weight:600;color:#DC2626">${shibaishu}</div>
+                <div style="font-size:12px;color:#F87171">失败</div>
+            </div>
             <div style="background:${yunxingzhong ? '#ECFDF5' : '#F8FAFC'};border:1px solid ${yunxingzhong ? '#A7F3D0' : '#E2E8F0'};border-radius:8px;padding:12px 20px;flex:1;text-align:center">
                 <div style="font-size:24px;font-weight:600;color:${yunxingzhong ? '#059669' : '#94A3B8'}">${yunxingzhong ? '●' : '○'}</div>
                 <div style="font-size:12px;color:${yunxingzhong ? '#10B981' : '#94A3B8'}">${yunxingzhong ? '运行中' : '已停止'}</div>
@@ -699,6 +708,7 @@ export class Ribaojiemian {
         html += `<button class="aq-btn ${sx === 'false' ? 'aq-btn-lv' : 'aq-btn-zhu'}" onclick="ribao_renwu_shaixuan('false')" style="height:36px">待处理</button>`;
         html += `<button class="aq-btn ${sx === 'processing' ? 'aq-btn-lv' : 'aq-btn-zhu'}" onclick="ribao_renwu_shaixuan('processing')" style="height:36px">处理中</button>`;
         html += `<button class="aq-btn ${sx === 'true' ? 'aq-btn-lv' : 'aq-btn-zhu'}" onclick="ribao_renwu_shaixuan('true')" style="height:36px">已完成</button>`;
+        html += `<button class="aq-btn ${sx === 'shibai' ? 'aq-btn-lv' : 'aq-btn-zhu'}" onclick="ribao_renwu_shaixuan('shibai')" style="height:36px">失败</button>`;
         html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
         html += '<input id="rw_ribaoid" type="text" placeholder="日报ID" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;width:140px;font-size:13px;box-sizing:border-box">';
         html += '<button class="aq-btn aq-btn-lv" onclick="ribao_xinzengrenwu()" style="height:36px">新增任务</button>';
@@ -707,12 +717,12 @@ export class Ribaojiemian {
             ? '<button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="ribao_renwu_tingzhi()" style="height:36px">停止AI处理</button>'
             : '<button class="aq-btn aq-btn-zhu" onclick="ribao_renwu_qidong()" style="height:36px">启动AI处理</button>';
         html += '</div>';
-        const kongwenzimap = { 'true': '暂无已完成任务', 'false': '暂无待处理任务', 'processing': '暂无处理中任务' };
+        const kongwenzimap = { 'true': '暂无已完成任务', 'false': '暂无待处理任务', 'processing': '暂无处理中任务', 'shibai': '暂无失败任务' };
         if (liebiao.length === 0) {
             nr.innerHTML = html + `<p style="color:#64748B">${kongwenzimap[sx] || '暂无任务'}</p>`;
             return;
         }
-        const zhuangtaimap = { 'true': ['已完成', '#16A34A'], 'processing': ['处理中', '#EA580C'], 'false': ['待处理', '#F59E0B'] };
+        const zhuangtaimap = { 'true': ['已完成', '#16A34A'], 'processing': ['处理中', '#EA580C'], 'false': ['待处理', '#F59E0B'], 'shibai': ['失败', '#DC2626'] };
         html += '<div style="overflow-x:auto"><table class="aq-biao"><thead><tr>' +
             '<th>任务ID</th><th>日报ID</th><th>用户ID</th><th>状态</th><th>尝试</th><th>标签结果</th><th>创建时间</th><th>操作</th>' +
             '</tr></thead><tbody>';
@@ -732,6 +742,12 @@ export class Ribaojiemian {
             </tr>`;
         }
         html += '</tbody></table></div>';
+        const zongyeshu = Math.max(1, Math.ceil(zongshu / this.renwumeiyetiaoshu));
+        html += `<div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+            <button class="aq-btn aq-btn-xiao" onclick="ribao_renwu_shangyiye()" ${this.renwuyeshu <= 1 ? 'disabled' : ''}>上一页</button>
+            <span style="color:#64748B">第 ${this.renwuyeshu} / ${zongyeshu} 页（共 ${zongshu} 条）</span>
+            <button class="aq-btn aq-btn-xiao" onclick="ribao_renwu_xiayiye()" ${this.renwuyeshu >= zongyeshu ? 'disabled' : ''}>下一页</button>
+        </div>`;
         nr.innerHTML = html;
     }
 
@@ -755,6 +771,19 @@ export class Ribaojiemian {
 
     renwu_shaixuan(zhi) {
         this.renwushaixuan = zhi;
+        this.renwuyeshu = 1;
+        this.shuaxinrenwuliebiao();
+    }
+
+    renwu_shangyiye() {
+        if (this.renwuyeshu > 1) {
+            this.renwuyeshu--;
+            this.shuaxinrenwuliebiao();
+        }
+    }
+
+    renwu_xiayiye() {
+        this.renwuyeshu++;
         this.shuaxinrenwuliebiao();
     }
 

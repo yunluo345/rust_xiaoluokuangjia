@@ -294,8 +294,8 @@ export class Ribaoluoji {
         return jg;
     }
 
-    async renwu_chaxun_fenye(zhuangtai, shuliang) {
-        const canshu = { shuliang };
+    async renwu_chaxun_fenye(zhuangtai, yeshu, meiyetiaoshu) {
+        const canshu = { yeshu, meiyetiaoshu };
         if (zhuangtai !== null && zhuangtai !== undefined) canshu.zhuangtai = zhuangtai;
         const jg = await this.zhixing('renwu_chaxun_fenye', canshu);
         if (jg) this.rizhi('查询任务列表: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');

@@ -209,7 +209,7 @@ pub async fn yunxingceshi() {
     
     // 测试18: 分页查询用户
     println!("\n[测试18] 分页查询用户...");
-    match shujucaozuo_yonghu::chaxun_fenye("0", "10").await {
+    match shujucaozuo_yonghu::chaxun_fenye(1, 10).await {
         Some(liebiao) => println!("✓ 查询成功，返回 {} 条记录", liebiao.len()),
         None => println!("✗ 查询失败"),
     };

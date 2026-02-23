@@ -161,7 +161,7 @@ pub async fn biaojichenggong(id: &str, biaoqianjieguo: &str) -> Option<u64> {
 pub async fn biaojishibai(id: &str) -> Option<u64> {
     let shijian = jichugongju::huoqushijianchuo().to_string();
     psqlcaozuo::zhixing(
-        &format!("UPDATE {} SET zhuangtai = 'true', gengxinshijian = $2 WHERE id = $1::BIGINT", biaoming),
+        &format!("UPDATE {} SET zhuangtai = 'shibai', gengxinshijian = $2 WHERE id = $1::BIGINT", biaoming),
         &[id, &shijian],
     ).await
 }
@@ -193,19 +193,34 @@ pub async fn chongxin_ruidui_ribaoid(ribaoid: &str) -> Option<u64> {
     ).await
 }
 
-/// 按状态分页查询任务（None=全部）
-pub async fn chaxun_fenye(zhuangtai: Option<&str>, shuliang: i64) -> Option<Vec<Value>> {
-    let sl = shuliang.to_string();
+/// 按状态分页查询任务（None=全部），支持页码和每页条数
+pub async fn chaxun_fenye(zhuangtai: Option<&str>, yeshu: i64, meiyetiaoshu: i64) -> Option<Vec<Value>> {
+    let (tiaoshu, pianyi) = jichugongju::jisuanfenye(yeshu, meiyetiaoshu);
     match zhuangtai {
         Some(z) => psqlcaozuo::chaxun(
-            &format!("SELECT * FROM {} WHERE zhuangtai = $1 ORDER BY chuangjianshijian DESC LIMIT $2::BIGINT", biaoming),
-            &[z, &sl],
+            &format!("SELECT * FROM {} WHERE zhuangtai = $1 ORDER BY chuangjianshijian DESC LIMIT $2::BIGINT OFFSET $3::BIGINT", biaoming),
+            &[z, &tiaoshu, &pianyi],
         ).await,
         None => psqlcaozuo::chaxun(
-            &format!("SELECT * FROM {} ORDER BY chuangjianshijian DESC LIMIT $1::BIGINT", biaoming),
-            &[&sl],
+            &format!("SELECT * FROM {} ORDER BY chuangjianshijian DESC LIMIT $1::BIGINT OFFSET $2::BIGINT", biaoming),
+            &[&tiaoshu, &pianyi],
         ).await,
     }
+}
+
+/// 统计任务总数（按可选状态），用于分页
+pub async fn tongji_fenye_zongshu(zhuangtai: Option<&str>) -> Option<i64> {
+    let jieguo = match zhuangtai {
+        Some(z) => psqlcaozuo::chaxun(
+            &format!("SELECT COUNT(*)::TEXT as count FROM {} WHERE zhuangtai = $1", biaoming),
+            &[z],
+        ).await?,
+        None => psqlcaozuo::chaxun(
+            &format!("SELECT COUNT(*)::TEXT as count FROM {}", biaoming),
+            &[],
+        ).await?,
+    };
+    jieguo.first()?.get("count")?.as_str()?.parse().ok()
 }
 
 /// 查询待处理且可重试的任务列表
@@ -224,7 +239,7 @@ pub async fn chaxun_yonghuid(yonghuid: &str, shuliang: i64) -> Option<Vec<Value>
     ).await
 }
 
-/// 统计指定状态任务数量（状态仅支持 true/false）
+/// 统计指定状态任务数量
 pub async fn tongji_zhuangtai(zhuangtai: &str) -> Option<i64> {
     let jieguo = psqlcaozuo::chaxun(
         &format!("SELECT COUNT(*)::TEXT as count FROM {} WHERE zhuangtai = $1", biaoming),

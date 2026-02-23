@@ -113,10 +113,11 @@ pub async fn zhanghaocunzai(zhanghao: &str) -> bool {
 }
 
 /// 分页查询用户
-pub async fn chaxun_fenye(pianyi: &str, shuliang: &str) -> Option<Vec<Value>> {
+pub async fn chaxun_fenye(yeshu: i64, meiyetiaoshu: i64) -> Option<Vec<Value>> {
+    let (tiaoshu, pianyi) = jichugongju::jisuanfenye(yeshu, meiyetiaoshu);
     psqlcaozuo::chaxun(
         &format!("SELECT * FROM {} ORDER BY chuangjianshijian ASC LIMIT $1::BIGINT OFFSET $2::BIGINT", biaoming),
-        &[shuliang, pianyi],
+        &[&tiaoshu, &pianyi],
     ).await
 }
 
@@ -130,11 +131,12 @@ pub async fn chaxun_zongshu() -> Option<Value> {
 }
 
 /// 模糊搜索用户（分页）
-pub async fn sousuo_mohu(guanjianci: &str, pianyi: &str, shuliang: &str) -> Option<Vec<Value>> {
+pub async fn sousuo_mohu(guanjianci: &str, yeshu: i64, meiyetiaoshu: i64) -> Option<Vec<Value>> {
+    let (tiaoshu, pianyi) = jichugongju::jisuanfenye(yeshu, meiyetiaoshu);
     let moshi = format!("%{}%", guanjianci);
     psqlcaozuo::chaxun(
         &format!("SELECT * FROM {} WHERE zhanghao ILIKE $1 OR nicheng ILIKE $1 ORDER BY chuangjianshijian ASC LIMIT $2::BIGINT OFFSET $3::BIGINT", biaoming),
-        &[&moshi, shuliang, pianyi],
+        &[&moshi, &tiaoshu, &pianyi],
     ).await
 }
 

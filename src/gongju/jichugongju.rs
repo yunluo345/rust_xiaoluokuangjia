@@ -158,3 +158,10 @@ pub fn huoqushijianchuo() -> u64 {
         .map(|shichang| shichang.as_millis() as u64)
         .unwrap_or(0)
 }
+
+/// 计算分页偏移量，返回 (每页条数, 偏移量) 的字符串元组
+pub fn jisuanfenye(yeshu: i64, meiyetiaoshu: i64) -> (String, String) {
+    let tiaoshu = meiyetiaoshu.max(1);
+    let pianyi = (yeshu.max(1) - 1) * tiaoshu;
+    (tiaoshu.to_string(), pianyi.to_string())
+}

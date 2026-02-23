@@ -204,9 +204,7 @@ fn jiexi_caozuo(qingqiu: Qingqiuti, miyao: &[u8]) -> Result<Caozuoleixing, HttpR
 async fn zhixing_caozuo(caozuo: Caozuoleixing, miyao: &[u8]) -> HttpResponse {
     match caozuo {
         Caozuoleixing::Fenye { dangqianyeshu, meiyeshuliang } => {
-            let pianyi = ((dangqianyeshu - 1) * meiyeshuliang).to_string();
-            let shuliang = meiyeshuliang.to_string();
-            let liebiao = match shujucaozuo_yonghu::chaxun_fenye(&pianyi, &shuliang).await {
+            let liebiao = match shujucaozuo_yonghu::chaxun_fenye(dangqianyeshu, meiyeshuliang).await {
                 Some(l) => l,
                 None => return jiamishibai(500, "查询用户列表失败", miyao),
             };
@@ -218,9 +216,7 @@ async fn zhixing_caozuo(caozuo: Caozuoleixing, miyao: &[u8]) -> HttpResponse {
             jiamichuanshuzhongjian::jiamixiangying(jiekouxtzhuti::chenggong("查询成功", xiangying), miyao)
         }
         Caozuoleixing::Sousuo { guanjianci, dangqianyeshu, meiyeshuliang } => {
-            let pianyi = ((dangqianyeshu - 1) * meiyeshuliang).to_string();
-            let shuliang = meiyeshuliang.to_string();
-            let liebiao = match shujucaozuo_yonghu::sousuo_mohu(&guanjianci, &pianyi, &shuliang).await {
+            let liebiao = match shujucaozuo_yonghu::sousuo_mohu(&guanjianci, dangqianyeshu, meiyeshuliang).await {
                 Some(l) => l,
                 None => return jiamishibai(500, "搜索用户失败", miyao),
             };
@@ -318,9 +314,7 @@ async fn zhixing_caozuo(caozuo: Caozuoleixing, miyao: &[u8]) -> HttpResponse {
             }
         }
         Caozuoleixing::Yonghuzufenye { dangqianyeshu, meiyeshuliang } => {
-            let pianyi = ((dangqianyeshu - 1) * meiyeshuliang).to_string();
-            let shuliang = meiyeshuliang.to_string();
-            let liebiao = match shujucaozuo_yonghuzu::chaxun_fenye(&pianyi, &shuliang).await {
+            let liebiao = match shujucaozuo_yonghuzu::chaxun_fenye(dangqianyeshu, meiyeshuliang).await {
                 Some(l) => l,
                 None => return jiamishibai(500, "查询用户组列表失败", miyao),
             };
@@ -332,9 +326,7 @@ async fn zhixing_caozuo(caozuo: Caozuoleixing, miyao: &[u8]) -> HttpResponse {
             jiamichuanshuzhongjian::jiamixiangying(jiekouxtzhuti::chenggong("查询成功", xiangying), miyao)
         }
         Caozuoleixing::Yonghuzusousuo { guanjianci, dangqianyeshu, meiyeshuliang } => {
-            let pianyi = ((dangqianyeshu - 1) * meiyeshuliang).to_string();
-            let shuliang = meiyeshuliang.to_string();
-            let liebiao = match shujucaozuo_yonghuzu::sousuo_mohu(&guanjianci, &pianyi, &shuliang).await {
+            let liebiao = match shujucaozuo_yonghuzu::sousuo_mohu(&guanjianci, dangqianyeshu, meiyeshuliang).await {
                 Some(l) => l,
                 None => return jiamishibai(500, "搜索用户组失败", miyao),
             };
