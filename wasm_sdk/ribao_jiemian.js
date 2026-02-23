@@ -76,10 +76,10 @@ export class Ribaojiemian {
             nr.innerHTML = `<p style="color:#EF4444">加载失败: ${jg ? jg.xiaoxi : '请求错误'}</p>`;
             return;
         }
-        
+
         const biaoqianjg = await this.luoji.biaoqian_chaxun_quanbu();
         const suoyoubiaoqian = biaoqianjg?.zhuangtaima === 200 ? biaoqianjg.shuju || [] : [];
-        
+
         let html = '<div style="margin-bottom:16px">';
         html += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">';
         html += '<button class="aq-btn aq-btn-lv" onclick="ribao_xinzengshitu()" style="height:36px">新增日报</button>';
@@ -89,7 +89,7 @@ export class Ribaojiemian {
         html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
         html += '<input id="rb_yhid" type="text" placeholder="用户ID" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;width:120px;font-size:13px;box-sizing:border-box">';
         html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_sousuoyonghuid_xuanze()" style="height:36px">查询</button>';
-        
+
         if (suoyoubiaoqian.length > 0) {
             html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
             html += '<select id="rb_bqxz" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;font-size:13px;box-sizing:border-box;cursor:pointer">';
@@ -100,7 +100,7 @@ export class Ribaojiemian {
             html += '</select>';
             html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_sousuobiaoqian_xuanze()" style="height:36px">筛选</button>';
         }
-        
+
         if (this.sousuobiaoqianid || this.sousuoleixing || this.sousuoguanjiancizhi || this.sousuoyonghuid) {
             html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_qingchusousuo()" style="height:36px">清除筛选</button>';
         }
@@ -109,21 +109,21 @@ export class Ribaojiemian {
         if (jg?.zhuangtaima === 200 && this.sousuoguanjiancizhi && !this.shifouquanxian) {
             this.luoji.rizhi('普通用户关键词搜索按当前用户分页展示', 'info');
         }
-        
+
         if (liebiao.length === 0) {
             nr.innerHTML = html + '<p style="color:#64748B">暂无日报数据</p>';
             return;
         }
-        
+
         html += '<div style="display:flex;flex-direction:column;gap:12px">';
         nr.innerHTML = html + '<p style="color:#64748B">加载中...</p></div>';
-        
+
         const ribaobiaoqianmap = {};
         for (const rb of liebiao) {
             const gljg = await this.luoji.guanlian_chaxun_ribaoid_daixinxi(rb.id);
             ribaobiaoqianmap[rb.id] = gljg?.zhuangtaima === 200 ? gljg.shuju || [] : [];
         }
-        
+
         html = '<div style="margin-bottom:16px">';
         html += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">';
         html += '<button class="aq-btn aq-btn-lv" onclick="ribao_xinzengshitu()" style="height:36px">新增日报</button>';
@@ -133,7 +133,7 @@ export class Ribaojiemian {
         html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
         html += '<input id="rb_yhid" type="text" placeholder="用户ID" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;width:120px;font-size:13px;box-sizing:border-box">';
         html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_sousuoyonghuid_xuanze()" style="height:36px">查询</button>';
-        
+
         if (suoyoubiaoqian.length > 0) {
             html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
             html += '<select id="rb_bqxz" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;font-size:13px;box-sizing:border-box;cursor:pointer">';
@@ -145,22 +145,31 @@ export class Ribaojiemian {
             html += '</select>';
             html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_sousuobiaoqian_xuanze()" style="height:36px">筛选</button>';
         }
-        
+
         if (this.sousuobiaoqianid || this.sousuoleixing || this.sousuoguanjiancizhi || this.sousuoyonghuid) {
             html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_qingchusousuo()" style="height:36px">清除筛选</button>';
         }
         html += '</div></div>';
-        
+
+        this._ribaoshujuhuancun = {};
+        for (const rb of liebiao) this._ribaoshujuhuancun[rb.id] = rb;
+
         html += '<div style="display:flex;flex-direction:column;gap:12px">';
         for (const rb of liebiao) {
-            const neirong = rb.neirong.length > 100 ? rb.neirong.substring(0, 100) + '...' : rb.neirong;
+            const shifouchaochu = rb.neirong.length > 100;
+            const jiedneirong = shifouchaochu ? rb.neirong.substring(0, 100) + '...' : rb.neirong;
             const biaoqianlie = ribaobiaoqianmap[rb.id] || [];
-            
+
+            let neironghtml = `<div id="rb_nr_${rb.id}" style="font-size:14px;color:#1E293B;line-height:1.6;white-space:pre-wrap">${jiedneirong}</div>`;
+            if (shifouchaochu) {
+                neironghtml += `<span id="rb_zk_${rb.id}" onclick="ribao_qiehuanneirong('${rb.id}')" style="color:#3B82F6;font-size:12px;cursor:pointer;user-select:none;display:inline-block;margin-top:4px" onmouseover="this.style.color='#2563EB'" onmouseout="this.style.color='#3B82F6'">查看完整内容 ▼</span>`;
+            }
+
             html += `<div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:8px;padding:14px">
                 <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px">
                     <div style="flex:1">
                         <div style="font-size:12px;color:#64748B;margin-bottom:4px">ID: ${rb.id} | ${rb.fabushijian}</div>
-                        <div style="font-size:14px;color:#1E293B;line-height:1.6;white-space:pre-wrap">${neirong}</div>
+                        ${neironghtml}
                     </div>
                     <div style="display:flex;gap:6px;margin-left:12px">
                         <button class="aq-btn aq-btn-xiao aq-btn-huang" onclick="ribao_bianji('${rb.id}')">编辑</button>
@@ -168,7 +177,7 @@ export class Ribaojiemian {
                         <button class="aq-btn aq-btn-xiao" onclick="ribao_guanlianguanlian('${rb.id}')">管理标签</button>
                     </div>
                 </div>`;
-            
+
             if (biaoqianlie.length > 0) {
                 html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">';
                 for (const bq of biaoqianlie) {
@@ -182,11 +191,11 @@ export class Ribaojiemian {
             } else {
                 html += '<div style="font-size:12px;color:#94A3B8;margin-top:8px">暂无标签</div>';
             }
-            
+
             html += '</div>';
         }
         html += '</div>';
-        
+
         const zongyeshu = Math.max(1, Math.ceil(zongshu / this.meiyetiaoshu));
         html += `<div style="margin-top:12px;display:flex;gap:8px;align-items:center">
             <button class="aq-btn aq-btn-xiao" onclick="ribao_shangyiye()" ${this.dangqianyeshu <= 1 ? 'disabled' : ''}>上一页</button>
@@ -535,6 +544,24 @@ export class Ribaojiemian {
 
     quxiao() {
         this.shuaxindangqianshitu();
+    }
+
+    qiehuanneirong(id) {
+        const nryuansu = document.getElementById(`rb_nr_${id}`);
+        const zkanniu = document.getElementById(`rb_zk_${id}`);
+        if (!nryuansu || !zkanniu) return;
+        const rb = this._ribaoshujuhuancun?.[id];
+        if (!rb) return;
+        const dangqianzhankai = zkanniu.dataset.zhankai === '1';
+        if (dangqianzhankai) {
+            nryuansu.textContent = rb.neirong.substring(0, 100) + '...';
+            zkanniu.textContent = '查看完整内容 ▼';
+            zkanniu.dataset.zhankai = '0';
+        } else {
+            nryuansu.textContent = rb.neirong;
+            zkanniu.textContent = '收起 ▲';
+            zkanniu.dataset.zhankai = '1';
+        }
     }
 
     shangyiye() {

@@ -1,4 +1,4 @@
-use crate::gongju::jwtgongju;
+use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::yonghuyanzheng;
 use crate::gongju::ai::openai::{aixiaoxiguanli, openaizhuti};
 use crate::peizhixt::peizhi_nr::peizhi_ai::Ai;
 use crate::peizhixt::peizhixitongzhuti;
@@ -9,7 +9,6 @@ use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::{
     shujucaozuo_ribao_biaoqian,
     shujucaozuo_ribao_biaoqianrenwu,
 };
-use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::{shujucaozuo_yonghuzu, yonghuyanzheng};
 use futures::stream::{self, StreamExt};
 
 use llm::chat::Tool;
@@ -119,10 +118,7 @@ async fn ai_tiqu_biaoqian(neirong: &str, peizhi: &Ai) -> Option<Vec<(String, Str
     
     let aipeizhi = match crate::jiekouxt::jiekou_nr::ai::huoqu_peizhi().await {
         Some(p) => p.shezhi_chaoshi(60).shezhi_chongshi(1),
-        None => {
-            println!("[AI标签提取] 获取AI配置失败");
-            return None;
-        }
+        None => return None,
     };
     
     let mut guanli = aixiaoxiguanli::Xiaoxiguanli::xingjian()
@@ -131,21 +127,11 @@ async fn ai_tiqu_biaoqian(neirong: &str, peizhi: &Ai) -> Option<Vec<(String, Str
     
     let huifu = match openaizhuti::putongqingqiu(&aipeizhi, &guanli).await {
         Some(h) => h,
-        None => {
-            println!("[AI标签提取] AI调用失败");
-            return None;
-        }
+        None => return None,
     };
     
-    println!("[AI标签提取] AI返回: {}", huifu);
-    
     let tiquxiang = tichubiaoqianxiang(&huifu, peizhi);
-    if tiquxiang.is_empty() {
-        println!("[AI标签提取] 解析AI返回失败");
-        return None;
-    }
-    
-    Some(tiquxiang)
+    (!tiquxiang.is_empty()).then_some(tiquxiang)
 }
 
 fn tichubiaoqianxiang(neirong: &str, peizhi: &Ai) -> Vec<(String, String)> {
@@ -260,20 +246,6 @@ fn tichubiaoqianxiang(neirong: &str, peizhi: &Ai) -> Vec<(String, String)> {
     jieguo
 }
 
-async fn shifouyouquanxian(yonghuzuid: &str) -> bool {
-    if yonghuyanzheng::jianchajiekouquanxian(yonghuzuid, "/jiekou/xitong/ribao")
-        .await
-        .is_err()
-    {
-        return false;
-    }
-    let zu = match shujucaozuo_yonghuzu::chaxun_id(yonghuzuid).await {
-        Some(v) => v,
-        None => return false,
-    };
-    let mingcheng = zu.get("mingcheng").and_then(|v| v.as_str()).unwrap_or("");
-    mingcheng != "user"
-}
 
 async fn huoquhuochuangjian_leixingid(
     mingcheng: &str,
@@ -357,15 +329,9 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
         _ => return chuli_shibai(&renwuid, &ribaoid, "日报内容为空").await,
     };
 
-    println!("[标签提取] 开始处理日报 {}", ribaoid);
-    
     let biaoqianxiang = match ai_tiqu_biaoqian(neirong, peizhi).await {
-        Some(xiang) => {
-            println!("[标签提取] AI提取成功，提取到 {} 个标签", xiang.len());
-            xiang
-        }
+        Some(xiang) => xiang,
         None => {
-            println!("[标签提取] AI提取失败，回退到字符串匹配");
             let xiang = tichubiaoqianxiang(neirong, peizhi);
             if xiang.is_empty() {
                 return chuli_shibai(&renwuid, &ribaoid, "AI和字符串匹配均未提取到标签").await;
@@ -480,14 +446,12 @@ pub async fn zhixing_neibu(shuliang: i64) -> Result<Value, String> {
     }))
 }
 pub async fn zhixing(canshu: &str, lingpai: &str) -> String {
-    let zaiti = match jwtgongju::yanzheng(lingpai).await {
-        Some(z) => z,
-        None => return json!({"cuowu": "令牌无效或已过期"}).to_string(),
+    let _zaiti = match yonghuyanzheng::yanzhenglingpaijiquanxian(lingpai, "/jiekou/ribao/guanli").await {
+        Ok(z) => z,
+        Err(yonghuyanzheng::Lingpaicuowu::Yibeifengjin(y)) => return json!({"cuowu": format!("账号已被封禁：{}", y)}).to_string(),
+        Err(yonghuyanzheng::Lingpaicuowu::Quanxianbuzu) => return json!({"cuowu": "权限不足"}).to_string(),
+        Err(_) => return json!({"cuowu": "令牌无效或已过期"}).to_string(),
     };
-
-    if !shifouyouquanxian(&zaiti.yonghuzuid).await {
-        return json!({"cuowu": "权限不足"}).to_string();
-    }
 
     let qingqiu: Qingqiucanshu = if canshu.trim().is_empty() {
         Qingqiucanshu { shuliang: Some(1) }

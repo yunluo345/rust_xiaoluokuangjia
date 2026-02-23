@@ -1,5 +1,5 @@
-use crate::gongju::ai::openai::{aipeizhi, aixiaoxiguanli, openaizhuti};
-use crate::gongju::jwtgongju;
+use crate::gongju::ai::openai::{aixiaoxiguanli, openaizhuti};
+use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::yonghuyanzheng;
 use crate::peizhixt::peizhi_nr::peizhi_ai::Ai;
 use crate::peizhixt::peizhixitongzhuti;
 use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::{
@@ -24,8 +24,6 @@ struct Qingqiucanshu {
 struct Jianchajieguo {
     hege: bool,
     queshaoziduanlie: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    aiyijian: Option<String>,
 }
 
 pub fn huoqu_guanjianci() -> Vec<String> {
@@ -81,18 +79,6 @@ async fn tiqu_biaoqian(neirong: &str, peizhi: &Ai) -> Option<String> {
     openaizhuti::putongqingqiu(&aipeizhi, &guanli).await
 }
 
-pub async fn ai_jiancha(neirong: &str, peizhi: &Ai) -> Option<String> {
-    let bitian_biaoqian: Vec<String> = peizhi.ribao_biaoqian.iter().filter(|bq| bq.bitian).map(|bq| format!("【{}】{}", bq.mingcheng, bq.miaoshu)).collect();
-    let xitongtishici = format!(
-        "检查以下必填标签的值是否有效：\n\n{}\n\n判断标准：\n1. 值不能为空、null、\"无\"、\"待定\"等无效内容\n2. 日期格式合理（如2026-02-14）\n3. 姓名必须是具体姓名，不能是「客户方」「相关负责人」「对方」「甲方」「乙方」「联系人」等泛指\n4. 地点必须是具体地点，不能是「办公室」「公司」等泛指\n\n如果所有必填标签都有有效值，回复「内容完整规范」。\n如果有标签值是泛指或无效，明确指出问题（30字以内）。",
-        bitian_biaoqian.join("\n")
-    );
-    let aipeizhi = crate::jiekouxt::jiekou_nr::ai::huoqu_peizhi().await?.shezhi_chaoshi(30).shezhi_chongshi(1);
-    let mut guanli = aixiaoxiguanli::Xiaoxiguanli::xingjian().shezhi_xitongtishici(&xitongtishici);
-    guanli.zhuijia_yonghuxiaoxi(format!("提取后的日报数据：\n{}", neirong));
-    openaizhuti::putongqingqiu(&aipeizhi, &guanli).await
-}
-
 fn huoqu_neirong(qingqiu: &Qingqiucanshu) -> Option<String> {
     qingqiu.neirong.as_deref().or(qingqiu.ribaoneirong.as_deref()).map(str::trim).filter(|v| !v.is_empty()).map(ToString::to_string)
 }
@@ -129,9 +115,11 @@ fn jiancha_fanzhici(v: Option<&Value>) -> Option<String> {
 }
 
 pub async fn zhixing(canshu: &str, lingpai: &str) -> String {
-    let zaiti = match jwtgongju::yanzheng(lingpai).await {
-        Some(z) => z,
-        None => return json!({"cuowu": "令牌无效或已过期"}).to_string(),
+    let zaiti = match yonghuyanzheng::yanzhenglingpaijiquanxian(lingpai, "/jiekou/ribao/yonghu").await {
+        Ok(z) => z,
+        Err(yonghuyanzheng::Lingpaicuowu::Yibeifengjin(y)) => return json!({"cuowu": format!("账号已被封禁：{}", y)}).to_string(),
+        Err(yonghuyanzheng::Lingpaicuowu::Quanxianbuzu) => return json!({"cuowu": "权限不足"}).to_string(),
+        Err(_) => return json!({"cuowu": "令牌无效或已过期"}).to_string(),
     };
     let qingqiu: Qingqiucanshu = match serde_json::from_str(canshu) {
         Ok(q) => q,
@@ -180,21 +168,10 @@ pub async fn zhixing(canshu: &str, lingpai: &str) -> String {
         })
         .collect();
     queshaoziduanlie.extend(fanzhiciziduanlie);
-    let jiegouhua_neirong = serde_json::to_string_pretty(&ribaoshuju).unwrap_or_default();
-    let aiyijian = ai_jiancha(&jiegouhua_neirong, &peizhi).await;
-    let ai_hege = aiyijian.as_ref()
-        .map(|v| v.contains("内容完整规范"))
-        .unwrap_or(false);
-    let hege = queshaoziduanlie.is_empty() && ai_hege;
-    let yuanyin = if hege {
-        String::new()
-    } else if !queshaoziduanlie.is_empty() {
-        format!("缺少必填字段：{}", queshaoziduanlie.join("、"))
-    } else {
-        aiyijian.clone().unwrap_or_else(|| "内容不符合规范，请补充完整信息后重试".to_string())
-    };
-    let jianchajieguo = Jianchajieguo { hege, queshaoziduanlie, aiyijian };
+    let hege = queshaoziduanlie.is_empty();
+    let jianchajieguo = Jianchajieguo { hege, queshaoziduanlie: queshaoziduanlie.clone() };
     if !hege {
+        let yuanyin = format!("缺少必填字段：{}", jianchajieguo.queshaoziduanlie.join("、"));
         return json!({"cuowu": "日报审核未通过", "yuanyin": yuanyin, "shuju": jianchajieguo}).to_string();
     }
     let fabushijian = huoqu_fabushijian(&qingqiu);
