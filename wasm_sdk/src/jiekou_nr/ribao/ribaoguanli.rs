@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-pub const lujing: &str = "/jiekou/xitong/ribao";
+pub const lujing: &str = "/jiekou/ribao/guanli";
 pub const fangshi: &str = "POST";
 
 pub type Xiangying = super::super::Xiangying<Value>;

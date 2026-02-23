@@ -19,6 +19,19 @@ export class Ribaoluoji {
         }
     }
 
+    async yonghuzhixing(caozuo, canshu) {
+        if (!this.kehu) { this.rizhi('尚未初始化', 'warn'); return null; }
+        if (!this.kehu.yidenglu()) { this.rizhi('请先登录', 'warn'); return null; }
+        try {
+            const canshujson = canshu ? JSON.stringify(canshu) : null;
+            const jieguo = await this.kehu.ribaoyonghuqingqiu(caozuo, canshujson);
+            return JSON.parse(jieguo);
+        } catch (e) {
+            this.rizhi('请求失败: ' + e, 'err');
+            return null;
+        }
+    }
+
     async leixing_xinzeng(mingcheng) {
         const jg = await this.zhixing('leixing_xinzeng', { mingcheng });
         if (jg) this.rizhi('新增标签类型: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
@@ -104,7 +117,12 @@ export class Ribaoluoji {
     }
 
     async ribao_xinzeng(yonghuid, neirong, fabushijian) {
-        const jg = await this.zhixing('ribao_xinzeng', { yonghuid, neirong, fabushijian });
+        let jg;
+        if (this.shifouquanxian) {
+            jg = await this.zhixing('ribao_xinzeng', { yonghuid, neirong, fabushijian });
+        } else {
+            jg = await this.yonghuzhixing('xinzeng', { neirong, fabushijian });
+        }
         if (jg) this.rizhi('新增日报: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
         return jg;
     }
@@ -170,21 +188,30 @@ export class Ribaoluoji {
     }
 
     async chaxunfenye_shipei(yeshu, meiyetiaoshu) {
-        return this.shifouquanxian
-            ? this.ribao_chaxun_fenye(yeshu, meiyetiaoshu)
-            : this.ribao_chaxun_yonghuid_fenye('', yeshu, meiyetiaoshu);
+        if (this.shifouquanxian) {
+            return this.ribao_chaxun_fenye(yeshu, meiyetiaoshu);
+        }
+        const jg = await this.yonghuzhixing('chaxun_fenye', { yeshu, meiyetiaoshu });
+        if (jg) this.rizhi('分页查询日报: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
     }
 
     async guanjiancichaxunfenye_shipei(guanjianci, yeshu, meiyetiaoshu) {
-        return this.shifouquanxian
-            ? this.ribao_chaxun_guanjianci_fenye(guanjianci, yeshu, meiyetiaoshu)
-            : this.ribao_chaxun_yonghuid_fenye('', yeshu, meiyetiaoshu);
+        if (this.shifouquanxian) {
+            return this.ribao_chaxun_guanjianci_fenye(guanjianci, yeshu, meiyetiaoshu);
+        }
+        const jg = await this.yonghuzhixing('chaxun_fenye', { yeshu, meiyetiaoshu });
+        if (jg) this.rizhi('分页查询日报: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
     }
 
     async tongjizongshu_shipei() {
-        return this.shifouquanxian
-            ? this.ribao_tongji_zongshu()
-            : this.ribao_tongji_yonghuid_zongshu('');
+        if (this.shifouquanxian) {
+            return this.ribao_tongji_zongshu();
+        }
+        const jg = await this.yonghuzhixing('tongji_zongshu');
+        if (jg) this.rizhi('统计日报总数: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
     }
 
     async guanlian_xinzeng(ribaoid, biaoqianid) {

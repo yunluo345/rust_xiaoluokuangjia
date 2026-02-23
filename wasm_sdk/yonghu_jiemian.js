@@ -80,13 +80,17 @@ export class Yonghujiemian {
         this.rongqi.appendChild(tou);
         const neirong = document.createElement('div');
         neirong.id = 'yonghu_neirong';
+        const shiyonghu = this.dangqianshitu === 'yonghu';
+        const sousuolan = shiyonghu
+            ? this._sousuolan('yh_sousuo', '搜索账号/昵称', 'yonghu_sousuo()', 'yonghu_qingkong()', 'yonghu_shuaxin()', 'yonghu_xinzeng_shitu()', '新增用户')
+            : this._sousuolan('zu_sousuo', '搜索组名称', 'yonghuzu_sousuo()', 'yonghuzu_qingkong()', 'yonghuzu_shuaxin()', 'yonghuzu_xinzeng_shitu()', '新增用户组');
+        neirong.innerHTML = sousuolan + this._konghtml('点击刷新按钮加载数据');
         this.rongqi.appendChild(neirong);
     }
 
-    async qiehuanshitu(shitu) {
+    qiehuanshitu(shitu) {
         this.dangqianshitu = shitu;
         this.xuanran();
-        return this.dangqianshitu === 'yonghu' ? this.shuaxinliebiao() : this.shuaxinyonghuzuliebiao();
     }
 
     // ========== 用户列表 ==========

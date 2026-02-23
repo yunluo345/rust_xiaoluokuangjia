@@ -15,14 +15,14 @@ use crate::gongju::zhuangtaima::ribaojiekou_zhuangtai::{Zhuangtai, cuowu};
 
 #[allow(non_upper_case_globals)]
 pub const dinyi: Jiekoudinyi = Jiekoudinyi {
-    lujing: "/ribao",
+    lujing: "/guanli",
     nicheng: "日报管理",
-    jieshao: "管理日报、标签类型、标签及其关联的增删改查操作",
+    jieshao: "管理员日报管理：日报、标签类型、标签及其关联的增删改查操作",
     fangshi: Qingqiufangshi::Post,
     jiami: true,
     xudenglu: true,
     xuyonghuzu: false,
-    yunxuputong: true,
+    yunxuputong: false,
 };
 
 #[derive(Deserialize, Serialize)]
@@ -151,21 +151,8 @@ fn jiamichenggong(xiaoxi: impl Into<String>, shuju: Value, miyao: &[u8]) -> Http
     jiamichuanshuzhongjian::jiamixiangying(jiekouxtzhuti::chenggong(xiaoxi, shuju), miyao)
 }
 
-#[allow(non_upper_case_globals)]
-const putongkezhicaozuo: &[&str] = &[
-    "ribao_xinzeng",
-    "ribao_chaxun_yonghuid",
-    "ribao_chaxun_yonghuid_fenye",
-    "ribao_tongji_yonghuid_zongshu",
-];
-
-fn shifouputongkezhixing(caozuo: &str) -> bool {
-    putongkezhicaozuo.iter().any(|v| *v == caozuo)
-}
-
-
 async fn shifouguanlicaozuoquanxian(yonghuzuid: &str) -> bool {
-    let shifoujiekouyunxu = yonghuyanzheng::jianchajiekouquanxian(yonghuzuid, "/jiekou/xitong/ribao")
+    let shifoujiekouyunxu = yonghuyanzheng::jianchajiekouquanxian(yonghuzuid, "/jiekou/ribao/guanli")
         .await
         .is_ok();
     if !shifoujiekouyunxu {
@@ -177,31 +164,6 @@ async fn shifouguanlicaozuoquanxian(yonghuzuid: &str) -> bool {
     };
     let mingcheng = zu.get("mingcheng").and_then(|v| v.as_str()).unwrap_or("");
     mingcheng != "user"
-}
-
-fn xieruwodeyonghuid(qingqiu: &mut Qingqiuti, yonghuid: &str) -> bool {
-    let duixiang = match qingqiu.canshu.as_object_mut() {
-        Some(d) => d,
-        None => return false,
-    };
-    let caozuo = qingqiu.caozuo.as_str();
-    if caozuo == "ribao_xinzeng" {
-        duixiang.insert("yonghuid".to_string(), serde_json::json!(yonghuid));
-        return true;
-    }
-    if caozuo == "ribao_chaxun_yonghuid" || caozuo == "ribao_chaxun_yonghuid_fenye" || caozuo == "ribao_tongji_yonghuid_zongshu" {
-        duixiang.insert("yonghuid".to_string(), serde_json::json!(yonghuid));
-        if caozuo == "ribao_chaxun_yonghuid_fenye" {
-            if !duixiang.contains_key("yeshu") {
-                duixiang.insert("yeshu".to_string(), serde_json::json!(1));
-            }
-            if !duixiang.contains_key("meiyetiaoshu") {
-                duixiang.insert("meiyetiaoshu".to_string(), serde_json::json!(10));
-            }
-        }
-        return true;
-    }
-    false
 }
 
 async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
@@ -403,21 +365,15 @@ pub async fn chuli(req: HttpRequest, ti: web::Bytes) -> HttpResponse {
     let zaiti = req.extensions().get::<jwtgongju::Zaiti>().cloned().unwrap();
 
     let shifouquanxian = shifouguanlicaozuoquanxian(&zaiti.yonghuzuid).await;
-    if !shifouquanxian && !shifouputongkezhixing(&qingqiu.caozuo) {
+    if !shifouquanxian {
         return jiamishibai(&cuowu::quanxianbuzu, &miyao);
     }
 
-    if !shifouquanxian {
-        if !xieruwodeyonghuid(&mut qingqiu, &zaiti.yonghuid) {
-            return jiamishibai(&cuowu::putongkezhixianshibai, &miyao);
-        }
-    } else {
-        let caozuo = qingqiu.caozuo.as_str();
-        if caozuo == "ribao_xinzeng" || caozuo == "ribao_chaxun_yonghuid" || caozuo == "ribao_chaxun_yonghuid_fenye" || caozuo == "ribao_tongji_yonghuid_zongshu" {
-            if let Some(duixiang) = qingqiu.canshu.as_object_mut() {
-                if duixiang.get("yonghuid").and_then(|v| v.as_str()).unwrap_or("").is_empty() {
-                    duixiang.insert("yonghuid".to_string(), serde_json::json!(zaiti.yonghuid));
-                }
+    let caozuo = qingqiu.caozuo.as_str();
+    if caozuo == "ribao_xinzeng" || caozuo == "ribao_chaxun_yonghuid" || caozuo == "ribao_chaxun_yonghuid_fenye" || caozuo == "ribao_tongji_yonghuid_zongshu" {
+        if let Some(duixiang) = qingqiu.canshu.as_object_mut() {
+            if duixiang.get("yonghuid").and_then(|v| v.as_str()).unwrap_or("").is_empty() {
+                duixiang.insert("yonghuid".to_string(), serde_json::json!(zaiti.yonghuid));
             }
         }
     }

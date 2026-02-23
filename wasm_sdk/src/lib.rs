@@ -13,7 +13,8 @@ use jiekou_nr::xitong::jiamijiankang as jiamijiankangqq;
 use jiekou_nr::xitong::sseceshi as sseceshiqq;
 use jiekou_nr::xitong::jiamisseceshi as jiamisseceshiqq;
 use jiekou_nr::xitong::aiqudaoguanli as aiqudaoqq;
-use jiekou_nr::xitong::ribaoguanli as ribaoqq;
+use jiekou_nr::ribao::ribaoguanli as ribaoqq;
+use jiekou_nr::ribao::ribaoyonghu as ribaoyonghuqq;
 use jiekou_nr::yonghu::denglujiekou as dengluqq;
 use jiekou_nr::yonghu::yonghuguanlijiekou as yonghuguanliqq;
 use jiekou_nr::ai::duihua as aiduihuaqq;
@@ -185,6 +186,13 @@ impl Kehuduanjiami {
         let canshu_zhi = self.jieximoren_canshu(canshu)?;
         let ti = xuliehua(&ribaoqq::Qingqiuti { caozuo: caozuo.to_string(), canshu: canshu_zhi })?;
         self.zhixingdaichongshi(|| self.neibu.zhixingrenzhengjiamiqingqiu(ribaoqq::fangshi, ribaoqq::lujing, Some(&ti), &lingpai)).await
+    }
+
+    pub async fn ribaoyonghuqingqiu(&self, caozuo: &str, canshu: Option<String>) -> Result<String, JsValue> {
+        let lingpai = self.huoqubixu_lingpai()?;
+        let canshu_zhi = self.jieximoren_canshu(canshu)?;
+        let ti = xuliehua(&ribaoyonghuqq::Qingqiuti { caozuo: caozuo.to_string(), canshu: canshu_zhi })?;
+        self.zhixingdaichongshi(|| self.neibu.zhixingrenzhengjiamiqingqiu(ribaoyonghuqq::fangshi, ribaoyonghuqq::lujing, Some(&ti), &lingpai)).await
     }
 
     pub async fn aiduihuaqingqiu(&self, xiaoxilie_json: &str, baocunduquqi_hanming: &str) -> Result<String, JsValue> {
