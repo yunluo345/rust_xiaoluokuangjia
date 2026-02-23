@@ -294,6 +294,14 @@ export class Ribaoluoji {
         return jg;
     }
 
+    async renwu_chaxun_fenye(zhuangtai, shuliang) {
+        const canshu = { shuliang };
+        if (zhuangtai !== null && zhuangtai !== undefined) canshu.zhuangtai = zhuangtai;
+        const jg = await this.zhixing('renwu_chaxun_fenye', canshu);
+        if (jg) this.rizhi('查询任务列表: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
     async renwu_tongji_zhuangtai(zhuangtai) {
         const jg = await this.zhixing('renwu_tongji_zhuangtai', { zhuangtai });
         if (jg) this.rizhi('统计任务[' + zhuangtai + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');

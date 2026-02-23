@@ -38,17 +38,33 @@ where
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed)
         .is_err()
     {
+        println!("[任务调度] 调度器已在运行中，跳过本次启动");
         return json!({"zhuangtai": "yunxingzhong", "xiaoxi": "任务调度器已在运行中"});
     }
 
     let peizhi = peizhixitongzhuti::duqupeizhi::<Ai>(Ai::wenjianming()).unwrap_or_default();
     let bingfa = peizhi.ribao_biaoqianrenwu_bingfashuliang.max(1) as usize;
+    println!("[任务调度] 启动调度器 并发数={}", bingfa);
     let mut zongjieguolie: Vec<Value> = Vec::new();
+
+    if let Some(tongji) = psqlcaozuo::chaxun(
+        &format!("SELECT id::TEXT, zhuangtai, changshicishu::TEXT, zuidachangshicishu::TEXT FROM {} ORDER BY id", biaoming), &[]
+    ).await {
+        for t in &tongji {
+            println!("[任务调度] 任务id={} zhuangtai={} 尝试={}/{}", t["id"], t["zhuangtai"], t["changshicishu"], t["zuidachangshicishu"]);
+        }
+    }
 
     while huoqu_yunxingbiaozhi().load(Ordering::Relaxed) {
         let renwulie = match lingqu_zuijin_piliang_suiji(bingfa as i64).await {
-            Some(lie) if !lie.is_empty() => lie,
-            _ => break,
+            Some(lie) if !lie.is_empty() => {
+                println!("[任务调度] 领取到 {} 个任务", lie.len());
+                lie
+            }
+            _ => {
+                println!("[任务调度] 无更多待处理任务，停止调度");
+                break;
+            }
         };
 
         let jieguolie: Vec<Value> = stream::iter(renwulie.into_iter().map(|renwu| {
@@ -59,6 +75,8 @@ where
         .collect()
         .await;
 
+        let pici_chenggong = jieguolie.iter().filter(|v| v.get("chenggong").and_then(|z| z.as_bool()).unwrap_or(false)).count();
+        println!("[任务调度] 本批完成: 总数={} 成功={} 失败={}", jieguolie.len(), pici_chenggong, jieguolie.len() - pici_chenggong);
         zongjieguolie.extend(jieguolie);
     }
 
@@ -69,6 +87,7 @@ where
         .filter(|v| v.get("chenggong").and_then(|z| z.as_bool()).unwrap_or(false))
         .count();
     let zongshu = zongjieguolie.len();
+    println!("[任务调度] 调度结束 总处理={} 成功={} 失败={}", zongshu, chenggongshu, zongshu.saturating_sub(chenggongshu));
 
     json!({
         "zongshu": zongshu,
@@ -114,7 +133,7 @@ pub async fn chongxin_ruidui(id: &str) -> Option<u64> {
 pub async fn lingqu_yige() -> Option<Value> {
     let shijian = jichugongju::huoqushijianchuo().to_string();
     let jieguo = psqlcaozuo::chaxun(
-        &format!("WITH dailingqu AS (SELECT id FROM {} WHERE zhuangtai = 'false' AND changshicishu < zuidachangshicishu ORDER BY chuangjianshijian DESC, random() LIMIT 1 FOR UPDATE SKIP LOCKED) UPDATE {} r SET zhuangtai = 'true', changshicishu = changshicishu + 1, gengxinshijian = $1 FROM dailingqu d WHERE r.id = d.id RETURNING r.*", biaoming, biaoming),
+        &format!("WITH dailingqu AS (SELECT id FROM {} WHERE zhuangtai = 'false' AND changshicishu < zuidachangshicishu ORDER BY chuangjianshijian DESC, random() LIMIT 1 FOR UPDATE SKIP LOCKED) UPDATE {} r SET zhuangtai = 'processing', changshicishu = changshicishu + 1, gengxinshijian = $1 FROM dailingqu d WHERE r.id = d.id RETURNING r.*", biaoming, biaoming),
         &[&shijian],
     ).await?;
     jieguo.into_iter().next()
@@ -124,7 +143,7 @@ pub async fn lingqu_yige() -> Option<Value> {
 pub async fn lingqu_zuijin_piliang_suiji(shuliang: i64) -> Option<Vec<Value>> {
     let shijian = jichugongju::huoqushijianchuo().to_string();
     psqlcaozuo::chaxun(
-        &format!("WITH dailingqu AS (SELECT id FROM {} WHERE zhuangtai = 'false' AND changshicishu < zuidachangshicishu ORDER BY chuangjianshijian DESC, random() LIMIT GREATEST($2::BIGINT, 0) FOR UPDATE SKIP LOCKED) UPDATE {} r SET zhuangtai = 'true', changshicishu = changshicishu + 1, gengxinshijian = $1 FROM dailingqu d WHERE r.id = d.id RETURNING r.*", biaoming, biaoming),
+        &format!("WITH dailingqu AS (SELECT id FROM {} WHERE zhuangtai = 'false' AND changshicishu < zuidachangshicishu ORDER BY chuangjianshijian DESC, random() LIMIT GREATEST($2::BIGINT, 0) FOR UPDATE SKIP LOCKED) UPDATE {} r SET zhuangtai = 'processing', changshicishu = changshicishu + 1, gengxinshijian = $1 FROM dailingqu d WHERE r.id = d.id RETURNING r.*", biaoming, biaoming),
         &[&shijian, &shuliang.to_string()],
     ).await
 }
@@ -174,7 +193,22 @@ pub async fn chongxin_ruidui_ribaoid(ribaoid: &str) -> Option<u64> {
     ).await
 }
 
-/// 查询待处理任务列表
+/// 按状态分页查询任务（None=全部）
+pub async fn chaxun_fenye(zhuangtai: Option<&str>, shuliang: i64) -> Option<Vec<Value>> {
+    let sl = shuliang.to_string();
+    match zhuangtai {
+        Some(z) => psqlcaozuo::chaxun(
+            &format!("SELECT * FROM {} WHERE zhuangtai = $1 ORDER BY chuangjianshijian DESC LIMIT $2::BIGINT", biaoming),
+            &[z, &sl],
+        ).await,
+        None => psqlcaozuo::chaxun(
+            &format!("SELECT * FROM {} ORDER BY chuangjianshijian DESC LIMIT $1::BIGINT", biaoming),
+            &[&sl],
+        ).await,
+    }
+}
+
+/// 查询待处理且可重试的任务列表
 pub async fn chaxun_dengdai(shuliang: i64) -> Option<Vec<Value>> {
     psqlcaozuo::chaxun(
         &format!("SELECT * FROM {} WHERE zhuangtai = 'false' AND changshicishu < zuidachangshicishu ORDER BY chuangjianshijian DESC LIMIT $1::BIGINT", biaoming),

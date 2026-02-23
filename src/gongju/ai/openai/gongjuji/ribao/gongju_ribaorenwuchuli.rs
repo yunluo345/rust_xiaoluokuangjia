@@ -87,7 +87,7 @@ fn yanzheng_bitian_biaoqian(tiquxiang: &[(String, String)], peizhi: &Ai) -> Opti
     (!queshi.is_empty()).then_some(queshi)
 }
 
-async fn ai_tiqu_biaoqian(neirong: &str, peizhi: &Ai) -> Option<Vec<(String, String)>> {
+async fn ai_tiqu_biaoqian(neirong: &str, peizhi: &Ai, yiyou_biaoqian: Option<&str>) -> Option<Vec<(String, String)>> {
     let biaoqian_tishi = peizhi.ribao_biaoqian.iter()
         .map(|bq| {
             let biecheng_str = bq.biecheng.join("、");
@@ -97,6 +97,10 @@ async fn ai_tiqu_biaoqian(neirong: &str, peizhi: &Ai) -> Option<Vec<(String, Str
         .collect::<Vec<_>>()
         .join("；");
     
+    let yiyou_tishi = yiyou_biaoqian
+        .map(|s| format!("\n\n该日报已有以下标签：\n{}\n如果已有标签已经覆盖了某个分类，且内容准确，则不要重复返回该标签。只返回需要新增或更正的标签。", s))
+        .unwrap_or_default();
+
     let xitongtishici = format!(
         "你是日报标签提取助手。从日报内容中提取以下标签信息：{}\n\
         请仔细阅读日报内容，提取所有相关标签。\n\
@@ -104,13 +108,16 @@ async fn ai_tiqu_biaoqian(neirong: &str, peizhi: &Ai) -> Option<Vec<(String, Str
         注意：\n\
         1. 标签名必须使用配置中的标准名称（不要使用别名）\n\
         2. 如果日报中没有某个标签的信息，不要返回该标签\n\
-        3. 只返回JSON，不要返回其他内容",
-        biaoqian_tishi
+        3. 只返回JSON，不要返回其他内容{}",
+        biaoqian_tishi, yiyou_tishi
     );
     
     let aipeizhi = match crate::jiekouxt::jiekou_nr::ai::huoqu_peizhi().await {
         Some(p) => p.shezhi_chaoshi(60).shezhi_chongshi(1),
-        None => return None,
+        None => {
+            println!("[标签提取] AI配置获取失败");
+            return None;
+        }
     };
     
     let mut guanli = aixiaoxiguanli::Xiaoxiguanli::xingjian()
@@ -118,11 +125,19 @@ async fn ai_tiqu_biaoqian(neirong: &str, peizhi: &Ai) -> Option<Vec<(String, Str
     guanli.zhuijia_yonghuxiaoxi(format!("请从以下日报中提取标签：\n\n{}", neirong));
     
     let huifu = match openaizhuti::putongqingqiu(&aipeizhi, &guanli).await {
-        Some(h) => h,
-        None => return None,
+        Some(h) => {
+            let xianshi: String = h.chars().take(100).collect();
+            println!("[标签提取] AI返回: {}{}",  xianshi, if h.chars().count() > 100 { "..." } else { "" });
+            h
+        }
+        None => {
+            println!("[标签提取] AI调用失败，返回None");
+            return None;
+        }
     };
     
     let tiquxiang = tichubiaoqianxiang(&huifu, peizhi);
+    println!("[标签提取] 解析结果: {} 个标签", tiquxiang.len());
     (!tiquxiang.is_empty()).then_some(tiquxiang)
 }
 
@@ -291,6 +306,7 @@ async fn bangdingbiaoqian(ribaoid: &str, biaoqianid: &str) -> Option<bool> {
 }
 
 async fn chuli_shibai(renwuid: &str, ribaoid: &str, xiaoxi: &str) -> Value {
+    println!("[任务处理] ✗ 任务{}失败 日报={} 原因={}", renwuid, ribaoid, xiaoxi);
     let _ = shujucaozuo_ribao_biaoqianrenwu::biaojishibai(renwuid).await;
     json!({
         "chenggong": false,
@@ -310,6 +326,7 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
         Some(v) => v,
         None => return chuli_shibai(&renwuid, "", "任务缺少日报ID").await,
     };
+    println!("[任务处理] 开始处理 任务={} 日报={}", renwuid, ribaoid);
 
     let ribao = match shujucaozuo_ribao::chaxun_id(&ribaoid).await {
         Some(v) => v,
@@ -321,13 +338,33 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
         _ => return chuli_shibai(&renwuid, &ribaoid, "日报内容为空").await,
     };
 
-    let biaoqianxiang = match ai_tiqu_biaoqian(neirong, peizhi).await {
-        Some(xiang) => xiang,
+    let yiyou = shujucaozuo_ribao_biaoqian::chaxun_ribaoid_daixinxi(&ribaoid).await
+        .filter(|lie| !lie.is_empty())
+        .map(|lie| lie.iter()
+            .filter_map(|b| {
+                let lx = b["leixingmingcheng"].as_str()?;
+                let zhi = b["zhi"].as_str()?;
+                Some(format!("- {}：{}", lx, zhi))
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+        );
+    if yiyou.is_some() {
+        println!("[任务处理] 任务={} 已有 {} 个标签", renwuid, yiyou.as_ref().unwrap().lines().count());
+    }
+
+    let biaoqianxiang = match ai_tiqu_biaoqian(neirong, peizhi, yiyou.as_deref()).await {
+        Some(xiang) => {
+            println!("[任务处理] 任务={} AI提取到 {} 个标签", renwuid, xiang.len());
+            xiang
+        }
         None => {
+            println!("[任务处理] 任务={} AI提取失败，尝试字符串匹配", renwuid);
             let xiang = tichubiaoqianxiang(neirong, peizhi);
             if xiang.is_empty() {
                 return chuli_shibai(&renwuid, &ribaoid, "AI和字符串匹配均未提取到标签").await;
             }
+            println!("[任务处理] 任务={} 字符串匹配到 {} 个标签", renwuid, xiang.len());
             xiang
         }
     };
@@ -388,6 +425,7 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
         return chuli_shibai(&renwuid, &ribaoid, "任务完成状态更新失败").await;
     }
 
+    println!("[任务处理] ✓ 任务={} 日报={} 绑定标签数={}", renwuid, ribaoid, bangdingshu);
     json!({
         "chenggong": true,
         "renwuid": renwuid,

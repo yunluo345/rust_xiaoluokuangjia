@@ -241,7 +241,43 @@ async fn tongbuziduan(chi: &PgPool, biaoming: &str, ziduanlie: &[Ziduandinyi]) -
         )
         .collect();
 
-    zhixing_sql_lie(chi, sqlie).await
+    if !zhixing_sql_lie(chi, sqlie).await {
+        return false;
+    }
+
+    tongbu_check_yueshu(chi, biaoming, ziduanlie).await;
+    true
+}
+
+async fn tongbu_check_yueshu(chi: &PgPool, biaoming: &str, ziduanlie: &[Ziduandinyi]) {
+    for ziduan in ziduanlie {
+        let daxie = ziduan.leixing.to_uppercase();
+        let check_kaishi = match daxie.find("CHECK") {
+            Some(w) => w,
+            None => continue,
+        };
+        let dingyi_check = ziduan.leixing[check_kaishi..].trim();
+        let yueshuming = format!("{}_{}_check", biaoming, ziduan.mingcheng);
+        let cunzai = sqlx::query("SELECT pg_get_constraintdef(oid) as dinyi FROM pg_constraint WHERE conname = $1")
+            .bind(&yueshuming)
+            .fetch_optional(chi)
+            .await
+            .ok()
+            .flatten();
+        let xuyao_gengxin = match &cunzai {
+            Some(hang) => {
+                let jiudinyi: String = hang.get("dinyi");
+                !jiudinyi.eq_ignore_ascii_case(dingyi_check)
+            }
+            None => false,
+        };
+        if xuyao_gengxin {
+            let _ = sqlx::query(&format!("ALTER TABLE \"{}\" DROP CONSTRAINT \"{}\"", biaoming, yueshuming))
+                .execute(chi).await;
+            let _ = sqlx::query(&format!("ALTER TABLE \"{}\" ADD CONSTRAINT \"{}\" {}", biaoming, yueshuming, dingyi_check))
+                .execute(chi).await;
+        }
+    }
 }
 
 /// 获取全局 PostgreSQL 连接池（零开销，无锁）

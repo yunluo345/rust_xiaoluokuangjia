@@ -132,6 +132,8 @@ async fn feiliushi_json(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli, dai_gongju: bo
     let ti = goujian_qingqiuti(peizhi, guanli, false, dai_gongju);
     let xiangying = fasong_qingqiu(peizhi, &ti).await?;
     let neirong = xiangying.text().await.unwrap_or_default();
+    let xianshi: String = neirong.chars().take(400).collect();
+    println!("[OpenAI] 原始响应: {}{}", xianshi, if neirong.chars().count() > 400 { "..." } else { "" });
     match serde_json::from_str(&neirong) {
         Ok(json) => Some(json),
         Err(e) => { println!("[OpenAI] JSON解析失败: {}", e); None }
@@ -144,6 +146,9 @@ async fn feiliushi_json(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli, dai_gongju: bo
 pub async fn putongqingqiu(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli) -> Option<String> {
     println!("[OpenAI] 非流式调用 模型:{} 接口:{}", peizhi.moxing, peizhi.jiekoudizhi);
     let json = feiliushi_json(peizhi, guanli, false).await?;
+    let yuanshi = json["choices"][0]["message"]["content"].to_string();
+    let xianshi_nr: String = yuanshi.chars().take(150).collect();
+    println!("[OpenAI] 响应content原文: {}{}", xianshi_nr, if yuanshi.chars().count() > 150 { "..." } else { "" });
     let wenben = tiqu_wenben(&json)?;
     println!("[OpenAI] 非流式调用成功");
     Some(wenben)

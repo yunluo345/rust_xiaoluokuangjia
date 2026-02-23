@@ -9,7 +9,10 @@ pub async fn chaxun(sql: &str, canshu: &[&str]) -> Option<Vec<Value>> {
     for c in canshu {
         chaxun = chaxun.bind(*c);
     }
-    let hanglie = chaxun.fetch_all(chi).await.ok()?;
+    let hanglie = match chaxun.fetch_all(chi).await {
+        Ok(h) => h,
+        Err(e) => { println!("[SQL错误] {}", e); return None; }
+    };
     let jieguo = hanglie
         .iter()
         .map(|hang| {

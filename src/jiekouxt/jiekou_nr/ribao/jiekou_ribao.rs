@@ -102,6 +102,9 @@ struct Renwuzhuangtaicanshu { zhuangtai: String }
 struct Renwuchaxuncanshu { shuliang: i64 }
 
 #[derive(Deserialize)]
+struct Renwufenyecanshu { zhuangtai: Option<String>, shuliang: i64 }
+
+#[derive(Deserialize)]
 struct Renwuyonghuidcanshu { yonghuid: String, shuliang: i64 }
 
 #[derive(Deserialize)]
@@ -376,6 +379,10 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
         "renwu_chaxun_dengdai" => {
             let canshu = jiexi_canshu!(qingqiu, Renwuchaxuncanshu, miyao);
             chuli_chaxun_liebiao!(canshu, miyao, shujucaozuo_ribao_biaoqianrenwu::chaxun_dengdai(canshu.shuliang))
+        }
+        "renwu_chaxun_fenye" => {
+            let canshu = jiexi_canshu!(qingqiu, Renwufenyecanshu, miyao);
+            chuli_chaxun_liebiao!(canshu, miyao, shujucaozuo_ribao_biaoqianrenwu::chaxun_fenye(canshu.zhuangtai.as_deref(), canshu.shuliang))
         }
         "renwu_tongji_zhuangtai" => {
             let canshu = jiexi_canshu!(qingqiu, Renwuzhuangtaicanshu, miyao);
