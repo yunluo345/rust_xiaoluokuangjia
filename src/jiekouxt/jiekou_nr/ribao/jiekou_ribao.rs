@@ -5,7 +5,8 @@ use crate::jiekouxt::jiekouxtzhuti::{self, Jiekoudinyi, Qingqiufangshi};
 use crate::jiekouxt::jiamichuanshu::jiamichuanshuzhongjian;
 use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::{
     shujucaozuo_biaoqianleixing, shujucaozuo_biaoqian,
-    shujucaozuo_ribao, shujucaozuo_ribao_biaoqian
+    shujucaozuo_ribao, shujucaozuo_ribao_biaoqian,
+    shujucaozuo_ribao_biaoqianrenwu,
 };
 use crate::gongju::ai::openai::gongjuji::ribao::gongju_ribaorenwuchuli;
 use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::{shujucaozuo_yonghuzu, yonghuyanzheng};
@@ -93,6 +94,18 @@ struct Guanjiancifenyecanshu { guanjianci: String, yeshu: i64, meiyetiaoshu: i64
 
 #[derive(Deserialize)]
 struct Renwuchulicanshu { shuliang: Option<i64> }
+
+#[derive(Deserialize)]
+struct Renwuzhuangtaicanshu { zhuangtai: String }
+
+#[derive(Deserialize)]
+struct Renwuchaxuncanshu { shuliang: i64 }
+
+#[derive(Deserialize)]
+struct Renwuyonghuidcanshu { yonghuid: String, shuliang: i64 }
+
+#[derive(Deserialize)]
+struct Renwuxinzengcanshu { ribaoid: String, yonghuid: String }
 
 macro_rules! jiexi_canshu {
     ($qingqiu:expr, $canshu_leixing:ty, $miyao:expr) => {
@@ -341,6 +354,51 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
                 Err(xiaoxi) => jiamishibai_dongtai(500, xiaoxi, miyao),
             }
         }
+        "renwu_chaxun_id" => {
+            let canshu = jiexi_canshu!(qingqiu, Idcanshu, miyao);
+            chuli_chaxun!(canshu, miyao, shujucaozuo_ribao_biaoqianrenwu::chaxun_id(&canshu.id), &cuowu::renwubucunzai)
+        }
+        "renwu_chaxun_ribaoid" => {
+            let canshu = jiexi_canshu!(qingqiu, Ribaoidcanshu, miyao);
+            chuli_chaxun!(canshu, miyao, shujucaozuo_ribao_biaoqianrenwu::chaxun_ribaoid(&canshu.ribaoid), &cuowu::renwubucunzai)
+        }
+        "renwu_chaxun_yonghuid" => {
+            let canshu = jiexi_canshu!(qingqiu, Renwuyonghuidcanshu, miyao);
+            chuli_chaxun_liebiao!(canshu, miyao, shujucaozuo_ribao_biaoqianrenwu::chaxun_yonghuid(&canshu.yonghuid, canshu.shuliang))
+        }
+        "renwu_chaxun_dengdai" => {
+            let canshu = jiexi_canshu!(qingqiu, Renwuchaxuncanshu, miyao);
+            chuli_chaxun_liebiao!(canshu, miyao, shujucaozuo_ribao_biaoqianrenwu::chaxun_dengdai(canshu.shuliang))
+        }
+        "renwu_tongji_zhuangtai" => {
+            let canshu = jiexi_canshu!(qingqiu, Renwuzhuangtaicanshu, miyao);
+            match shujucaozuo_ribao_biaoqianrenwu::tongji_zhuangtai(&canshu.zhuangtai).await {
+                Some(zongshu) => jiamichenggong("统计成功", serde_json::json!({"count": zongshu}), miyao),
+                None => jiamishibai(&cuowu::tongjishibai, miyao),
+            }
+        }
+        "renwu_tongji_kechuli" => {
+            match shujucaozuo_ribao_biaoqianrenwu::tongji_kechuli_dengdai().await {
+                Some(zongshu) => jiamichenggong("统计成功", serde_json::json!({"count": zongshu}), miyao),
+                None => jiamishibai(&cuowu::tongjishibai, miyao),
+            }
+        }
+        "renwu_chongxin_ruidui" => {
+            let canshu = jiexi_canshu!(qingqiu, Idcanshu, miyao);
+            chuli_shanchu_gengxin!(canshu, miyao, shujucaozuo_ribao_biaoqianrenwu::chongxin_ruidui(&canshu.id), "重新入队成功", &cuowu::chongxinruiduishibai)
+        }
+        "renwu_chongxin_ruidui_ribaoid" => {
+            let canshu = jiexi_canshu!(qingqiu, Ribaoidcanshu, miyao);
+            chuli_shanchu_gengxin!(canshu, miyao, shujucaozuo_ribao_biaoqianrenwu::chongxin_ruidui_ribaoid(&canshu.ribaoid), "重新入队成功", &cuowu::chongxinruiduishibai)
+        }
+        "renwu_shanchu" => {
+            let canshu = jiexi_canshu!(qingqiu, Idcanshu, miyao);
+            chuli_shanchu_gengxin!(canshu, miyao, shujucaozuo_ribao_biaoqianrenwu::shanchu(&canshu.id), "删除成功", &cuowu::renwubucunzai)
+        }
+        "renwu_xinzeng" => {
+            let canshu = jiexi_canshu!(qingqiu, Renwuxinzengcanshu, miyao);
+            chuli_xinzeng!(canshu, miyao, shujucaozuo_ribao_biaoqianrenwu::faburenwu(&canshu.ribaoid, &canshu.yonghuid, 3))
+        }
         _ => jiamishibai(&cuowu::bucaozuoleixing, miyao),
     }
 }
@@ -370,7 +428,7 @@ pub async fn chuli(req: HttpRequest, ti: web::Bytes) -> HttpResponse {
     }
 
     let caozuo = qingqiu.caozuo.as_str();
-    if caozuo == "ribao_xinzeng" || caozuo == "ribao_chaxun_yonghuid" || caozuo == "ribao_chaxun_yonghuid_fenye" || caozuo == "ribao_tongji_yonghuid_zongshu" {
+    if caozuo == "ribao_xinzeng" || caozuo == "ribao_chaxun_yonghuid" || caozuo == "ribao_chaxun_yonghuid_fenye" || caozuo == "ribao_tongji_yonghuid_zongshu" || caozuo == "renwu_xinzeng" {
         if let Some(duixiang) = qingqiu.canshu.as_object_mut() {
             if duixiang.get("yonghuid").and_then(|v| v.as_str()).unwrap_or("").is_empty() {
                 duixiang.insert("yonghuid".to_string(), serde_json::json!(zaiti.yonghuid));

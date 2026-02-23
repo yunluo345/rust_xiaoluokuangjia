@@ -10,6 +10,8 @@ const ziduanlie: &[Ziduandinyi] = &[
     Ziduandinyi { mingcheng: "yonghuid", nicheng: "用户ID", jieshao: "发送日报的用户ID", leixing: "BIGINT NOT NULL REFERENCES yonghu(id) ON DELETE CASCADE", morenzhi: None },
     Ziduandinyi { mingcheng: "neirong", nicheng: "日报内容", jieshao: "日报的具体内容", leixing: "TEXT NOT NULL", morenzhi: None },
     Ziduandinyi { mingcheng: "fabushijian", nicheng: "发布时间", jieshao: "日报发布的时间戳", leixing: "TEXT NOT NULL", morenzhi: None },
+    Ziduandinyi { mingcheng: "zhaiyao", nicheng: "日报摘要", jieshao: "日报内容的简短摘要", leixing: "TEXT", morenzhi: None },
+    Ziduandinyi { mingcheng: "kuozhan", nicheng: "扩展字段", jieshao: "JSON格式的扩展数据", leixing: "TEXT", morenzhi: None },
     Ziduandinyi { mingcheng: "chuangjianshijian", nicheng: "创建时间", jieshao: "记录创建时间", leixing: "TEXT NOT NULL", morenzhi: None },
     Ziduandinyi { mingcheng: "gengxinshijian", nicheng: "更新时间", jieshao: "记录最后更新时间", leixing: "TEXT NOT NULL", morenzhi: None },
 ];

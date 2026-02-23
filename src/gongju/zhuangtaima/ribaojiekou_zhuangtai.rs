@@ -22,6 +22,7 @@ pub mod cuowu {
     pub const biaoqianbucunzai: Zhuangtai = Zhuangtai { ma: 404, xiaoxi: "标签不存在" };
     pub const ribaobucunzai: Zhuangtai = Zhuangtai { ma: 404, xiaoxi: "日报不存在" };
     pub const guanlianbucunzai: Zhuangtai = Zhuangtai { ma: 404, xiaoxi: "关联不存在" };
+    pub const renwubucunzai: Zhuangtai = Zhuangtai { ma: 404, xiaoxi: "任务不存在" };
     pub const mingchengyicunzai: Zhuangtai = Zhuangtai { ma: 409, xiaoxi: "名称已存在" };
     
     pub const chuangjianshi: Zhuangtai = Zhuangtai { ma: 500, xiaoxi: "创建失败" };
@@ -29,6 +30,7 @@ pub mod cuowu {
     pub const tongjishibai: Zhuangtai = Zhuangtai { ma: 500, xiaoxi: "统计失败" };
     pub const guanlianshibai: Zhuangtai = Zhuangtai { ma: 500, xiaoxi: "关联失败" };
     pub const shanchushibai: Zhuangtai = Zhuangtai { ma: 500, xiaoxi: "删除失败" };
+    pub const chongxinruiduishibai: Zhuangtai = Zhuangtai { ma: 500, xiaoxi: "重新入队失败" };
     pub const piliangguanlianshibai: Zhuangtai = Zhuangtai { ma: 500, xiaoxi: "批量关联失败" };
     pub const qingqiuchulishibai: Zhuangtai = Zhuangtai { ma: 500, xiaoxi: "请求处理失败" };
 }

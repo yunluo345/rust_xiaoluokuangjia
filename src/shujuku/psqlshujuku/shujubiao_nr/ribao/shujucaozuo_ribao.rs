@@ -9,7 +9,7 @@ const biaoming: &str = "ribao";
 pub async fn xinzeng(yonghuid: &str, neirong: &str, fabushijian: &str) -> Option<String> {
     let shijian = jichugongju::huoqushijianchuo().to_string();
     let jieguo = psqlcaozuo::chaxun(
-        &format!("INSERT INTO {} (yonghuid, neirong, fabushijian, chuangjianshijian, gengxinshijian) VALUES ($1::BIGINT,$2,$3,$4,$5) RETURNING id::TEXT", biaoming),
+        &format!("INSERT INTO {} (yonghuid, neirong, fabushijian, zhaiyao, kuozhan, chuangjianshijian, gengxinshijian) VALUES ($1::BIGINT,$2,$3,NULL,NULL,$4,$5) RETURNING id::TEXT", biaoming),
         &[yonghuid, neirong, fabushijian, &shijian, &shijian],
     ).await?;
     jieguo.first().and_then(|v| v.get("id")?.as_str().map(String::from))

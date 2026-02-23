@@ -20,6 +20,14 @@ pub async fn faburenwu(ribaoid: &str, yonghuid: &str, zuidachangshicishu: i64) -
     xinzeng_huogengxin(ribaoid, yonghuid, zuidachangshicishu).await
 }
 
+/// 根据ID删除任务
+pub async fn shanchu(id: &str) -> Option<u64> {
+    psqlcaozuo::zhixing(
+        &format!("DELETE FROM {} WHERE id = $1::BIGINT", biaoming),
+        &[id],
+    ).await
+}
+
 /// 重新入队（将已有任务重新发布为等待状态）
 pub async fn chongxin_ruidui(id: &str) -> Option<u64> {
     let shijian = jichugongju::huoqushijianchuo().to_string();

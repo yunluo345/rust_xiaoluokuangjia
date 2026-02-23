@@ -267,4 +267,64 @@ export class Ribaoluoji {
         if (jg) this.rizhi('批量新增关联: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
         return jg;
     }
+
+    async renwu_chaxun_id(id) {
+        const jg = await this.zhixing('renwu_chaxun_id', { id });
+        if (jg) this.rizhi('查询任务[' + id + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async renwu_chaxun_ribaoid(ribaoid) {
+        const jg = await this.zhixing('renwu_chaxun_ribaoid', { ribaoid });
+        if (jg) this.rizhi('查询日报任务[' + ribaoid + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async renwu_chaxun_yonghuid(yonghuid, shuliang) {
+        const jg = await this.zhixing('renwu_chaxun_yonghuid', { yonghuid, shuliang });
+        if (jg) this.rizhi('查询用户任务[' + yonghuid + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async renwu_chaxun_dengdai(shuliang) {
+        const jg = await this.zhixing('renwu_chaxun_dengdai', { shuliang });
+        if (jg) this.rizhi('查询待处理任务: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async renwu_tongji_zhuangtai(zhuangtai) {
+        const jg = await this.zhixing('renwu_tongji_zhuangtai', { zhuangtai });
+        if (jg) this.rizhi('统计任务[' + zhuangtai + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async renwu_tongji_kechuli() {
+        const jg = await this.zhixing('renwu_tongji_kechuli');
+        if (jg) this.rizhi('统计可处理任务: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async renwu_chongxin_ruidui(id) {
+        const jg = await this.zhixing('renwu_chongxin_ruidui', { id });
+        if (jg) this.rizhi('重新入队[' + id + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async renwu_chongxin_ruidui_ribaoid(ribaoid) {
+        const jg = await this.zhixing('renwu_chongxin_ruidui_ribaoid', { ribaoid });
+        if (jg) this.rizhi('按日报重新入队[' + ribaoid + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async renwu_shanchu(id) {
+        const jg = await this.zhixing('renwu_shanchu', { id });
+        if (jg) this.rizhi('删除任务[' + id + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async renwu_xinzeng(ribaoid) {
+        const jg = await this.zhixing('renwu_xinzeng', { ribaoid });
+        if (jg) this.rizhi('新增任务[日报' + ribaoid + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
 }
