@@ -23,6 +23,8 @@ pub struct Ai {
     pub ribao_biaoqianrenwu_chongshi_cishu: u32,
     #[serde(default = "moren_ribao_biaoqianrenwu_bingfashuliang")]
     pub ribao_biaoqianrenwu_bingfashuliang: u32,
+    #[serde(default = "moren_bingxingrenwushu")]
+    pub bingxingrenwushu: u32,
     pub ribao_biaoqian: Vec<Ribaobiaoqian>,
 }
 
@@ -34,12 +36,17 @@ fn moren_ribao_biaoqianrenwu_bingfashuliang() -> u32 {
     1
 }
 
+fn moren_bingxingrenwushu() -> u32 {
+    5
+}
+
 impl Default for Ai {
     fn default() -> Self {
         Self {
             zuida_xunhuancishu: 20,
             ribao_biaoqianrenwu_chongshi_cishu: 3,
             ribao_biaoqianrenwu_bingfashuliang: 1,
+            bingxingrenwushu: 5,
             ribao_biaoqian: vec![
                 Ribaobiaoqian {
                     mingcheng: "我方人员".to_string(),

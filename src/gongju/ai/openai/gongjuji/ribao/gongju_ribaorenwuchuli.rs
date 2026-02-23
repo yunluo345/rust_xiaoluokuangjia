@@ -9,19 +9,11 @@ use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::{
     shujucaozuo_ribao_biaoqian,
     shujucaozuo_ribao_biaoqianrenwu,
 };
-use futures::stream::{self, StreamExt};
-
 use llm::chat::Tool;
-use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 
 use super::super::Gongjufenzu;
-
-#[derive(Deserialize)]
-struct Qingqiucanshu {
-    shuliang: Option<i64>,
-}
 
 pub fn huoqu_guanjianci() -> Vec<String> {
     vec![
@@ -405,47 +397,22 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
     })
 }
 
-pub async fn zhixing_neibu(shuliang: i64) -> Result<Value, String> {
+pub async fn zhixing_neibu() -> Result<Value, String> {
     let peizhi = peizhixitongzhuti::duqupeizhi::<Ai>(Ai::wenjianming()).unwrap_or_default();
-    let bingfashuliang = peizhi.ribao_biaoqianrenwu_bingfashuliang.max(1) as usize;
-    let shulian = if shuliang > 0 { shuliang } else { bingfashuliang as i64 };
-
-    let renwulie = shujucaozuo_ribao_biaoqianrenwu::lingqu_zuijin_piliang_suiji(shulian)
-        .await
-        .ok_or_else(|| "任务领取失败".to_string())?;
-
-    if renwulie.is_empty() {
-        return Ok(json!({
-            "zongshu": 0,
-            "chenggongshu": 0,
-            "shibaishu": 0,
-            "jieguolie": []
-        }));
-    }
-
-    let jieguolie: Vec<Value> = stream::iter(renwulie.into_iter().map(|renwu| {
-        let peizhi = peizhi.clone();
-        async move { chuli_dange_renwu(renwu, &peizhi).await }
-    }))
-    .buffer_unordered(bingfashuliang)
-    .collect()
+    let jieguo = shujucaozuo_ribao_biaoqianrenwu::qidong_diaodu(move |renwu| {
+        let p = peizhi.clone();
+        async move { chuli_dange_renwu(renwu, &p).await }
+    })
     .await;
 
-    let chenggongshu = jieguolie
-        .iter()
-        .filter(|v| v.get("chenggong").and_then(|z| z.as_bool()).unwrap_or(false))
-        .count();
-    let zongshu = jieguolie.len();
-    let shibaishu = zongshu.saturating_sub(chenggongshu);
-
-    Ok(json!({
-        "zongshu": zongshu,
-        "chenggongshu": chenggongshu,
-        "shibaishu": shibaishu,
-        "jieguolie": jieguolie,
-    }))
+    jieguo
+        .get("zhuangtai")
+        .and_then(|z| z.as_str())
+        .filter(|&z| z == "yunxingzhong")
+        .map(|_| jieguo["xiaoxi"].as_str().unwrap_or("未知错误").to_string())
+        .map_or(Ok(jieguo.clone()), Err)
 }
-pub async fn zhixing(canshu: &str, lingpai: &str) -> String {
+pub async fn zhixing(_canshu: &str, lingpai: &str) -> String {
     let _zaiti = match yonghuyanzheng::yanzhenglingpaijiquanxian(lingpai, "/jiekou/ribao/guanli").await {
         Ok(z) => z,
         Err(yonghuyanzheng::Lingpaicuowu::Yibeifengjin(y)) => return json!({"cuowu": format!("账号已被封禁：{}", y)}).to_string(),
@@ -453,16 +420,7 @@ pub async fn zhixing(canshu: &str, lingpai: &str) -> String {
         Err(_) => return json!({"cuowu": "令牌无效或已过期"}).to_string(),
     };
 
-    let qingqiu: Qingqiucanshu = if canshu.trim().is_empty() {
-        Qingqiucanshu { shuliang: Some(1) }
-    } else {
-        match serde_json::from_str(canshu) {
-            Ok(q) => q,
-            Err(_) => return json!({"cuowu": "参数格式错误"}).to_string(),
-        }
-    };
-
-    match zhixing_neibu(qingqiu.shuliang.unwrap_or(1)).await {
+    match zhixing_neibu().await {
         Ok(shuju) => json!({"chenggong": true, "shuju": shuju}).to_string(),
         Err(xiaoxi) => json!({"cuowu": xiaoxi}).to_string(),
     }

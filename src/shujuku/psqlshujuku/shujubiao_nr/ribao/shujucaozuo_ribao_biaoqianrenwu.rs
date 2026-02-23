@@ -1,9 +1,82 @@
-use serde_json::Value;
+use serde_json::{json, Value};
+use std::future::Future;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::OnceLock;
+use futures::stream::{self, StreamExt};
 use crate::gongju::jichugongju;
+use crate::peizhixt::peizhi_nr::peizhi_ai::Ai;
+use crate::peizhixt::peizhixitongzhuti;
 use crate::shujuku::psqlshujuku::psqlcaozuo;
 
 #[allow(non_upper_case_globals)]
 const biaoming: &str = "ribao_biaoqianrenwu";
+
+#[allow(non_upper_case_globals)]
+static yunxingzhong: OnceLock<AtomicBool> = OnceLock::new();
+
+fn huoqu_yunxingbiaozhi() -> &'static AtomicBool {
+    yunxingzhong.get_or_init(|| AtomicBool::new(false))
+}
+
+/// 查询任务调度器是否正在运行
+pub fn shifou_yunxingzhong() -> bool {
+    huoqu_yunxingbiaozhi().load(Ordering::Relaxed)
+}
+
+/// 停止任务调度器
+pub fn tingzhi() -> bool {
+    huoqu_yunxingbiaozhi().swap(false, Ordering::SeqCst)
+}
+
+/// 启动任务调度器，按配置并发数处理队列任务，超出并发的任务排队等待，仅可通过 tingzhi 停止
+pub async fn qidong_diaodu<F, Fut>(chulihanshu: F) -> Value
+where
+    F: Fn(Value) -> Fut + Send + Sync + Clone + 'static,
+    Fut: Future<Output = Value> + Send,
+{
+    if huoqu_yunxingbiaozhi()
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed)
+        .is_err()
+    {
+        return json!({"zhuangtai": "yunxingzhong", "xiaoxi": "任务调度器已在运行中"});
+    }
+
+    let peizhi = peizhixitongzhuti::duqupeizhi::<Ai>(Ai::wenjianming()).unwrap_or_default();
+    let bingfa = peizhi.ribao_biaoqianrenwu_bingfashuliang.max(1) as usize;
+    let mut zongjieguolie: Vec<Value> = Vec::new();
+
+    while huoqu_yunxingbiaozhi().load(Ordering::Relaxed) {
+        let renwulie = match lingqu_zuijin_piliang_suiji(bingfa as i64).await {
+            Some(lie) if !lie.is_empty() => lie,
+            _ => break,
+        };
+
+        let jieguolie: Vec<Value> = stream::iter(renwulie.into_iter().map(|renwu| {
+            let f = chulihanshu.clone();
+            async move { f(renwu).await }
+        }))
+        .buffer_unordered(bingfa)
+        .collect()
+        .await;
+
+        zongjieguolie.extend(jieguolie);
+    }
+
+    huoqu_yunxingbiaozhi().store(false, Ordering::SeqCst);
+
+    let chenggongshu = zongjieguolie
+        .iter()
+        .filter(|v| v.get("chenggong").and_then(|z| z.as_bool()).unwrap_or(false))
+        .count();
+    let zongshu = zongjieguolie.len();
+
+    json!({
+        "zongshu": zongshu,
+        "chenggongshu": chenggongshu,
+        "shibaishu": zongshu.saturating_sub(chenggongshu),
+        "jieguolie": zongjieguolie,
+    })
+}
 
 /// 新增标签任务，若已存在则更新并重置为等待状态
 pub async fn xinzeng_huogengxin(ribaoid: &str, yonghuid: &str, zuidachangshicishu: i64) -> Option<String> {

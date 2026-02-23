@@ -66,8 +66,25 @@ async fn chulicaozuo(caozuo: &str, canshu: Value, yonghuid: &str, miyao: &[u8]) 
             let zongshu = shujucaozuo_ribao::tongji_yonghuid_zongshu(yonghuid).await.unwrap_or(0);
             jiamichenggong("查询成功", serde_json::json!({"liebiao": liebiao, "zongshu": zongshu}), miyao)
         }
+        "chaxun_quanbu_fenye" => {
+            let c: Fenyecanshu = match serde_json::from_value(canshu) {
+                Ok(c) => c,
+                Err(_) => return jiamishibai(&cuowu::canshugeshibuzhengque, miyao),
+            };
+            let yeshu = c.yeshu.unwrap_or(1);
+            let meiyetiaoshu = c.meiyetiaoshu.unwrap_or(10);
+            let liebiao = shujucaozuo_ribao::chaxun_fenye(yeshu, meiyetiaoshu).await.unwrap_or_default();
+            let zongshu = shujucaozuo_ribao::tongji_zongshu().await.unwrap_or(0);
+            jiamichenggong("查询成功", serde_json::json!({"liebiao": liebiao, "zongshu": zongshu}), miyao)
+        }
         "tongji_zongshu" => {
             match shujucaozuo_ribao::tongji_yonghuid_zongshu(yonghuid).await {
+                Some(zongshu) => jiamichenggong("统计成功", serde_json::json!({"count": zongshu}), miyao),
+                None => jiamishibai(&cuowu::tongjishibai, miyao),
+            }
+        }
+        "tongji_quanbu_zongshu" => {
+            match shujucaozuo_ribao::tongji_zongshu().await {
                 Some(zongshu) => jiamichenggong("统计成功", serde_json::json!({"count": zongshu}), miyao),
                 None => jiamishibai(&cuowu::tongjishibai, miyao),
             }

@@ -348,11 +348,18 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
             }
         }
         "renwu_biaoqian_ai_chuli" => {
-            let canshu = jiexi_canshu!(qingqiu, Renwuchulicanshu, miyao);
-            match gongju_ribaorenwuchuli::zhixing_neibu(canshu.shuliang.unwrap_or(0)).await {
+            match gongju_ribaorenwuchuli::zhixing_neibu().await {
                 Ok(shuju) => jiamichenggong("处理成功", shuju, miyao),
                 Err(xiaoxi) => jiamishibai_dongtai(500, xiaoxi, miyao),
             }
+        }
+        "renwu_biaoqian_ai_tingzhi" => {
+            let yuanxian = shujucaozuo_ribao_biaoqianrenwu::tingzhi();
+            jiamichenggong("停止指令已发送", serde_json::json!({"yuanxianyunxing": yuanxian}), miyao)
+        }
+        "renwu_biaoqian_ai_zhuangtai" => {
+            let yunxingzhong = shujucaozuo_ribao_biaoqianrenwu::shifou_yunxingzhong();
+            jiamichenggong("查询成功", serde_json::json!({"yunxingzhong": yunxingzhong}), miyao)
         }
         "renwu_chaxun_id" => {
             let canshu = jiexi_canshu!(qingqiu, Idcanshu, miyao);

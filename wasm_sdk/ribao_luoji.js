@@ -187,11 +187,12 @@ export class Ribaoluoji {
         return jg;
     }
 
-    async chaxunfenye_shipei(yeshu, meiyetiaoshu) {
+    async chaxunfenye_shipei(yeshu, meiyetiaoshu, quanbu = false) {
         if (this.shifouquanxian) {
             return this.ribao_chaxun_fenye(yeshu, meiyetiaoshu);
         }
-        const jg = await this.yonghuzhixing('chaxun_fenye', { yeshu, meiyetiaoshu });
+        const caozuo = quanbu ? 'chaxun_quanbu_fenye' : 'chaxun_fenye';
+        const jg = await this.yonghuzhixing(caozuo, { yeshu, meiyetiaoshu });
         if (jg) this.rizhi('分页查询日报: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
         return jg;
     }
@@ -205,11 +206,12 @@ export class Ribaoluoji {
         return jg;
     }
 
-    async tongjizongshu_shipei() {
+    async tongjizongshu_shipei(quanbu = false) {
         if (this.shifouquanxian) {
             return this.ribao_tongji_zongshu();
         }
-        const jg = await this.yonghuzhixing('tongji_zongshu');
+        const caozuo = quanbu ? 'tongji_quanbu_zongshu' : 'tongji_zongshu';
+        const jg = await this.yonghuzhixing(caozuo);
         if (jg) this.rizhi('统计日报总数: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
         return jg;
     }
@@ -325,6 +327,23 @@ export class Ribaoluoji {
     async renwu_xinzeng(ribaoid) {
         const jg = await this.zhixing('renwu_xinzeng', { ribaoid });
         if (jg) this.rizhi('新增任务[日报' + ribaoid + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async renwu_biaoqian_ai_chuli() {
+        const jg = await this.zhixing('renwu_biaoqian_ai_chuli');
+        if (jg) this.rizhi('标签任务处理: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async renwu_biaoqian_ai_tingzhi() {
+        const jg = await this.zhixing('renwu_biaoqian_ai_tingzhi');
+        if (jg) this.rizhi('标签任务停止: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async renwu_biaoqian_ai_zhuangtai() {
+        const jg = await this.zhixing('renwu_biaoqian_ai_zhuangtai');
         return jg;
     }
 }

@@ -69,7 +69,7 @@ pub async fn chaxun_quanbu() -> Option<Vec<Value>> {
 pub async fn chaxun_fenye(yeshu: i64, meiyetiaoshu: i64) -> Option<Vec<Value>> {
     let pianyi = (yeshu - 1) * meiyetiaoshu;
     psqlcaozuo::chaxun(
-        &format!("SELECT * FROM {} ORDER BY fabushijian DESC LIMIT $1::BIGINT OFFSET $2::BIGINT", biaoming),
+        &format!("SELECT r.*, y.nicheng as fabuzhemingcheng, y.zhanghao as fabuzhezhanghao FROM {} r LEFT JOIN yonghu y ON r.yonghuid = y.id ORDER BY r.fabushijian DESC LIMIT $1::BIGINT OFFSET $2::BIGINT", biaoming),
         &[&meiyetiaoshu.to_string(), &pianyi.to_string()],
     ).await
 }
@@ -78,7 +78,7 @@ pub async fn chaxun_fenye(yeshu: i64, meiyetiaoshu: i64) -> Option<Vec<Value>> {
 pub async fn chaxun_yonghuid_fenye(yonghuid: &str, yeshu: i64, meiyetiaoshu: i64) -> Option<Vec<Value>> {
     let pianyi = (yeshu - 1) * meiyetiaoshu;
     psqlcaozuo::chaxun(
-        &format!("SELECT * FROM {} WHERE yonghuid = $1::BIGINT ORDER BY fabushijian DESC LIMIT $2::BIGINT OFFSET $3::BIGINT", biaoming),
+        &format!("SELECT r.*, y.nicheng as fabuzhemingcheng, y.zhanghao as fabuzhezhanghao FROM {} r LEFT JOIN yonghu y ON r.yonghuid = y.id WHERE r.yonghuid = $1::BIGINT ORDER BY r.fabushijian DESC LIMIT $2::BIGINT OFFSET $3::BIGINT", biaoming),
         &[yonghuid, &meiyetiaoshu.to_string(), &pianyi.to_string()],
     ).await
 }

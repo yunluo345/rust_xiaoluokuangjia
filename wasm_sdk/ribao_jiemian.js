@@ -8,6 +8,7 @@ export class Ribaojiemian {
         this.dangqianyeshu = 1;
         this.meiyetiaoshu = 10;
         this.shifouquanxian = !!(luoji && luoji.shifouquanxian);
+        this.chakanquanbu = false;
         this.sousuobiaoqianid = null;
         this.sousuoleixing = null;
         this.sousuoguanjiancizhi = null;
@@ -24,7 +25,9 @@ export class Ribaojiemian {
                <button class="aq-btn aq-btn-zhu" onclick="ribao_qiehuanshitu('leixing')">类型</button>
                <button class="aq-btn aq-btn-zhu" onclick="ribao_qiehuanshitu('renwu')">任务</button>
                <button class="aq-btn aq-btn-lv" onclick="ribao_shuaxin()">刷新数据</button>`
-            : `<button class="aq-btn aq-btn-zhu" onclick="ribao_qiehuanshitu('renwu')">任务</button>
+            : `<button class="aq-btn ${this.dangqianshitu === 'ribao' ? 'aq-btn-lv' : 'aq-btn-zhu'}" onclick="ribao_qiehuanshitu('ribao')">我的日报</button>
+               <button class="aq-btn ${this.dangqianshitu === 'quanburibao' ? 'aq-btn-lv' : 'aq-btn-zhu'}" onclick="ribao_qiehuanshitu('quanburibao')">全部日报</button>
+               <button class="aq-btn ${this.dangqianshitu === 'renwu' ? 'aq-btn-lv' : 'aq-btn-zhu'}" onclick="ribao_qiehuanshitu('renwu')">任务</button>
                <button class="aq-btn aq-btn-lv" onclick="ribao_shuaxin()">刷新数据</button>`;
         tou.innerHTML = `<h2 style="font-size:15px;color:#475569;margin:0">日报管理</h2><div>${anniulie}</div>`;
         this.rongqi.appendChild(tou);
@@ -35,19 +38,24 @@ export class Ribaojiemian {
     }
 
     async qiehuanshitu(shitu) {
-        this.dangqianshitu = (this.shifouquanxian || shitu === 'renwu') ? shitu : 'ribao';
+        const yunxushitu = this.shifouquanxian
+            ? ['ribao', 'biaoqian', 'leixing', 'renwu']
+            : ['ribao', 'quanburibao', 'renwu'];
+        this.dangqianshitu = yunxushitu.includes(shitu) ? shitu : 'ribao';
+        this.chakanquanbu = this.dangqianshitu === 'quanburibao';
+        await this.xuanran();
         await this.shuaxindangqianshitu();
     }
 
     async shuaxindangqianshitu() {
         const shitumap = {
             'ribao': () => this.shuaxinribaoliebiao(),
+            'quanburibao': () => this.shuaxinribaoliebiao(),
             'biaoqian': () => this.shuaxinbiaoqianliebiao(),
             'leixing': () => this.shuaxinleixingliebiao(),
             'renwu': () => this.shuaxinrenwuliebiao()
         };
-        const shitu = (this.shifouquanxian || this.dangqianshitu === 'renwu') ? this.dangqianshitu : 'ribao';
-        const fn = shitumap[shitu];
+        const fn = shitumap[this.dangqianshitu];
         if (fn) await fn();
     }
 
@@ -71,7 +79,7 @@ export class Ribaojiemian {
             liebiao = jg?.zhuangtaima === 200 ? jg.shuju?.liebiao || [] : [];
             zongshu = jg?.zhuangtaima === 200 ? jg.shuju?.zongshu || 0 : 0;
         } else {
-            jg = await this.luoji.chaxunfenye_shipei(this.dangqianyeshu, this.meiyetiaoshu);
+            jg = await this.luoji.chaxunfenye_shipei(this.dangqianyeshu, this.meiyetiaoshu, this.chakanquanbu);
             liebiao = jg?.zhuangtaima === 200 ? jg.shuju?.liebiao || [] : [];
             zongshu = jg?.zhuangtaima === 200 ? jg.shuju?.zongshu || 0 : 0;
         }
@@ -93,16 +101,9 @@ export class Ribaojiemian {
         html += '<input id="rb_yhid" type="text" placeholder="用户ID" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;width:120px;font-size:13px;box-sizing:border-box">';
         html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_sousuoyonghuid_xuanze()" style="height:36px">查询</button>';
 
-        if (suoyoubiaoqian.length > 0) {
-            html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
-            html += '<select id="rb_bqxz" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;font-size:13px;box-sizing:border-box;cursor:pointer">';
-            html += '<option value="">选择标签筛选</option>';
-            for (const bq of suoyoubiaoqian) {
-                html += `<option value="${bq.id}">${bq.zhi}</option>`;
-            }
-            html += '</select>';
-            html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_sousuobiaoqian_xuanze()" style="height:36px">筛选</button>';
-        }
+        html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
+        html += '<input id="rb_bqxz" type="text" placeholder="标签关键词筛选" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;width:160px;font-size:13px;box-sizing:border-box">';
+        html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_sousuobiaoqian_xuanze()" style="height:36px">筛选</button>';
 
         if (this.sousuobiaoqianid || this.sousuoleixing || this.sousuoguanjiancizhi || this.sousuoyonghuid) {
             html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_qingchusousuo()" style="height:36px">清除筛选</button>';
@@ -137,17 +138,9 @@ export class Ribaojiemian {
         html += '<input id="rb_yhid" type="text" placeholder="用户ID" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;width:120px;font-size:13px;box-sizing:border-box">';
         html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_sousuoyonghuid_xuanze()" style="height:36px">查询</button>';
 
-        if (suoyoubiaoqian.length > 0) {
-            html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
-            html += '<select id="rb_bqxz" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;font-size:13px;box-sizing:border-box;cursor:pointer">';
-            html += '<option value="">选择标签筛选</option>';
-            for (const bq of suoyoubiaoqian) {
-                const xuanzhong = this.sousuobiaoqianid === bq.id ? ' selected' : '';
-                html += `<option value="${bq.id}"${xuanzhong}>${bq.zhi}</option>`;
-            }
-            html += '</select>';
-            html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_sousuobiaoqian_xuanze()" style="height:36px">筛选</button>';
-        }
+        html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
+        html += '<input id="rb_bqxz" type="text" placeholder="标签关键词筛选" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;width:160px;font-size:13px;box-sizing:border-box">';
+        html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_sousuobiaoqian_xuanze()" style="height:36px">筛选</button>';
 
         if (this.sousuobiaoqianid || this.sousuoleixing || this.sousuoguanjiancizhi || this.sousuoyonghuid) {
             html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_qingchusousuo()" style="height:36px">清除筛选</button>';
@@ -171,7 +164,7 @@ export class Ribaojiemian {
             html += `<div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:8px;padding:14px">
                 <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px">
                     <div style="flex:1">
-                        <div style="font-size:12px;color:#64748B;margin-bottom:4px">ID: ${rb.id} | ${rb.fabushijian}</div>
+                        <div style="font-size:12px;color:#64748B;margin-bottom:4px">ID: ${rb.id} | 发布者: ${rb.fabuzhemingcheng || rb.fabuzhezhanghao || rb.yonghuid}${rb.fabuzhezhanghao ? '（' + rb.fabuzhezhanghao + '）' : ''} | ${rb.fabushijian}</div>
                         ${neironghtml}
                     </div>
                     <div style="display:flex;gap:6px;margin-left:12px">
@@ -609,13 +602,17 @@ export class Ribaojiemian {
 
     sousuobiaoqian_xuanze() {
         const v = document.getElementById('rb_bqxz')?.value?.trim();
-        if (!v) return this.luoji.rizhi('请选择标签', 'warn');
-        this.sousuobiaoqianid = v;
-        this.sousuoleixing = null;
-        this.sousuoguanjiancizhi = null;
-        this.sousuoyonghuid = null;
-        this.dangqianyeshu = 1;
-        this.shuaxinribaoliebiao();
+        if (!v) return this.luoji.rizhi('请输入标签关键词', 'warn');
+        this.luoji.biaoqian_chaxun_quanbu().then(jg => {
+            const liebiao = jg?.zhuangtaima === 200 ? jg.shuju || [] : [];
+            const pipei = liebiao.find(bq => bq.zhi && bq.zhi.includes(v));
+            this.sousuobiaoqianid = pipei ? pipei.id : '-1';
+            this.sousuoleixing = null;
+            this.sousuoguanjiancizhi = null;
+            this.sousuoyonghuid = null;
+            this.dangqianyeshu = 1;
+            this.shuaxinribaoliebiao();
+        });
     }
 
     sousuoyonghuid_xuanze() {
@@ -656,14 +653,16 @@ export class Ribaojiemian {
     async shuaxinrenwuliebiao() {
         const nr = document.getElementById('ribao_neirong');
         nr.innerHTML = '<p style="color:#64748B">加载中...</p>';
-        const [dengdaijg, yichuli, kechuli] = await Promise.all([
+        const [dengdaijg, yichuli, kechuli, zhuangtaijg] = await Promise.all([
             this.luoji.renwu_chaxun_dengdai(50),
             this.luoji.renwu_tongji_zhuangtai('true'),
-            this.luoji.renwu_tongji_kechuli()
+            this.luoji.renwu_tongji_kechuli(),
+            this.luoji.renwu_biaoqian_ai_zhuangtai()
         ]);
         const liebiao = dengdaijg?.zhuangtaima === 200 ? dengdaijg.shuju || [] : [];
         const yichulishu = yichuli?.zhuangtaima === 200 ? yichuli.shuju?.count ?? 0 : 0;
         const kechulishu = kechuli?.zhuangtaima === 200 ? kechuli.shuju?.count ?? 0 : 0;
+        const yunxingzhong = zhuangtaijg?.zhuangtaima === 200 && zhuangtaijg.shuju?.yunxingzhong === true;
         let html = `<div style="display:flex;gap:16px;margin-bottom:16px">
             <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:12px 20px;flex:1;text-align:center">
                 <div style="font-size:24px;font-weight:600;color:#16A34A">${kechulishu}</div>
@@ -673,10 +672,20 @@ export class Ribaojiemian {
                 <div style="font-size:24px;font-weight:600;color:#2563EB">${yichulishu}</div>
                 <div style="font-size:12px;color:#60A5FA">已处理</div>
             </div>
+            <div style="background:${yunxingzhong ? '#ECFDF5' : '#F8FAFC'};border:1px solid ${yunxingzhong ? '#A7F3D0' : '#E2E8F0'};border-radius:8px;padding:12px 20px;flex:1;text-align:center">
+                <div style="font-size:24px;font-weight:600;color:${yunxingzhong ? '#059669' : '#94A3B8'}">${yunxingzhong ? '●' : '○'}</div>
+                <div style="font-size:12px;color:${yunxingzhong ? '#10B981' : '#94A3B8'}">${yunxingzhong ? '运行中' : '已停止'}</div>
+            </div>
         </div>`;
         html += '<div style="margin-bottom:16px;display:flex;gap:8px;align-items:center">';
         html += '<input id="rw_ribaoid" type="text" placeholder="日报ID" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;width:140px;font-size:13px;box-sizing:border-box">';
         html += '<button class="aq-btn aq-btn-lv" onclick="ribao_xinzengrenwu()" style="height:36px">新增任务</button>';
+        html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
+        if (yunxingzhong) {
+            html += '<button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="ribao_renwu_tingzhi()" style="height:36px">停止AI处理</button>';
+        } else {
+            html += '<button class="aq-btn aq-btn-zhu" onclick="ribao_renwu_qidong()" style="height:36px">启动AI处理</button>';
+        }
         html += '</div>';
         if (liebiao.length === 0) {
             nr.innerHTML = html + '<p style="color:#64748B">暂无待处理任务</p>';
@@ -723,8 +732,34 @@ export class Ribaojiemian {
         if (jg && jg.zhuangtaima === 200) this.shuaxinrenwuliebiao();
     }
 
+    async renwu_qidong() {
+        this.luoji.rizhi('正在启动AI标签处理...', 'info');
+        this.luoji.renwu_biaoqian_ai_chuli().then(jg => {
+            if (jg) this.shuaxinrenwuliebiao();
+        });
+        await new Promise(r => setTimeout(r, 500));
+        await this.shuaxinrenwuliebiao();
+    }
+
+    async renwu_tingzhi() {
+        const jg = await this.luoji.renwu_biaoqian_ai_tingzhi();
+        if (jg?.zhuangtaima === 200) {
+            await new Promise(r => setTimeout(r, 300));
+            await this.shuaxinrenwuliebiao();
+        }
+    }
+
+    async qiehuanquanbu() {
+        this.chakanquanbu = !this.chakanquanbu;
+        this.dangqianyeshu = 1;
+        this.qingchusousuo();
+        await this.xuanran();
+        await this.shuaxinribaoliebiao();
+    }
+
     shezhiquanxian(shifouquanxian) {
         this.shifouquanxian = !!shifouquanxian;
+        this.chakanquanbu = false;
         this.dangqianshitu = 'ribao';
         this.dangqianyeshu = 1;
         this.shuaxindangqianshitu();
