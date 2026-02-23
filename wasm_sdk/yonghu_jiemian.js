@@ -16,7 +16,7 @@ export class Yonghujiemian {
 
     _zhuanyi(str) {
         if (!str) return '';
-        return str.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
     _geshihuashijian(zhi) {
@@ -26,7 +26,7 @@ export class Yonghujiemian {
         const rq = new Date(shu);
         if (isNaN(rq.getTime())) return String(zhi);
         const bu = (n) => String(n).padStart(2, '0');
-        return `${rq.getFullYear()}-${bu(rq.getMonth()+1)}-${bu(rq.getDate())} ${bu(rq.getHours())}:${bu(rq.getMinutes())}:${bu(rq.getSeconds())}`;
+        return `${rq.getFullYear()}-${bu(rq.getMonth() + 1)}-${bu(rq.getDate())} ${bu(rq.getHours())}:${bu(rq.getMinutes())}:${bu(rq.getSeconds())}`;
     }
 
     _jiazaizhong() {
@@ -60,9 +60,9 @@ export class Yonghujiemian {
         const zongyeshu = Math.ceil(zongshu / liang);
         if (zongyeshu <= 1) return '';
         const syjy = ye <= 1, xyjy = ye >= zongyeshu;
-        const yang = (jy) => `display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:${jy?'#F1F5F9':'white'};color:${jy?'#94A3B8':'#475569'};border:1px solid #E2E8F0;border-radius:8px;font-size:14px;font-weight:500;cursor:${jy?'not-allowed':'pointer'};transition:all 200ms;box-shadow:0 1px 2px rgba(0,0,0,0.05)`;
+        const yang = (jy) => `display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:${jy ? '#F1F5F9' : 'white'};color:${jy ? '#94A3B8' : '#475569'};border:1px solid #E2E8F0;border-radius:8px;font-size:14px;font-weight:500;cursor:${jy ? 'not-allowed' : 'pointer'};transition:all 200ms;box-shadow:0 1px 2px rgba(0,0,0,0.05)`;
         const hv = `onmouseover="this.style.borderColor='#3B82F6';this.style.color='#3B82F6'" onmouseout="this.style.borderColor='#E2E8F0';this.style.color='#475569'"`;
-        return `<div style="display:flex;justify-content:center;align-items:center;gap:12px;margin-top:20px;padding:16px;background:#F8FAFC;border-radius:12px"><button onclick="${shangyifn}" ${syjy?'disabled':''} style="${yang(syjy)}" ${syjy?'':hv}><svg style="width:16px;height:16px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>上一页</button><div style="display:flex;align-items:center;gap:8px"><span style="color:#64748B;font-size:14px">第</span><span style="display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:32px;padding:0 8px;background:white;color:#3B82F6;border:1px solid #3B82F6;border-radius:8px;font-size:14px;font-weight:600">${ye}</span><span style="color:#64748B;font-size:14px">/ ${zongyeshu} 页</span><span style="color:#94A3B8;font-size:13px;margin-left:4px">(共 ${zongshu} 条)</span></div><button onclick="${xiayifn}" ${xyjy?'disabled':''} style="${yang(xyjy)}" ${xyjy?'':hv}>下一页<svg style="width:16px;height:16px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button></div>`;
+        return `<div style="display:flex;justify-content:center;align-items:center;gap:12px;margin-top:20px;padding:16px;background:#F8FAFC;border-radius:12px"><button onclick="${shangyifn}" ${syjy ? 'disabled' : ''} style="${yang(syjy)}" ${syjy ? '' : hv}><svg style="width:16px;height:16px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>上一页</button><div style="display:flex;align-items:center;gap:8px"><span style="color:#64748B;font-size:14px">第</span><span style="display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:32px;padding:0 8px;background:white;color:#3B82F6;border:1px solid #3B82F6;border-radius:8px;font-size:14px;font-weight:600">${ye}</span><span style="color:#64748B;font-size:14px">/ ${zongyeshu} 页</span><span style="color:#94A3B8;font-size:13px;margin-left:4px">(共 ${zongshu} 条)</span></div><button onclick="${xiayifn}" ${xyjy ? 'disabled' : ''} style="${yang(xyjy)}" ${xyjy ? '' : hv}>下一页<svg style="width:16px;height:16px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button></div>`;
     }
 
     _sousuolan(inputid, placeholder, sousuofn, qingkongfn, shuaxinfn, xinzengfn, xinzengwen) {
@@ -75,7 +75,7 @@ export class Yonghujiemian {
         const tou = document.createElement('div');
         tou.style.cssText = 'margin-bottom:16px';
         const shiyh = this.dangqianshitu === 'yonghu';
-        const tabyang = (xuanzhong) => `padding:10px 24px;font-size:14px;font-weight:${xuanzhong?'600':'400'};color:${xuanzhong?'#3B82F6':'#64748B'};background:${xuanzhong?'white':'#F1F5F9'};border:1px solid ${xuanzhong?'#3B82F6':'#E2E8F0'};cursor:pointer;transition:all 200ms`;
+        const tabyang = (xuanzhong) => `padding:10px 24px;font-size:14px;font-weight:${xuanzhong ? '600' : '400'};color:${xuanzhong ? '#3B82F6' : '#64748B'};background:${xuanzhong ? 'white' : '#F1F5F9'};border:1px solid ${xuanzhong ? '#3B82F6' : '#E2E8F0'};cursor:pointer;transition:all 200ms`;
         tou.innerHTML = `<div style="display:flex;gap:0"><button onclick="yonghu_qiehuanshitu('yonghu')" style="${tabyang(shiyh)};border-radius:8px 0 0 8px">用户列表</button><button onclick="yonghu_qiehuanshitu('yonghuzu')" style="${tabyang(!shiyh)};border-radius:0 8px 8px 0">用户组列表</button></div>`;
         this.rongqi.appendChild(tou);
         const neirong = document.createElement('div');
@@ -92,7 +92,7 @@ export class Yonghujiemian {
     // ========== 用户列表 ==========
     async shuaxinliebiao() {
         const nr = document.getElementById('yonghu_neirong');
-        nr.innerHTML = this._sousuolan('yh_sousuo','搜索账号/昵称','yonghu_sousuo()','yonghu_qingkong()','yonghu_shuaxin()','yonghu_xinzeng_shitu()','新增用户') + '<div id="yh_lb">' + this._jiazaizhong() + '</div>';
+        nr.innerHTML = this._sousuolan('yh_sousuo', '搜索账号/昵称', 'yonghu_sousuo()', 'yonghu_qingkong()', 'yonghu_shuaxin()', 'yonghu_xinzeng_shitu()', '新增用户') + '<div id="yh_lb">' + this._jiazaizhong() + '</div>';
         const jg = this.yh_sousuomoshi
             ? await this.luoji.sousuo(this.yh_gjc, this.yh_ye, this.yh_liang)
             : await this.luoji.fenye(this.yh_ye, this.yh_liang);
@@ -248,7 +248,7 @@ export class Yonghujiemian {
     // ========== 用户组列表 ==========
     async shuaxinyonghuzuliebiao() {
         const nr = document.getElementById('yonghu_neirong');
-        nr.innerHTML = this._sousuolan('zu_sousuo','搜索组名称','yonghuzu_sousuo()','yonghuzu_qingkong()','yonghuzu_shuaxin()','yonghuzu_xinzeng_shitu()','新增用户组') + '<div id="zu_lb">' + this._jiazaizhong() + '</div>';
+        nr.innerHTML = this._sousuolan('zu_sousuo', '搜索组名称', 'yonghuzu_sousuo()', 'yonghuzu_qingkong()', 'yonghuzu_shuaxin()', 'yonghuzu_xinzeng_shitu()', '新增用户组') + '<div id="zu_lb">' + this._jiazaizhong() + '</div>';
         const jg = this.zu_sousuomoshi
             ? await this.luoji.yonghuzu_sousuo(this.zu_gjc, this.zu_ye, this.zu_liang)
             : await this.luoji.yonghuzu_fenye(this.zu_ye, this.zu_liang);
@@ -279,10 +279,15 @@ export class Yonghujiemian {
 
     async yonghuzu_xinzeng_shitu() {
         const nr = document.getElementById('yonghu_neirong');
+        nr.innerHTML = this._jiazaizhong();
+        const zuliebiao = await this._huoquzuliebiao();
+        const jichengxuanxiang = zuliebiao.map(z => `<option value="${z.id}">${this._zhuanyi(z.mingcheng)}</option>`).join('');
         let html = '<div style="background:white;border:1px solid #E2E8F0;border-radius:12px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,0.05);max-width:500px">';
         html += '<h3 style="font-size:18px;font-weight:600;color:#0F172A;margin:0 0 20px">新增用户组</h3><div style="display:grid;gap:12px">';
         html += this._bianji_hang('组名称', 'zu_xz_mingcheng', '', false);
         html += this._bianji_hang('备注', 'zu_xz_beizhu', '', true);
+        html += `<div style="display:grid;grid-template-columns:100px 1fr;gap:12px;align-items:center;min-height:42px;padding:12px;border-radius:8px"><span style="font-size:14px;font-weight:500;color:#64748B">继承自</span><select id="zu_xz_jicheng" style="flex:1;border:1px solid #E2E8F0;border-radius:6px;padding:6px 10px;font-size:14px;outline:none;color:#1E293B"><option value="">不继承</option>${jichengxuanxiang}</select></div>`;
+        html += `<div style="font-size:12px;color:#94A3B8;padding:0 12px">选择继承后，新用户组将复制该组的禁用接口权限配置</div>`;
         html += `<div style="display:flex;gap:12px;margin-top:8px"><button class="aq-btn aq-btn-zhu" onclick="yonghuzu_tijiaoxinzeng()" style="cursor:pointer">提交</button>${this._fanhuianniu('yonghuzu_shuaxin()')}</div>`;
         html += '</div></div>';
         nr.innerHTML = html;
@@ -292,8 +297,13 @@ export class Yonghujiemian {
         const mingcheng = document.getElementById('zu_xz_mingcheng')?.value?.trim();
         if (!mingcheng) { this.luoji.rizhi('组名称不能为空', 'warn'); return; }
         const beizhu = document.getElementById('zu_xz_beizhu')?.value?.trim() || '';
+        const jichengyonghuzuid = document.getElementById('zu_xz_jicheng')?.value || '';
         const jg = await this.luoji.yonghuzu_xinzeng(mingcheng, beizhu);
-        if (jg && jg.zhuangtaima === 200) await this.shuaxinyonghuzuliebiao();
+        if (!jg || jg.zhuangtaima !== 200) return;
+        if (jichengyonghuzuid && jg.shuju?.id) {
+            await this.luoji.yonghuzu_jicheng(String(jg.shuju.id), jichengyonghuzuid);
+        }
+        await this.shuaxinyonghuzuliebiao();
     }
 
     async yonghuzu_bianji(id) {

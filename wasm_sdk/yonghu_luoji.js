@@ -110,6 +110,16 @@ export class Yonghuluoji {
         return jg;
     }
 
+    async yonghuzu_jicheng(xinid, fuid) {
+        const jnjg = await this.zhixing('yonghuzu_huoqujinjiekou', { id: fuid });
+        if (!jnjg || jnjg.zhuangtaima !== 200) return false;
+        const jinjiekou = jnjg.shuju || [];
+        if (!jinjiekou.length) return true;
+        const gxjg = await this.zhixing('yonghuzu_gengxinjinjiekou', { id: xinid, jinjiekou });
+        if (gxjg) this.rizhi('继承权限: ' + gxjg.xiaoxi, gxjg.zhuangtaima === 200 ? 'ok' : 'err');
+        return gxjg && gxjg.zhuangtaima === 200;
+    }
+
     async yonghuzu_xiugai(id, mingcheng, beizhu) {
         const jg = await this.zhixing('yonghuzu_xiugai', { id, mingcheng, beizhu });
         if (jg) this.rizhi('修改用户组[' + id + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');

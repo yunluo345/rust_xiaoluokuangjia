@@ -39,6 +39,7 @@ struct Qingqiuti {
     yonghuzu_id: Option<String>,
     mingcheng: Option<String>,
     jinjiekou: Option<Vec<String>>,
+    jichengyonghuzuid: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -62,7 +63,7 @@ enum Caozuoleixing {
     Yonghuzufenye { dangqianyeshu: i64, meiyeshuliang: i64 },
     Yonghuzusousuo { guanjianci: String, dangqianyeshu: i64, meiyeshuliang: i64 },
     Yonghuzuxiangqing(String),
-    Yonghuzuxinzeng { mingcheng: String, beizhu: Option<String> },
+    Yonghuzuxinzeng { mingcheng: String, beizhu: Option<String>, jichengyonghuzuid: Option<String> },
     Yonghuzuxiugai { id: String, mingcheng: String, beizhu: Option<String> },
     Yonghuzushanchu(String),
     Yonghuzujiekouliebiao,
@@ -174,7 +175,7 @@ fn jiexi_caozuo(qingqiu: Qingqiuti, miyao: &[u8]) -> Result<Caozuoleixing, HttpR
         "yonghuzu_xinzeng" => {
             let mingcheng = tiqucansu(qingqiu.mingcheng, "mingcheng", miyao)?;
             if mingcheng.is_empty() { return Err(jiamishibai(400, "组名称不能为空", miyao)); }
-            Ok(Caozuoleixing::Yonghuzuxinzeng { mingcheng, beizhu: qingqiu.beizhu })
+            Ok(Caozuoleixing::Yonghuzuxinzeng { mingcheng, beizhu: qingqiu.beizhu, jichengyonghuzuid: qingqiu.jichengyonghuzuid })
         }
         "yonghuzu_xiugai" => {
             let id = tiqucansu(qingqiu.id, "id", miyao)?;
@@ -350,14 +351,29 @@ async fn zhixing_caozuo(caozuo: Caozuoleixing, miyao: &[u8]) -> HttpResponse {
                 None => jiamishibai(404, "用户组不存在", miyao),
             }
         }
-        Caozuoleixing::Yonghuzuxinzeng { mingcheng, beizhu } => {
+        Caozuoleixing::Yonghuzuxinzeng { mingcheng, beizhu, jichengyonghuzuid } => {
+            println!("[用户组继承] 收到继承参数: {:?}", jichengyonghuzuid);
             if shujucaozuo_yonghuzu::mingchengcunzai(&mingcheng).await {
                 return jiamishibai(400, "该组名称已存在", miyao);
             }
-            match shujucaozuo_yonghuzu::xinzeng(&mingcheng, beizhu.as_deref()).await {
-                Some(xin_id) => jiamichuanshuzhongjian::jiamixiangying(jiekouxtzhuti::chenggong("新增用户组成功", serde_json::json!({ "id": xin_id })), miyao),
-                None => jiamishibai(500, "新增用户组失败", miyao),
+            let xin_id = match shujucaozuo_yonghuzu::xinzeng(&mingcheng, beizhu.as_deref()).await {
+                Some(id) => id,
+                None => return jiamishibai(500, "新增用户组失败", miyao),
+            };
+            if let Some(fuid) = jichengyonghuzuid.as_deref() {
+                if !fuid.is_empty() {
+                    println!("[用户组继承] 查询父组: {}", fuid);
+                    if let Some(fuzu) = shujucaozuo_yonghuzu::chaxun_id(fuid).await {
+                        let jinjiekou_str = fuzu.get("jinjiekou").and_then(|v| v.as_str()).unwrap_or("[]");
+                        println!("[用户组继承] 父组禁用接口: {}", jinjiekou_str);
+                        let jieguo = shujucaozuo_yonghuzu::gengxinjinjiekou(&xin_id, jinjiekou_str).await;
+                        println!("[用户组继承] 写入结果: {:?}", jieguo);
+                    } else {
+                        println!("[用户组继承] 未找到父组: {}", fuid);
+                    }
+                }
             }
+            jiamichuanshuzhongjian::jiamixiangying(jiekouxtzhuti::chenggong("新增用户组成功", serde_json::json!({ "id": xin_id })), miyao)
         }
         Caozuoleixing::Yonghuzuxiugai { id, mingcheng, beizhu } => {
             let beizhu_zhi = beizhu.unwrap_or_default();

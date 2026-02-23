@@ -33,15 +33,13 @@ pub async fn chushihua() -> bool {
         None => return false,
     };
 
-    let heimingdan = goujianheimingdan().await;
     let user_id = if let Some(zu) = shujucaozuo_yonghuzu::chaxun_mingcheng(user_zumingcheng).await {
-        let id = match zu.get("id").and_then(|v| v.as_str()) {
+        match zu.get("id").and_then(|v| v.as_str()) {
             Some(id) => id.to_string(),
             None => return false,
-        };
-        shujucaozuo_yonghuzu::gengxinjinjiekou(&id, &heimingdan).await;
-        id
+        }
     } else {
+        let heimingdan = goujianheimingdan().await;
         let id = match shujucaozuo_yonghuzu::xinzeng(user_zumingcheng, Some("普通用户组")).await {
             Some(id) => id,
             None => return false,

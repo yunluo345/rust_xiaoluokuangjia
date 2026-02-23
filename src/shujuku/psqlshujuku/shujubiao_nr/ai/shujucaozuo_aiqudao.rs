@@ -32,8 +32,16 @@ pub async fn gengxin(id: &str, ziduanlie: &[(&str, &str)]) -> Option<u64> {
         return None;
     }
     let shijian = jichugongju::huoqushijianchuo().to_string();
+    let zhengshuziduan = ["zuida_token", "youxianji"];
     let mut shezhi: Vec<String> = ziduanlie.iter().enumerate()
-        .map(|(i, (ming, _))| format!("{} = ${}", ming, i + 2))
+        .map(|(i, (ming, _))| {
+            let weizhi = format!("${}", i + 2);
+            if zhengshuziduan.contains(ming) {
+                format!("{} = CAST({} AS INTEGER)", ming, weizhi)
+            } else {
+                format!("{} = {}", ming, weizhi)
+            }
+        })
         .collect();
     shezhi.push(format!("gengxinshijian = ${}", ziduanlie.len() + 2));
     let sql = format!("UPDATE {} SET {} WHERE id = $1::BIGINT", biaoming, shezhi.join(", "));

@@ -288,7 +288,6 @@ async fn zhixing_caozuo(caozuo: Caozuoleixing) -> String {
             let ziduanlie_ref: Vec<(&str, &str)> = ziduanlie.iter()
                 .map(|z| (z[0].as_str(), z[1].as_str()))
                 .collect();
-            
             chuli_yingxiang(
                 shujucaozuo_aiqudao::gengxin(&id, &ziduanlie_ref).await,
                 "更新失败"
