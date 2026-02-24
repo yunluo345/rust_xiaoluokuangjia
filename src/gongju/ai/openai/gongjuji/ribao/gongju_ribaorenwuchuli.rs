@@ -1,4 +1,4 @@
-use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::yonghuyanzheng;
+use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::{yonghuyanzheng, shujucaozuo_yonghuzu};
 use crate::gongju::ai::openai::{aixiaoxiguanli, openaizhuti};
 use crate::peizhixt::peizhi_nr::peizhi_ai::Ai;
 use crate::peizhixt::peizhixitongzhuti;
@@ -595,12 +595,20 @@ pub async fn zhixing_neibu() -> Result<Value, String> {
         .map_or(Ok(jieguo.clone()), Err)
 }
 pub async fn zhixing(_canshu: &str, lingpai: &str) -> String {
-    let _zaiti = match yonghuyanzheng::yanzhenglingpaijiquanxian(lingpai, "/jiekou/ribao/guanli").await {
+    let zaiti = match yonghuyanzheng::yanzhenglingpaijiquanxian(lingpai, "/jiekou/ribao/guanli").await {
         Ok(z) => z,
         Err(yonghuyanzheng::Lingpaicuowu::Yibeifengjin(y)) => return json!({"cuowu": format!("账号已被封禁：{}", y)}).to_string(),
         Err(yonghuyanzheng::Lingpaicuowu::Quanxianbuzu) => return json!({"cuowu": "权限不足"}).to_string(),
         Err(_) => return json!({"cuowu": "令牌无效或已过期"}).to_string(),
     };
+
+    let zumingcheng = shujucaozuo_yonghuzu::chaxun_id(&zaiti.yonghuzuid).await
+        .and_then(|zu| zu.get("mingcheng").and_then(|v| v.as_str()).map(String::from))
+        .unwrap_or_else(|| "未知".to_string());
+    println!(
+        "[日报任务处理] 用户={} 账号={} 用户组={}（{}）",
+        zaiti.yonghuid, zaiti.zhanghao, zaiti.yonghuzuid, zumingcheng
+    );
 
     match zhixing_neibu().await {
         Ok(shuju) => json!({"chenggong": true, "shuju": shuju}).to_string(),

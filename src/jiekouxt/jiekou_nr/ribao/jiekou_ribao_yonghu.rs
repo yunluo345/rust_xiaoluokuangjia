@@ -12,7 +12,7 @@ use crate::gongju::zhuangtaima::ribaojiekou_zhuangtai::{Zhuangtai, cuowu};
 pub const dinyi: Jiekoudinyi = Jiekoudinyi {
     lujing: "/yonghu",
     nicheng: "日报用户操作",
-    jieshao: "普通用户日报操作：新增、查询自己的日报、分页查询、统计",
+    jieshao: "普通用户日报操作：新增、查询自己或全部日报、分页查询、统计",
     fangshi: Qingqiufangshi::Post,
     jiami: true,
     xudenglu: true,

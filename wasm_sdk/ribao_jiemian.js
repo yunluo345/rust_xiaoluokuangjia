@@ -40,7 +40,6 @@ export class Ribaojiemian {
                <button class="aq-btn aq-btn-lv" onclick="ribao_shuaxin()">刷新数据</button>`
             : `<button class="aq-btn ${this.dangqianshitu === 'ribao' ? 'aq-btn-lv' : 'aq-btn-zhu'}" onclick="ribao_qiehuanshitu('ribao')">我的日报</button>
                <button class="aq-btn ${this.dangqianshitu === 'quanburibao' ? 'aq-btn-lv' : 'aq-btn-zhu'}" onclick="ribao_qiehuanshitu('quanburibao')">全部日报</button>
-               <button class="aq-btn ${this.dangqianshitu === 'renwu' ? 'aq-btn-lv' : 'aq-btn-zhu'}" onclick="ribao_qiehuanshitu('renwu')">任务</button>
                <button class="aq-btn aq-btn-lv" onclick="ribao_shuaxin()">刷新数据</button>`;
         tou.innerHTML = `<h2 style="font-size:15px;color:#475569;margin:0">日报管理</h2><div>${anniulie}</div>`;
         this.rongqi.appendChild(tou);
@@ -53,7 +52,7 @@ export class Ribaojiemian {
     async qiehuanshitu(shitu) {
         const yunxushitu = this.shifouquanxian
             ? ['ribao', 'biaoqian', 'leixing', 'renwu']
-            : ['ribao', 'quanburibao', 'renwu'];
+            : ['ribao', 'quanburibao'];
         this.dangqianshitu = yunxushitu.includes(shitu) ? shitu : 'ribao';
         this.chakanquanbu = this.dangqianshitu === 'quanburibao';
         await this.xuanran();
@@ -1109,12 +1108,12 @@ export class Ribaojiemian {
         }
     }
 
-    async qiehuanquanbu() {
+    qiehuanquanbu() {
         this.chakanquanbu = !this.chakanquanbu;
         this.dangqianyeshu = 1;
         this.qingchusousuo();
-        await this.xuanran();
-        await this.shuaxinribaoliebiao();
+        this.xuanran();
+        this.shuaxinribaoliebiao();
     }
 
     shezhiquanxian(shifouquanxian) {
