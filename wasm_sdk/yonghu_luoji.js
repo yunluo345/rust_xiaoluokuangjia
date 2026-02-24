@@ -149,4 +149,16 @@ export class Yonghuluoji {
         if (jg) this.rizhi('更新接口权限[' + id + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
         return jg;
     }
+
+    async piliang_shanchu(idlie) {
+        const jg = await this.zhixing('piliang_shanchu', { idlie });
+        if (jg) this.rizhi('批量删除用户: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async yonghuzu_piliang_shanchu(idlie) {
+        const jg = await this.zhixing('yonghuzu_piliang_shanchu', { idlie });
+        if (jg) this.rizhi('批量删除用户组: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
 }

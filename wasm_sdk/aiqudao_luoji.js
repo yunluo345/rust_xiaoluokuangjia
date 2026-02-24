@@ -65,4 +65,10 @@ export class Aiqudaoluoji {
         if (jg) this.rizhi('更新优先级[' + id + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
         return jg;
     }
+
+    async piliang_shanchu(idlie) {
+        const jg = await this.zhixing('piliang_shanchu', { idlie });
+        if (jg) this.rizhi('批量删除渠道: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
 }

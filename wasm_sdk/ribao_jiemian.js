@@ -1,4 +1,5 @@
 // 日报管理 - 界面层
+import * as gj from './jiemian_gongju.js';
 
 function jiexishijian(canchuo) {
     const ms = Number(canchuo);
@@ -106,6 +107,7 @@ export class Ribaojiemian {
         let html = '<div style="margin-bottom:16px">';
         html += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">';
         html += '<button class="aq-btn aq-btn-lv" onclick="ribao_xinzengshitu()" style="height:36px">新增日报</button>';
+        html += '<button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="ribao_ribao_piliangshanchu()" style="height:36px">批量删除</button>';
         html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
         html += '<input id="rb_gjc" type="text" value="' + (this.sousuoguanjiancizhi || '') + '" onkeydown="ribao_sousuoshuru_huiche(event)" placeholder="搜索内容关键词" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;width:160px;font-size:13px;box-sizing:border-box">';
         html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_sousuoguanjianci()" style="height:36px">搜索</button>';
@@ -143,6 +145,8 @@ export class Ribaojiemian {
         html = '<div style="margin-bottom:16px">';
         html += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">';
         html += '<button class="aq-btn aq-btn-lv" onclick="ribao_xinzengshitu()" style="height:36px">新增日报</button>';
+        html += '<button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="ribao_ribao_piliangshanchu()" style="height:36px">批量删除</button>';
+        html += '<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:13px;color:#64748B;height:36px"><input type="checkbox" onchange="ribao_ribao_quanxuan(this)" style="width:16px;height:16px;cursor:pointer">全选</label>';
         html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
         html += '<input id="rb_gjc" type="text" placeholder="搜索内容关键词" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;width:160px;font-size:13px;box-sizing:border-box">';
         html += '<button class="aq-btn aq-btn-xiao" onclick="ribao_sousuoguanjianci()" style="height:36px">搜索</button>';
@@ -172,8 +176,13 @@ export class Ribaojiemian {
             if (shifouchaochu) {
                 neironghtml += `<span id="rb_zk_${rb.id}" onclick="ribao_qiehuanneirong('${rb.id}')" style="color:#3B82F6;font-size:12px;cursor:pointer;user-select:none;display:inline-block;margin-top:4px" onmouseover="this.style.color='#2563EB'" onmouseout="this.style.color='#3B82F6'">查看完整内容 ▼</span>`;
             }
+            if (rb.zhaiyao) {
+                neironghtml += `<div style="margin-top:8px;padding:8px 12px;background:linear-gradient(135deg,#F0FDF4,#ECFDF5);border:1px solid #BBF7D0;border-radius:6px;font-size:13px;color:#15803D;line-height:1.5"><span style="font-weight:600">摘要：</span>${rb.zhaiyao}</div>`;
+            }
 
-            html += `<div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:8px;padding:14px">
+            html += `<div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:8px;padding:14px;display:flex;gap:10px">
+                <input type="checkbox" class="rb_pl_xz" data-id="${rb.id}" style="width:18px;height:18px;cursor:pointer;accent-color:#3B82F6;margin-top:2px;flex-shrink:0">
+                <div style="flex:1">
                 <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px">
                     <div style="flex:1">
                         <div style="font-size:12px;color:#64748B;margin-bottom:4px">ID: ${rb.id} | 发布者: ${rb.fabuzhemingcheng || rb.fabuzhezhanghao || rb.yonghuid}${rb.fabuzhezhanghao ? '（' + rb.fabuzhezhanghao + '）' : ''} | ${jiexishijian(rb.fabushijian)}</div>
@@ -183,6 +192,7 @@ export class Ribaojiemian {
                         <button class="aq-btn aq-btn-xiao aq-btn-huang" onclick="ribao_bianji('${rb.id}')">编辑</button>
                         <button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="ribao_shanchu('${rb.id}')">删除</button>
                         <button class="aq-btn aq-btn-xiao" onclick="ribao_guanlianguanlian('${rb.id}')">管理标签</button>
+                        ${rb.kuozhan ? `<button class="aq-btn aq-btn-xiao aq-btn-zhu" onclick="ribao_siweidaotu('${rb.id}')">导图</button>` : ''}
                     </div>
                 </div>`;
 
@@ -200,7 +210,7 @@ export class Ribaojiemian {
                 html += '<div style="font-size:12px;color:#94A3B8;margin-top:8px">暂无标签</div>';
             }
 
-            html += '</div>';
+            html += '</div></div>';
         }
         html += '</div>';
 
@@ -221,17 +231,17 @@ export class Ribaojiemian {
             return;
         }
         const liebiao = jg.shuju || [];
-        let html = '<div style="margin-bottom:12px"><button class="aq-btn aq-btn-lv" onclick="ribao_xinzengbiaoqian()">新增标签</button></div>';
+        let html = '<div style="margin-bottom:12px;display:flex;gap:8px"><button class="aq-btn aq-btn-lv" onclick="ribao_xinzengbiaoqian()">新增标签</button><button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="ribao_biaoqian_piliangshanchu()">批量删除</button></div>';
         if (liebiao.length === 0) {
             nr.innerHTML = html + '<p style="color:#64748B">暂无标签数据</p>';
             return;
         }
         html += '<div style="overflow-x:auto"><table class="aq-biao"><thead><tr>' +
-            '<th>ID</th><th>类型ID</th><th>值</th><th>操作</th>' +
+            '<th><input type="checkbox" onchange="ribao_biaoqian_quanxuan(this)" style="width:16px;height:16px;cursor:pointer"></th><th>ID</th><th>类型ID</th><th>值</th><th>操作</th>' +
             '</tr></thead><tbody>';
         for (const bq of liebiao) {
             html += `<tr>
-                <td>${bq.id}</td><td>${bq.leixingid}</td><td>${bq.zhi}</td>
+                <td><input type="checkbox" class="bq_pl_xz" data-id="${bq.id}" style="width:16px;height:16px;cursor:pointer"></td><td>${bq.id}</td><td>${bq.leixingid}</td><td>${bq.zhi}</td>
                 <td style="white-space:nowrap">
                     <button class="aq-btn aq-btn-xiao aq-btn-huang" onclick="ribao_bianjibiaoqian('${bq.id}')">编辑</button>
                     <button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="ribao_shanchubiaoqian('${bq.id}')">删除</button>
@@ -249,17 +259,17 @@ export class Ribaojiemian {
             return;
         }
         const liebiao = jg.shuju || [];
-        let html = '<div style="margin-bottom:12px"><button class="aq-btn aq-btn-lv" onclick="ribao_xinzengleixing()">新增类型</button></div>';
+        let html = '<div style="margin-bottom:12px;display:flex;gap:8px"><button class="aq-btn aq-btn-lv" onclick="ribao_xinzengleixing()">新增类型</button><button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="ribao_leixing_piliangshanchu()">批量删除</button></div>';
         if (liebiao.length === 0) {
             nr.innerHTML = html + '<p style="color:#64748B">暂无类型数据</p>';
             return;
         }
         html += '<div style="overflow-x:auto"><table class="aq-biao"><thead><tr>' +
-            '<th>ID</th><th>名称</th><th>操作</th>' +
+            '<th><input type="checkbox" onchange="ribao_leixing_quanxuan(this)" style="width:16px;height:16px;cursor:pointer"></th><th>ID</th><th>名称</th><th>操作</th>' +
             '</tr></thead><tbody>';
         for (const lx of liebiao) {
             html += `<tr>
-                <td>${lx.id}</td><td>${lx.mingcheng}</td>
+                <td><input type="checkbox" class="lx_pl_xz" data-id="${lx.id}" style="width:16px;height:16px;cursor:pointer"></td><td>${lx.id}</td><td>${lx.mingcheng}</td>
                 <td style="white-space:nowrap">
                     <button class="aq-btn aq-btn-xiao aq-btn-huang" onclick="ribao_bianjileixing('${lx.id}')">编辑</button>
                     <button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="ribao_shanchuleixing('${lx.id}')">删除</button>
@@ -572,6 +582,300 @@ export class Ribaojiemian {
         }
     }
 
+    siweidaotu(id) {
+        const rb = this._ribaoshujuhuancun?.[id];
+        if (!rb || !rb.kuozhan) return this.luoji.rizhi('无思维导图数据', 'warn');
+        let shuju;
+        try {
+            shuju = typeof rb.kuozhan === 'string' ? JSON.parse(rb.kuozhan) : rb.kuozhan;
+        } catch (e) {
+            return this.luoji.rizhi('思维导图数据解析失败', 'err');
+        }
+        this._swdt_dangqianshuju = shuju;
+        const shuhtml = this._swdt_jiedian(shuju, 0, 0);
+        const zhezhao = document.createElement('div');
+        zhezhao.id = 'swdt_motai';
+        zhezhao.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);backdrop-filter:blur(6px);z-index:100;display:flex;align-items:center;justify-content:center;animation:tc-danru 150ms ease-out';
+        zhezhao.innerHTML = `<div style="background:#fff;border-radius:16px;box-shadow:0 25px 60px rgba(0,0,0,0.2);width:92vw;max-width:1400px;max-height:88vh;display:flex;flex-direction:column;animation:tc-tanchu 200ms ease-out;overflow:hidden">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid #E2E8F0;flex-shrink:0;background:linear-gradient(135deg,#F8FAFC,#EFF6FF);border-radius:16px 16px 0 0">
+                <div style="display:flex;align-items:center;gap:10px">
+                    <div style="width:36px;height:36px;border-radius:10px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#0F172A">AI</div>
+                    <div>
+                        <div style="font-size:15px;font-weight:700;color:#0F172A">思维导图分析</div>
+                        <div style="font-size:12px;color:#94A3B8;margin-top:1px">AI 自动生成的日报深度分析</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px">
+                    <button class="aq-btn aq-btn-xiao aq-btn-lv" onclick="ribao_xiazaisiweidaotu()" style="margin:0">下载PNG</button>
+                    <button class="aq-btn aq-btn-xiao" onclick="ribao_guanbisiweidaotu()" style="margin:0">关闭</button>
+                </div>
+            </div>
+            <div style="overflow:auto;padding:32px;flex:1;background:linear-gradient(180deg,#FAFBFC 0%,#F1F5F9 100%)">
+                <div style="display:inline-flex;min-width:fit-content">${shuhtml}</div>
+            </div>
+        </div>`;
+        zhezhao.addEventListener('click', e => { if (e.target === zhezhao) this.guanbisiweidaotu(); });
+        document.body.appendChild(zhezhao);
+    }
+
+    guanbisiweidaotu() {
+        const el = document.getElementById('swdt_motai');
+        if (el) el.remove();
+        this._swdt_dangqianshuju = null;
+    }
+
+    _swdt_zhuti() {
+        return [
+            { zhu: '#3B82F6', qian: '#EFF6FF', bian: '#BFDBFE' },
+            { zhu: '#10B981', qian: '#ECFDF5', bian: '#A7F3D0' },
+            { zhu: '#8B5CF6', qian: '#F5F3FF', bian: '#DDD6FE' },
+            { zhu: '#F59E0B', qian: '#FFFBEB', bian: '#FDE68A' },
+            { zhu: '#EC4899', qian: '#FDF2F8', bian: '#FBCFE8' },
+            { zhu: '#06B6D4', qian: '#ECFEFF', bian: '#A5F3FC' },
+        ];
+    }
+
+    _swdt_jiedian(jd, cj, sy) {
+        const zhuti = this._swdt_zhuti();
+        const youzi = jd.zijiedian && jd.zijiedian.length > 0;
+        let html = '<div style="display:flex;align-items:center">';
+
+        if (cj === 0) {
+            html += '<div style="padding:16px 28px;border-radius:16px;background:#fff;color:#0F172A;border:1px solid #E2E8F0;box-shadow:0 4px 16px rgba(0,0,0,0.06);flex-shrink:0;transition:box-shadow 200ms">';
+            html += `<div style="font-weight:700;font-size:17px;letter-spacing:0.3px">${jd.mingcheng || '日报分析'}</div>`;
+            html += '</div>';
+        } else if (cj === 1) {
+            const t = zhuti[sy % zhuti.length];
+            html += `<div style="padding:10px 16px;border-radius:10px;background:#fff;border-left:3px solid ${t.zhu};box-shadow:0 2px 8px rgba(0,0,0,0.04);flex-shrink:0;min-width:110px;transition:box-shadow 200ms,transform 200ms" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.08)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.04)';this.style.transform='none'">`;
+            html += `<div style="font-weight:600;font-size:14px;color:${t.zhu}">${jd.mingcheng || ''}</div>`;
+            if (jd.neirong) {
+                html += `<div style="font-size:12px;color:#64748B;margin-top:4px;line-height:1.5;white-space:pre-wrap;word-break:break-all;max-width:200px">${jd.neirong}</div>`;
+            }
+            html += '</div>';
+        } else {
+            const t = zhuti[sy % zhuti.length];
+            html += `<div style="padding:7px 12px;border-radius:8px;background:${t.qian};border:1px solid ${t.bian};flex-shrink:0;max-width:280px;transition:box-shadow 200ms,transform 200ms" onmouseover="this.style.boxShadow='0 3px 10px rgba(0,0,0,0.06)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">`;
+            html += `<div style="font-weight:600;font-size:13px;color:#334155">${jd.mingcheng || ''}</div>`;
+            if (jd.neirong) {
+                html += `<div style="font-size:12px;color:#64748B;margin-top:2px;line-height:1.5;white-space:pre-wrap;word-break:break-all">${jd.neirong}</div>`;
+            }
+            html += '</div>';
+        }
+
+        if (youzi) {
+            const t = zhuti[sy % zhuti.length];
+            const xianse = cj === 0 ? '#CBD5E1' : t.bian;
+            const zhuse = cj === 0 ? '#94A3B8' : t.zhu;
+            html += `<svg width="36" height="2" style="flex-shrink:0;overflow:visible"><line x1="0" y1="1" x2="36" y2="1" stroke="${xianse}" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+            html += '<div style="display:flex;flex-direction:column;position:relative;padding:4px 0">';
+            html += `<div style="position:absolute;left:0;top:4px;bottom:4px;width:1.5px;background:linear-gradient(180deg,${xianse}00,${xianse},${xianse},${xianse}00);border-radius:1px"></div>`;
+            for (let i = 0; i < jd.zijiedian.length; i++) {
+                const ziSy = cj === 0 ? i : sy;
+                const ziXianse = cj === 0 ? zhuti[i % zhuti.length].bian : xianse;
+                const ziZhuse = cj === 0 ? zhuti[i % zhuti.length].zhu : zhuse;
+                html += '<div style="display:flex;align-items:center;margin:3px 0;position:relative">';
+                html += `<svg width="28" height="12" style="flex-shrink:0;overflow:visible"><circle cx="1" cy="6" r="2.5" fill="${ziZhuse}" opacity="0.5"/><line x1="5" y1="6" x2="28" y2="6" stroke="${ziXianse}" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+                html += this._swdt_jiedian(jd.zijiedian[i], cj + 1, ziSy);
+                html += '</div>';
+            }
+            html += '</div>';
+        }
+
+        html += '</div>';
+        return html;
+    }
+
+    xiazaisiweidaotu() {
+        if (!this._swdt_dangqianshuju) return;
+        const zhuti = this._swdt_zhuti();
+        const H_GAP = 56, V_GAP = 14, PAD = 50;
+
+        const huanhang = (ctx, wen, maxW) => {
+            const hangs = [];
+            let dang = '';
+            for (const zi of Array.from(wen)) {
+                if (zi === '\n') { hangs.push(dang); dang = ''; continue; }
+                const ce = dang + zi;
+                if (ctx.measureText(ce).width > maxW && dang) { hangs.push(dang); dang = zi; }
+                else dang = ce;
+            }
+            if (dang) hangs.push(dang);
+            return hangs;
+        };
+
+        const celiang = (ctx, jd, cj, sy) => {
+            const mcZiti = cj === 0 ? 'bold 16px sans-serif' : cj === 1 ? 'bold 14px sans-serif' : 'bold 13px sans-serif';
+            const px = cj === 0 ? 24 : cj === 1 ? 16 : 12;
+            const py = cj === 0 ? 14 : cj === 1 ? 10 : 7;
+            const mcGao = cj === 0 ? 20 : cj === 1 ? 18 : 16;
+            const maxNrW = 200;
+            ctx.font = mcZiti;
+            const mc = jd.mingcheng || '';
+            const mcW = ctx.measureText(mc).width;
+            let nrHangs = [], nrH = 0;
+            if (jd.neirong) {
+                ctx.font = '12px sans-serif';
+                nrHangs = huanhang(ctx, jd.neirong, maxNrW);
+                nrH = nrHangs.length * 17 + 4;
+            }
+            const w = Math.max(mcW, nrHangs.length > 0 ? maxNrW : 0) + px * 2;
+            const h = py * 2 + mcGao + nrH;
+            let zishugao = 0;
+            const ziJd = [];
+            if (jd.zijiedian && jd.zijiedian.length > 0) {
+                for (let i = 0; i < jd.zijiedian.length; i++) {
+                    const zi = celiang(ctx, jd.zijiedian[i], cj + 1, cj === 0 ? i : sy);
+                    ziJd.push(zi);
+                    zishugao += zi.shugao + (i > 0 ? V_GAP : 0);
+                }
+            }
+            return { mc, nr: jd.neirong || '', nrHangs, cj, sy, w, h, shugao: Math.max(h, zishugao), zijiedian: ziJd, x: 0, y: 0 };
+        };
+
+        const buju = (jd, x, y) => {
+            jd.x = x;
+            jd.y = y + (jd.shugao - jd.h) / 2;
+            if (jd.zijiedian.length > 0) {
+                let ziY = y;
+                for (const zi of jd.zijiedian) {
+                    buju(zi, x + jd.w + H_GAP, ziY);
+                    ziY += zi.shugao + V_GAP;
+                }
+            }
+        };
+
+        const bianjie = (jd) => {
+            let mx = jd.x + jd.w, my = jd.y + jd.h;
+            for (const zi of jd.zijiedian) {
+                const r = bianjie(zi);
+                mx = Math.max(mx, r.mx);
+                my = Math.max(my, r.my);
+            }
+            return { mx, my };
+        };
+
+        const yuanjiao = (ctx, x, y, w, h, r) => {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+        };
+
+        const huajiedian = (ctx, jd) => {
+            const { cj, sy, x, y, w, h } = jd;
+            const t = zhuti[sy % zhuti.length];
+
+            if (jd.zijiedian.length > 0) {
+                for (const zi of jd.zijiedian) {
+                    const fx = x + w, fy = y + h / 2, tx = zi.x, ty = zi.y + zi.h / 2;
+                    const cpx = (fx + tx) / 2;
+                    ctx.strokeStyle = cj === 0 ? '#D1D5DB' : (zhuti[zi.sy % zhuti.length].bian || '#D1D5DB');
+                    ctx.lineWidth = 2;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(fx, fy);
+                    ctx.bezierCurveTo(cpx, fy, cpx, ty, tx, ty);
+                    ctx.stroke();
+                }
+            }
+
+            if (cj === 0) {
+                ctx.save();
+                ctx.shadowColor = 'rgba(0,0,0,0.08)';
+                ctx.shadowBlur = 16;
+                ctx.shadowOffsetY = 4;
+                yuanjiao(ctx, x, y, w, h, 14);
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+                ctx.restore();
+                yuanjiao(ctx, x, y, w, h, 14);
+                ctx.strokeStyle = '#E2E8F0';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.font = 'bold 16px sans-serif';
+                ctx.fillStyle = '#0F172A';
+                ctx.fillText(jd.mc, x + 24, y + 14 + 16);
+            } else if (cj === 1) {
+                ctx.save();
+                ctx.shadowColor = 'rgba(0,0,0,0.06)';
+                ctx.shadowBlur = 8;
+                ctx.shadowOffsetY = 2;
+                yuanjiao(ctx, x, y, w, h, 10);
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+                ctx.restore();
+                yuanjiao(ctx, x, y, w, h, 10);
+                ctx.strokeStyle = '#E2E8F0';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(x, y + 10);
+                ctx.lineTo(x, y + h - 10);
+                ctx.strokeStyle = t.zhu;
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+                ctx.lineCap = 'butt';
+                ctx.font = 'bold 14px sans-serif';
+                ctx.fillStyle = '#1E293B';
+                ctx.fillText(jd.mc, x + 16, y + 10 + 14);
+                if (jd.nrHangs.length > 0) {
+                    ctx.font = '12px sans-serif';
+                    ctx.fillStyle = '#64748B';
+                    let ny = y + 10 + 18 + 4;
+                    for (const hang of jd.nrHangs) { ctx.fillText(hang, x + 16, ny + 12); ny += 17; }
+                }
+            } else {
+                yuanjiao(ctx, x, y, w, h, 8);
+                ctx.fillStyle = t.qian;
+                ctx.fill();
+                yuanjiao(ctx, x, y, w, h, 8);
+                ctx.strokeStyle = t.bian;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.font = 'bold 13px sans-serif';
+                ctx.fillStyle = '#334155';
+                ctx.fillText(jd.mc, x + 12, y + 7 + 13);
+                if (jd.nrHangs.length > 0) {
+                    ctx.font = '12px sans-serif';
+                    ctx.fillStyle = '#64748B';
+                    let ny = y + 7 + 16 + 2;
+                    for (const hang of jd.nrHangs) { ctx.fillText(hang, x + 12, ny + 12); ny += 17; }
+                }
+            }
+
+            for (const zi of jd.zijiedian) huajiedian(ctx, zi);
+        };
+
+        const tmpCanvas = document.createElement('canvas');
+        const tmpCtx = tmpCanvas.getContext('2d');
+        const gen = celiang(tmpCtx, this._swdt_dangqianshuju, 0, 0);
+        buju(gen, PAD, PAD);
+        const { mx, my } = bianjie(gen);
+
+        const scale = 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = (mx + PAD) * scale;
+        canvas.height = (my + PAD) * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(scale, scale);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, mx + PAD, my + PAD);
+        huajiedian(ctx, gen);
+
+        const link = document.createElement('a');
+        link.download = '思维导图_' + new Date().toISOString().slice(0, 10) + '.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    }
+
     shangyiye() {
         if (this.dangqianyeshu > 1) {
             this.dangqianyeshu--;
@@ -712,6 +1016,7 @@ export class Ribaojiemian {
         html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
         html += '<input id="rw_ribaoid" type="text" placeholder="日报ID" style="height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:6px;width:140px;font-size:13px;box-sizing:border-box">';
         html += '<button class="aq-btn aq-btn-lv" onclick="ribao_xinzengrenwu()" style="height:36px">新增任务</button>';
+        html += '<button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="ribao_renwu_piliangshanchu()" style="height:36px">批量删除</button>';
         html += '<div style="height:20px;width:1px;background:#E2E8F0"></div>';
         html += yunxingzhong
             ? '<button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="ribao_renwu_tingzhi()" style="height:36px">停止AI处理</button>'
@@ -724,13 +1029,13 @@ export class Ribaojiemian {
         }
         const zhuangtaimap = { 'true': ['已完成', '#16A34A'], 'processing': ['处理中', '#EA580C'], 'false': ['待处理', '#F59E0B'], 'shibai': ['失败', '#DC2626'] };
         html += '<div style="overflow-x:auto"><table class="aq-biao"><thead><tr>' +
-            '<th>任务ID</th><th>日报ID</th><th>用户ID</th><th>状态</th><th>尝试</th><th>标签结果</th><th>创建时间</th><th>操作</th>' +
+            '<th><input type="checkbox" onchange="ribao_renwu_quanxuan(this)" style="width:16px;height:16px;cursor:pointer"></th><th>任务ID</th><th>日报ID</th><th>用户ID</th><th>状态</th><th>尝试</th><th>标签结果</th><th>创建时间</th><th>操作</th>' +
             '</tr></thead><tbody>';
         for (const rw of liebiao) {
             const [zhuangtai, zhuangtaiyanse] = zhuangtaimap[rw.zhuangtai] || ['未知', '#94A3B8'];
             const jieguo = rw.biaoqianjieguo ? (rw.biaoqianjieguo.length > 30 ? rw.biaoqianjieguo.substring(0, 30) + '...' : rw.biaoqianjieguo) : '-';
             html += `<tr>
-                <td>${rw.id}</td><td>${rw.ribaoid}</td><td>${rw.yonghuid}</td>
+                <td><input type="checkbox" class="rw_pl_xz" data-id="${rw.id}" style="width:16px;height:16px;cursor:pointer"></td><td>${rw.id}</td><td>${rw.ribaoid}</td><td>${rw.yonghuid}</td>
                 <td><span style="color:${zhuangtaiyanse};font-weight:600">${zhuangtai}</span></td>
                 <td>${rw.changshicishu}/${rw.zuidachangshicishu}</td>
                 <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(rw.biaoqianjieguo || '').replace(/"/g, '&quot;')}">${jieguo}</td>
@@ -818,5 +1123,23 @@ export class Ribaojiemian {
         this.dangqianshitu = 'ribao';
         this.dangqianyeshu = 1;
         this.shuaxindangqianshitu();
+    }
+
+    quanxuan_ribao(cb) { gj.quanxuan('rb_pl_xz', cb); }
+    quanxuan_biaoqian(cb) { gj.quanxuan('bq_pl_xz', cb); }
+    quanxuan_leixing(cb) { gj.quanxuan('lx_pl_xz', cb); }
+    quanxuan_renwu(cb) { gj.quanxuan('rw_pl_xz', cb); }
+
+    async piliangshanchu_ribao() {
+        await gj.piliangshanchu(this.luoji, { leibie: 'rb_pl_xz', mingcheng: '日报', shanchufn: id => this.luoji.ribao_piliang_shanchu(id), shuaxinfn: () => this.shuaxinribaoliebiao(), tishi: '此操作不可撤销。' });
+    }
+    async piliangshanchu_biaoqian() {
+        await gj.piliangshanchu(this.luoji, { leibie: 'bq_pl_xz', mingcheng: '标签', shanchufn: id => this.luoji.biaoqian_piliang_shanchu(id), shuaxinfn: () => this.shuaxinbiaoqianliebiao() });
+    }
+    async piliangshanchu_leixing() {
+        await gj.piliangshanchu(this.luoji, { leibie: 'lx_pl_xz', mingcheng: '类型', shanchufn: id => this.luoji.leixing_piliang_shanchu(id), shuaxinfn: () => this.shuaxinleixingliebiao(), tishi: '关联标签也会被删除。' });
+    }
+    async piliangshanchu_renwu() {
+        await gj.piliangshanchu(this.luoji, { leibie: 'rw_pl_xz', mingcheng: '任务', shanchufn: id => this.luoji.renwu_piliang_shanchu(id), shuaxinfn: () => this.shuaxinrenwuliebiao() });
     }
 }

@@ -165,3 +165,28 @@ pub fn jisuanfenye(yeshu: i64, meiyetiaoshu: i64) -> (String, String) {
     let pianyi = (yeshu.max(1) - 1) * tiaoshu;
     (tiaoshu.to_string(), pianyi.to_string())
 }
+
+/// 构建 IN 子句占位符：$1::BIGINT,$2::BIGINT,...
+pub fn goujian_in_zhanhaowei(shuliang: usize) -> String {
+    (1..=shuliang)
+        .map(|i| format!("${}::BIGINT", i))
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+/// 批量删除：按指定字段的 IN 条件删除
+pub async fn piliang_shanchu_ziduan(biaoming: &str, ziduan: &str, zhilie: &[&str]) -> Option<u64> {
+    use crate::shujuku::psqlshujuku::psqlcaozuo;
+    match zhilie.is_empty() {
+        true => Some(0),
+        false => psqlcaozuo::zhixing(
+            &format!("DELETE FROM {} WHERE {} IN ({})", biaoming, ziduan, goujian_in_zhanhaowei(zhilie.len())),
+            zhilie,
+        ).await,
+    }
+}
+
+/// 批量删除：按 id 字段
+pub async fn piliang_shanchu(biaoming: &str, idlie: &[&str]) -> Option<u64> {
+    piliang_shanchu_ziduan(biaoming, "id", idlie).await
+}

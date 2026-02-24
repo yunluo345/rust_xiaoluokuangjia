@@ -87,6 +87,95 @@ fn yanzheng_bitian_biaoqian(tiquxiang: &[(String, String)], peizhi: &Ai) -> Opti
     (!queshi.is_empty()).then_some(queshi)
 }
 
+async fn ai_shengcheng_zhaiyao(neirong: &str) -> Option<String> {
+    let aipeizhi = crate::jiekouxt::jiekou_nr::ai::huoqu_peizhi().await?
+        .shezhi_chaoshi(60)
+        .shezhi_chongshi(1);
+
+    let mut guanli = aixiaoxiguanli::Xiaoxiguanli::xingjian()
+        .shezhi_xitongtishici(
+            "你是日报摘要生成助手。根据日报内容生成简洁摘要。\n\
+            要求：\n\
+            1. 控制在100字以内\n\
+            2. 突出重点工作和关键成果\n\
+            3. 只返回摘要文本，不要返回其他内容"
+        );
+    guanli.zhuijia_yonghuxiaoxi(format!("请为以下日报生成摘要：\n\n{}", neirong));
+
+    let huifu = openaizhuti::putongqingqiu(&aipeizhi, &guanli).await?;
+    let zhaiyao = huifu.trim().to_string();
+    println!("[摘要生成] {}", zhaiyao.chars().take(60).collect::<String>());
+    (!zhaiyao.is_empty()).then_some(zhaiyao)
+}
+
+fn goujian_siweidaotu_tishici(peizhi: &Ai) -> String {
+    let zijiedian: Vec<Value> = peizhi.siweidaotu_weidu.iter().map(|wd| {
+        let zi: Vec<Value> = wd.zijiedian.iter()
+            .map(|zj| json!({"mingcheng": zj.mingcheng, "neirong": zj.neirong}))
+            .collect();
+        json!({"mingcheng": wd.mingcheng, "zijiedian": zi})
+    }).collect();
+
+    let lizi = serde_json::to_string_pretty(&json!({
+        "mingcheng": "日报分析",
+        "zijiedian": zijiedian
+    })).unwrap_or_default();
+
+    let mut zhuyixiang: Vec<String> = vec![
+        "所有节点名称用中文".to_string(),
+        "neirong 字段必须基于日报实际内容分析，不要编造".to_string(),
+        "如果日报中没有某方面的信息，neirong 写\"日报未提及\"".to_string(),
+    ];
+
+    peizhi.siweidaotu_weidu.iter()
+        .filter(|wd| !wd.beizhu.is_empty())
+        .for_each(|wd| zhuyixiang.push(format!("{}节点{}", wd.mingcheng, wd.beizhu)));
+
+    zhuyixiang.push("只返回JSON，不要返回其他内容".to_string());
+
+    let zhuyi = zhuyixiang.iter()
+        .enumerate()
+        .map(|(i, x)| format!("{}. {}", i + 1, x))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    format!(
+        "你是日报深度分析助手。根据日报内容生成一份思维导图JSON，对日报进行全面分析。\n\
+        返回纯 JSON，不要包含 markdown 代码块标记。\n\
+        结构要求：\n{}\n\
+        注意：\n{}",
+        lizi, zhuyi
+    )
+}
+
+async fn ai_shengcheng_siweidaotu(neirong: &str, peizhi: &Ai) -> Option<String> {
+    let aipeizhi = crate::jiekouxt::jiekou_nr::ai::huoqu_peizhi().await?
+        .shezhi_chaoshi(120)
+        .shezhi_chongshi(1);
+
+    let xitongtishici = goujian_siweidaotu_tishici(peizhi);
+    let mut guanli = aixiaoxiguanli::Xiaoxiguanli::xingjian()
+        .shezhi_xitongtishici(&xitongtishici);
+    guanli.zhuijia_yonghuxiaoxi(format!("请对以下日报进行全面分析并生成思维导图：\n\n{}", neirong));
+
+    let huifu = openaizhuti::putongqingqiu(&aipeizhi, &guanli).await?;
+    let jinghua = huifu.trim()
+        .trim_start_matches("```json").trim_start_matches("```")
+        .trim_end_matches("```")
+        .trim();
+
+    match serde_json::from_str::<Value>(jinghua) {
+        Ok(_) => {
+            println!("[思维导图] 生成成功 长度={}", jinghua.len());
+            Some(jinghua.to_string())
+        }
+        Err(e) => {
+            println!("[思维导图] JSON解析失败: {} 原文={}", e, jinghua.chars().take(80).collect::<String>());
+            None
+        }
+    }
+}
+
 async fn ai_tiqu_biaoqian(neirong: &str, peizhi: &Ai, yiyou_biaoqian: Option<&str>) -> Option<Vec<(String, String)>> {
     let biaoqian_tishi = peizhi.ribao_biaoqian.iter()
         .map(|bq| {
@@ -338,20 +427,27 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
         _ => return chuli_shibai(&renwuid, &ribaoid, "日报内容为空").await,
     };
 
-    let yiyou = shujucaozuo_ribao_biaoqian::chaxun_ribaoid_daixinxi(&ribaoid).await
-        .filter(|lie| !lie.is_empty())
-        .map(|lie| lie.iter()
-            .filter_map(|b| {
-                let lx = b["leixingmingcheng"].as_str()?;
-                let zhi = b["zhi"].as_str()?;
-                Some(format!("- {}：{}", lx, zhi))
-            })
-            .collect::<Vec<_>>()
-            .join("\n")
-        );
+    let yiyou_shuju = shujucaozuo_ribao_biaoqian::chaxun_ribaoid_daixinxi(&ribaoid).await
+        .filter(|lie| !lie.is_empty());
+
+    let yiyou = yiyou_shuju.as_ref().map(|lie| lie.iter()
+        .filter_map(|b| {
+            let lx = b["leixingmingcheng"].as_str()?;
+            let zhi = b["zhi"].as_str()?;
+            Some(format!("- {}：{}", lx, zhi))
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+    );
     if yiyou.is_some() {
         println!("[任务处理] 任务={} 已有 {} 个标签", renwuid, yiyou.as_ref().unwrap().lines().count());
     }
+
+    let yiyou_biaoqianmingcheng: HashSet<String> = yiyou_shuju.as_ref()
+        .map(|lie| lie.iter()
+            .filter_map(|b| b["leixingmingcheng"].as_str().map(String::from))
+            .collect())
+        .unwrap_or_default();
 
     let biaoqianxiang = match ai_tiqu_biaoqian(neirong, peizhi, yiyou.as_deref()).await {
         Some(xiang) => {
@@ -369,7 +465,14 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
         }
     };
 
-    if let Some(queshi) = yanzheng_bitian_biaoqian(&biaoqianxiang, peizhi) {
+    let mut yanzheng_xiang: Vec<(String, String)> = biaoqianxiang.clone();
+    for ming in &yiyou_biaoqianmingcheng {
+        if !yanzheng_xiang.iter().any(|(m, _)| m == ming) {
+            yanzheng_xiang.push((ming.clone(), String::new()));
+        }
+    }
+
+    if let Some(queshi) = yanzheng_bitian_biaoqian(&yanzheng_xiang, peizhi) {
         let xiaoxi = format!("缺少必填标签: {}", queshi.join("、"));
         return chuli_shibai(&renwuid, &ribaoid, &xiaoxi).await;
     }
@@ -425,6 +528,45 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
         return chuli_shibai(&renwuid, &ribaoid, "任务完成状态更新失败").await;
     }
 
+    let xuyao_zhaiyao = ribao.get("zhaiyao").and_then(|v| v.as_str()).map_or(true, |s| s.trim().is_empty());
+    let xuyao_kuozhan = ribao.get("kuozhan").and_then(|v| v.as_str()).map_or(true, |s| s.trim().is_empty());
+
+    let zhaiyao_jieguo = match xuyao_zhaiyao {
+        true => match ai_shengcheng_zhaiyao(neirong).await {
+            Some(zhaiyao) => {
+                let _ = shujucaozuo_ribao::gengxin(&ribaoid, &[("zhaiyao", &zhaiyao)]).await;
+                println!("[任务处理] 任务={} 日报={} 摘要已生成", renwuid, ribaoid);
+                Some(zhaiyao)
+            }
+            None => {
+                println!("[任务处理] 任务={} 摘要生成失败，跳过", renwuid);
+                None
+            }
+        },
+        false => {
+            println!("[任务处理] 任务={} 日报={} 摘要已存在，跳过", renwuid, ribaoid);
+            None
+        },
+    };
+
+    let daotu_jieguo = match xuyao_kuozhan {
+        true => match ai_shengcheng_siweidaotu(neirong, peizhi).await {
+            Some(daotu) => {
+                let _ = shujucaozuo_ribao::gengxin(&ribaoid, &[("kuozhan", &daotu)]).await;
+                println!("[任务处理] 任务={} 日报={} 思维导图已生成", renwuid, ribaoid);
+                true
+            }
+            None => {
+                println!("[任务处理] 任务={} 思维导图生成失败，跳过", renwuid);
+                false
+            }
+        },
+        false => {
+            println!("[任务处理] 任务={} 日报={} 思维导图已存在，跳过", renwuid, ribaoid);
+            false
+        },
+    };
+
     println!("[任务处理] ✓ 任务={} 日报={} 绑定标签数={}", renwuid, ribaoid, bangdingshu);
     json!({
         "chenggong": true,
@@ -432,6 +574,8 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
         "ribaoid": ribaoid,
         "bangdingshu": bangdingshu,
         "tiqujieguo": tiqujieguo,
+        "zhaiyao": zhaiyao_jieguo,
+        "siweidaotu": daotu_jieguo,
     })
 }
 

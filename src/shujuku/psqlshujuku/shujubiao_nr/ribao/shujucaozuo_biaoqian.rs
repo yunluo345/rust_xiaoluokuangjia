@@ -23,6 +23,11 @@ pub async fn shanchu(id: &str) -> Option<u64> {
     ).await
 }
 
+/// 批量删除标签
+pub async fn piliang_shanchu(idlie: &[&str]) -> Option<u64> {
+    jichugongju::piliang_shanchu(biaoming, idlie).await
+}
+
 /// 根据ID更新标签值
 pub async fn gengxin(id: &str, zhi: &str) -> Option<u64> {
     let shijian = jichugongju::huoqushijianchuo().to_string();

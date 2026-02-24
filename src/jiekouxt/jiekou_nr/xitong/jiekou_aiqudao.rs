@@ -48,6 +48,11 @@ struct Idcanshu {
 }
 
 #[derive(Deserialize)]
+struct Idliecanshu {
+    idlie: Vec<String>,
+}
+
+#[derive(Deserialize)]
 struct Youxianjicanshu {
     id: String,
     youxianji: String,
@@ -159,6 +164,18 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
                 Some(n) if n > 0 => jiamichenggong("删除成功", serde_json::json!({"yingxiang": n}), miyao),
                 Some(_) => jiamishibai(404, "渠道不存在", miyao),
                 None => jiamishibai(500, "删除失败", miyao),
+            }
+        }
+        "piliang_shanchu" => {
+            let canshu: Idliecanshu = match serde_json::from_value(qingqiu.canshu) {
+                Ok(c) => c,
+                Err(_) => return jiamishibai(400, "参数格式错误", miyao),
+            };
+            let idlie: Vec<&str> = canshu.idlie.iter().map(String::as_str).collect();
+            match shujucaozuo_aiqudao::piliang_shanchu(&idlie).await {
+                Some(n) if n > 0 => jiamichenggong("批量删除成功", serde_json::json!({"yingxiang": n}), miyao),
+                Some(_) => jiamishibai(404, "渠道不存在", miyao),
+                None => jiamishibai(500, "批量删除失败", miyao),
             }
         }
         "qiehuanzhuangtai" => {

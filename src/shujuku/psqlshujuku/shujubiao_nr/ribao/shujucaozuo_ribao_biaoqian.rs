@@ -46,6 +46,11 @@ pub async fn chaxun_biaoqianid(biaoqianid: &str) -> Option<Vec<Value>> {
     ).await
 }
 
+/// 批量删除日报标签关联（按日报ID列表）
+pub async fn piliang_shanchu_ribaoidlie(ribaoidlie: &[&str]) -> Option<u64> {
+    jichugongju::piliang_shanchu_ziduan(biaoming, "ribaoid", ribaoidlie).await
+}
+
 /// 批量新增日报标签关联
 pub async fn piliang_xinzeng(ribaoid: &str, biaoqianidlie: &[&str]) -> Option<u64> {
     if biaoqianidlie.is_empty() {

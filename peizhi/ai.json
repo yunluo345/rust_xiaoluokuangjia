@@ -72,7 +72,85 @@
       "mingcheng": "工作内容"
     }
   ],
-  "ribao_biaoqianrenwu_bingfashuliang": 1,
+  "ribao_biaoqianrenwu_bingfashuliang": 5,
   "ribao_biaoqianrenwu_chongshi_cishu": 3,
+  "siweidaotu_weidu": [
+    {
+      "beizhu": "可根据实际客户数量动态增减子节点",
+      "mingcheng": "客户分析",
+      "zijiedian": [
+        {
+          "mingcheng": "客户名称",
+          "neirong": "具体客户名"
+        },
+        {
+          "mingcheng": "客户特征",
+          "neirong": "分析客户是什么样的人，沟通风格、关注点、决策偏好等"
+        },
+        {
+          "mingcheng": "合作状态",
+          "neirong": "当前合作关系评估"
+        }
+      ]
+    },
+    {
+      "beizhu": "",
+      "mingcheng": "员工表现",
+      "zijiedian": [
+        {
+          "mingcheng": "任务完成度",
+          "neirong": "各项工作完成情况评估"
+        },
+        {
+          "mingcheng": "专业能力",
+          "neirong": "展现的技术/业务能力"
+        },
+        {
+          "mingcheng": "沟通协作",
+          "neirong": "与客户、同事的协作表现"
+        },
+        {
+          "mingcheng": "综合评分",
+          "neirong": "打分及理由"
+        }
+      ]
+    },
+    {
+      "beizhu": "",
+      "mingcheng": "工作内容",
+      "zijiedian": [
+        {
+          "mingcheng": "核心任务",
+          "neirong": "今日最重要的工作"
+        },
+        {
+          "mingcheng": "技术细节",
+          "neirong": "涉及的技术方案和实现"
+        },
+        {
+          "mingcheng": "工作成果",
+          "neirong": "实际产出和交付物"
+        }
+      ]
+    },
+    {
+      "beizhu": "",
+      "mingcheng": "风险与待办",
+      "zijiedian": [
+        {
+          "mingcheng": "当前风险",
+          "neirong": "存在的问题或潜在风险"
+        },
+        {
+          "mingcheng": "待跟进事项",
+          "neirong": "需要后续处理的事项"
+        },
+        {
+          "mingcheng": "改进建议",
+          "neirong": "对工作流程或方法的建议"
+        }
+      ]
+    }
+  ],
   "zuida_xunhuancishu": 20
 }

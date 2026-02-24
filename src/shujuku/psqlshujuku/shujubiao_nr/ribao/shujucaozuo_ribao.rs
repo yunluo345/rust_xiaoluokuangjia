@@ -23,6 +23,11 @@ pub async fn shanchu(id: &str) -> Option<u64> {
     ).await
 }
 
+/// 批量删除日报
+pub async fn piliang_shanchu(idlie: &[&str]) -> Option<u64> {
+    jichugongju::piliang_shanchu(biaoming, idlie).await
+}
+
 /// 根据ID更新日报信息
 pub async fn gengxin(id: &str, ziduanlie: &[(&str, &str)]) -> Option<u64> {
     if ziduanlie.is_empty() {

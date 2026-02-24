@@ -281,6 +281,8 @@
                 yonghu_xinzeng_shitu: 'xinzeng_shitu',
                 yonghu_tijiaoxinzeng: 'tijiaoxinzeng',
                 yonghu_shanchu: 'shanchu_yonghu',
+                yonghu_quanxuan: 'quanxuan_yonghu',
+                yonghu_piliangshanchu: 'piliangshanchu_yonghu',
                 yonghuzu_shuaxin: 'shuaxinyonghuzuliebiao',
                 yonghuzu_sousuo: 'yonghuzu_sousuo',
                 yonghuzu_qingkong: 'yonghuzu_qingkong',
@@ -292,6 +294,8 @@
                 yonghuzu_shangyiye: 'yonghuzu_shangyiye',
                 yonghuzu_xiayiye: 'yonghuzu_xiayiye',
                 yonghuzu_baocunquanxian: 'yonghuzu_baocunquanxian',
+                yonghuzu_quanxuan: 'quanxuan_yonghuzu',
+                yonghuzu_piliangshanchu: 'piliangshanchu_yonghuzu',
             });
 
             window.qingkongrizhi = () => { document.getElementById('rizhi').innerHTML = ''; };
@@ -312,6 +316,8 @@
                 aiqudao_shanchu: 'shanchuid',
                 aiqudao_bianji: 'bianji',
                 aiqudao_tijiaobian: 'tijiaobian',
+                aiqudao_quanxuan: 'quanxuan',
+                aiqudao_piliangshanchu: 'piliangshanchu',
             });
 
             bangding(() => aiduihua_jm, {
@@ -343,6 +349,14 @@
                 ribao_tijiaoxinzeng: 'tijiaoxinzeng',
                 ribao_shanchu: 'shanchuribao',
                 ribao_bianji: 'bianji',
+                ribao_ribao_quanxuan: 'quanxuan_ribao',
+                ribao_ribao_piliangshanchu: 'piliangshanchu_ribao',
+                ribao_biaoqian_quanxuan: 'quanxuan_biaoqian',
+                ribao_biaoqian_piliangshanchu: 'piliangshanchu_biaoqian',
+                ribao_leixing_quanxuan: 'quanxuan_leixing',
+                ribao_leixing_piliangshanchu: 'piliangshanchu_leixing',
+                ribao_renwu_quanxuan: 'quanxuan_renwu',
+                ribao_renwu_piliangshanchu: 'piliangshanchu_renwu',
                 ribao_tijiaobianji: 'tijiaobianji',
                 ribao_guanlianguanlian: 'guanlianguanlian',
                 ribao_shangyiye: 'shangyiye',
@@ -376,6 +390,9 @@
                 ribao_renwu_shaixuan: 'renwu_shaixuan',
                 ribao_renwu_shangyiye: 'renwu_shangyiye',
                 ribao_renwu_xiayiye: 'renwu_xiayiye',
+                ribao_siweidaotu: 'siweidaotu',
+                ribao_guanbisiweidaotu: 'guanbisiweidaotu',
+                ribao_xiazaisiweidaotu: 'xiazaisiweidaotu',
             });
 
             bangding(() => biaoqian_jm, {
@@ -397,6 +414,8 @@
                 biaoqian_tijiaoxinzengbiaoqian_leixing: 'tijiaoxinzengbiaoqian_leixing',
                 biaoqian_tijiaobjbiaoqian: 'tijiaobjbiaoqian',
                 biaoqian_fanhuileixing: 'fanhuileixing',
+                biaoqian_piliangshanchu_leixing: 'piliangshanchu_leixing',
+                biaoqian_piliangshanchu_biaoqian: 'piliangshanchu_biaoqian',
             });
         }).catch(err => {
             console.error('模块加载失败:', err);

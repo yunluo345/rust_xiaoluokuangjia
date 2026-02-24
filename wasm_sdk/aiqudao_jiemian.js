@@ -1,4 +1,6 @@
 // AI渠道管理 - 界面层
+import * as gj from './jiemian_gongju.js';
+
 export class Aiqudaojiemian {
     constructor(luoji, rongqiid) {
         this.luoji = luoji;
@@ -13,7 +15,8 @@ export class Aiqudaojiemian {
         tou.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
         tou.innerHTML = `<h2 style="font-size:15px;color:#475569;margin:0">AI渠道管理</h2>
             <div><button class="aq-btn aq-btn-zhu" onclick="aiqudao_shuaxin()">刷新列表</button>
-            <button class="aq-btn aq-btn-lv" onclick="aiqudao_xinzengshitu()">新增渠道</button></div>`;
+            <button class="aq-btn aq-btn-lv" onclick="aiqudao_xinzengshitu()">新增渠道</button>
+            <button class="aq-btn aq-btn-hong" onclick="aiqudao_piliangshanchu()">批量删除</button></div>`;
         this.rongqi.appendChild(tou);
         const neirong = document.createElement('div');
         neirong.id = 'aiqudao_neirong';
@@ -33,7 +36,7 @@ export class Aiqudaojiemian {
             return;
         }
         let html = '<div style="overflow-x:auto"><table class="aq-biao"><thead><tr>' +
-            '<th>ID</th><th>名称</th><th>类型</th><th>模型</th><th>温度</th><th>最大Token</th><th>优先级</th><th>状态</th><th>操作</th>' +
+            '<th><input type="checkbox" onchange="aiqudao_quanxuan(this)" style="width:16px;height:16px;cursor:pointer"></th><th>ID</th><th>名称</th><th>类型</th><th>模型</th><th>温度</th><th>最大Token</th><th>优先级</th><th>状态</th><th>操作</th>' +
             '</tr></thead><tbody>';
         for (const qd of liebiao) {
             const zt = qd.zhuangtai === '1';
@@ -41,7 +44,7 @@ export class Aiqudaojiemian {
                 ? '<span style="color:#10B981;font-weight:600">启用</span>'
                 : '<span style="color:#EF4444;font-weight:600">禁用</span>';
             html += `<tr>
-                <td>${qd.id}</td><td>${qd.mingcheng}</td><td>${qd.leixing}</td>
+                <td><input type="checkbox" class="aq_pl_xz" data-id="${qd.id}" style="width:16px;height:16px;cursor:pointer"></td><td>${qd.id}</td><td>${qd.mingcheng}</td><td>${qd.leixing}</td>
                 <td>${qd.moxing}</td><td>${qd.wendu}</td><td>${qd.zuida_token || 0}</td><td>${qd.youxianji}</td>
                 <td>${zthtml}</td>
                 <td style="white-space:nowrap">
@@ -145,5 +148,11 @@ export class Aiqudaojiemian {
         if (ziduanlie.length === 0) { this.luoji.rizhi('没有需要更新的字段', 'warn'); return; }
         const jg = await this.luoji.gengxin(this.xuanzhongid, ziduanlie);
         if (jg && jg.zhuangtaima === 200) { this.xuanzhongid = null; await this.shuaxinliebiao(); }
+    }
+
+    quanxuan(cb) { gj.quanxuan('aq_pl_xz', cb); }
+
+    async piliangshanchu() {
+        await gj.piliangshanchu(this.luoji, { leibie: 'aq_pl_xz', mingcheng: '渠道', shanchufn: id => this.luoji.piliang_shanchu(id), shuaxinfn: () => this.shuaxinliebiao(), tishi: '此操作不可恢复。' });
     }
 }

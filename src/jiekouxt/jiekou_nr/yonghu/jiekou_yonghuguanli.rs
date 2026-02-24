@@ -40,6 +40,7 @@ struct Qingqiuti {
     mingcheng: Option<String>,
     jinjiekou: Option<Vec<String>>,
     jichengyonghuzuid: Option<String>,
+    idlie: Option<Vec<String>>,
 }
 
 #[derive(Serialize)]
@@ -66,6 +67,8 @@ enum Caozuoleixing {
     Yonghuzuxinzeng { mingcheng: String, beizhu: Option<String>, jichengyonghuzuid: Option<String> },
     Yonghuzuxiugai { id: String, mingcheng: String, beizhu: Option<String> },
     Yonghuzushanchu(String),
+    Piliangshanchu(Vec<String>),
+    Yonghuzupiliangshanchu(Vec<String>),
     Yonghuzujiekouliebiao,
     Yonghuzuhuoqujinjiekou(String),
     Yonghuzugengxinjinjiekou { id: String, jinjiekou: Vec<String> },
@@ -159,6 +162,10 @@ fn jiexi_caozuo(qingqiu: Qingqiuti, miyao: &[u8]) -> Result<Caozuoleixing, HttpR
             let id = tiqucansu(qingqiu.id, "id", miyao)?;
             Ok(Caozuoleixing::Shanchu(id))
         }
+        "piliang_shanchu" => {
+            let idlie = qingqiu.idlie.ok_or_else(|| jiamishibai(400, "缺少参数: idlie", miyao))?;
+            Ok(Caozuoleixing::Piliangshanchu(idlie))
+        }
         "yonghuzu_fenye" => {
             let (dangqianyeshu, meiyeshuliang) = yanzhengfenye(qingqiu.dangqianyeshu, qingqiu.meiyeshuliang, miyao)?;
             Ok(Caozuoleixing::Yonghuzufenye { dangqianyeshu, meiyeshuliang })
@@ -186,6 +193,10 @@ fn jiexi_caozuo(qingqiu: Qingqiuti, miyao: &[u8]) -> Result<Caozuoleixing, HttpR
         "yonghuzu_shanchu" => {
             let id = tiqucansu(qingqiu.id, "id", miyao)?;
             Ok(Caozuoleixing::Yonghuzushanchu(id))
+        }
+        "yonghuzu_piliang_shanchu" => {
+            let idlie = qingqiu.idlie.ok_or_else(|| jiamishibai(400, "缺少参数: idlie", miyao))?;
+            Ok(Caozuoleixing::Yonghuzupiliangshanchu(idlie))
         }
         "yonghuzu_jiekouliebiao" => Ok(Caozuoleixing::Yonghuzujiekouliebiao),
         "yonghuzu_huoqujinjiekou" => {
@@ -389,6 +400,69 @@ async fn zhixing_caozuo(caozuo: Caozuoleixing, miyao: &[u8]) -> HttpResponse {
             match shujucaozuo_yonghuzu::shanchu(&id).await {
                 Some(_) => jiamichuanshuzhongjian::jiamixiangying(jiekouxtzhuti::chenggong_wushuju("删除用户组成功"), miyao),
                 None => jiamishibai(500, "删除用户组失败", miyao),
+            }
+        }
+        Caozuoleixing::Piliangshanchu(idlie) => {
+            let mut keshanchu: Vec<String> = Vec::new();
+            for id in &idlie {
+                let yonghu = match shujucaozuo_yonghu::chaxun_id(id).await {
+                    Some(y) => y,
+                    None => continue,
+                };
+                let zuid = yonghu.get("yonghuzuid").and_then(|v| v.as_str()).unwrap_or("");
+                match yonghuyanzheng::shifouroot(zuid).await {
+                    true => continue,
+                    false => keshanchu.push(id.clone()),
+                }
+            }
+            match keshanchu.is_empty() {
+                true => jiamishibai(400, "没有可删除的用户", miyao),
+                false => {
+                    let idlie_str: Vec<&str> = keshanchu.iter().map(String::as_str).collect();
+                    match shujucaozuo_yonghu::piliang_shanchu(&idlie_str).await {
+                        Some(n) if n > 0 => {
+                            for id in &keshanchu { let _ = jwtgongju::zhuxiao(id).await; }
+                            jiamichuanshuzhongjian::jiamixiangying(
+                                jiekouxtzhuti::chenggong("批量删除成功", serde_json::json!({"count": n})),
+                                miyao,
+                            )
+                        }
+                        _ => jiamishibai(500, "批量删除失败", miyao),
+                    }
+                }
+            }
+        }
+        Caozuoleixing::Yonghuzupiliangshanchu(idlie) => {
+            let mut keshanchu: Vec<String> = Vec::new();
+            let mut tiaoguo: Vec<String> = Vec::new();
+            for id in &idlie {
+                let zu = match shujucaozuo_yonghuzu::chaxun_id(id).await {
+                    Some(z) => z,
+                    None => continue,
+                };
+                let mingcheng = zu.get("mingcheng").and_then(|v| v.as_str()).unwrap_or("");
+                if mingcheng == "root" {
+                    tiaoguo.push(format!("{}(root不可删)", id));
+                    continue;
+                }
+                let yonghushu = shujucaozuo_yonghuzu::yonghushuliang(id).await.map(|v| tiquzongshu(&v)).unwrap_or(0);
+                match yonghushu > 0 {
+                    true => tiaoguo.push(format!("{}(含{}用户)", id, yonghushu)),
+                    false => keshanchu.push(id.clone()),
+                }
+            }
+            match keshanchu.is_empty() {
+                true => jiamishibai(400, format!("没有可删除的用户组，跳过: {}", tiaoguo.join("、")), miyao),
+                false => {
+                    let idlie_str: Vec<&str> = keshanchu.iter().map(String::as_str).collect();
+                    match shujucaozuo_yonghuzu::piliang_shanchu(&idlie_str).await {
+                        Some(n) if n > 0 => jiamichuanshuzhongjian::jiamixiangying(
+                            jiekouxtzhuti::chenggong("批量删除成功", serde_json::json!({"count": n, "tiaoguo": tiaoguo})),
+                            miyao,
+                        ),
+                        _ => jiamishibai(500, "批量删除失败", miyao),
+                    }
+                }
             }
         }
         Caozuoleixing::Yonghuzujiekouliebiao => {

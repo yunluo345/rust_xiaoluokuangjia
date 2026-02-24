@@ -84,6 +84,9 @@ struct Guanlianshanchu { ribaoid: String, biaoqianid: String }
 struct Piliangguanliancanshu { ribaoid: String, biaoqianidlie: Vec<String> }
 
 #[derive(Deserialize)]
+struct Idliecanshu { idlie: Vec<String> }
+
+#[derive(Deserialize)]
 struct Leixingmingchengzhicanshu { leixingmingcheng: String, zhi: String }
 
 #[derive(Deserialize)]
@@ -200,6 +203,11 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
             let canshu = jiexi_canshu!(qingqiu, Idcanshu, miyao);
             chuli_shanchu_gengxin!(canshu, miyao, shujucaozuo_biaoqianleixing::shanchu(&canshu.id), "删除成功", &cuowu::biaoqianleixingbucunzai)
         }
+        "leixing_piliang_shanchu" => {
+            let canshu = jiexi_canshu!(qingqiu, Idliecanshu, miyao);
+            let idlie: Vec<&str> = canshu.idlie.iter().map(String::as_str).collect();
+            chuli_shanchu_gengxin!(canshu, miyao, shujucaozuo_biaoqianleixing::piliang_shanchu(&idlie), "批量删除成功", &cuowu::biaoqianleixingbucunzai)
+        }
         "leixing_gengxin" => {
             let canshu = jiexi_canshu!(qingqiu, Leixinggengxincanshu, miyao);
             chuli_shanchu_gengxin!(canshu, miyao, shujucaozuo_biaoqianleixing::gengxin(&canshu.id, &canshu.mingcheng), "更新成功", &cuowu::biaoqianleixingbucunzai)
@@ -222,6 +230,11 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
         "biaoqian_shanchu" => {
             let canshu = jiexi_canshu!(qingqiu, Idcanshu, miyao);
             chuli_shanchu_gengxin!(canshu, miyao, shujucaozuo_biaoqian::shanchu(&canshu.id), "删除成功", &cuowu::biaoqianbucunzai)
+        }
+        "biaoqian_piliang_shanchu" => {
+            let canshu = jiexi_canshu!(qingqiu, Idliecanshu, miyao);
+            let idlie: Vec<&str> = canshu.idlie.iter().map(String::as_str).collect();
+            chuli_shanchu_gengxin!(canshu, miyao, shujucaozuo_biaoqian::piliang_shanchu(&idlie), "批量删除成功", &cuowu::biaoqianbucunzai)
         }
         "biaoqian_gengxin" => {
             let canshu = jiexi_canshu!(qingqiu, Biaoqiangengxincanshu, miyao);
@@ -253,6 +266,11 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
         "ribao_shanchu" => {
             let canshu = jiexi_canshu!(qingqiu, Idcanshu, miyao);
             chuli_shanchu_gengxin!(canshu, miyao, shujucaozuo_ribao::shanchu(&canshu.id), "删除成功", &cuowu::ribaobucunzai)
+        }
+        "ribao_piliang_shanchu" => {
+            let canshu = jiexi_canshu!(qingqiu, Idliecanshu, miyao);
+            let idlie: Vec<&str> = canshu.idlie.iter().map(String::as_str).collect();
+            chuli_shanchu_gengxin!(canshu, miyao, shujucaozuo_ribao::piliang_shanchu(&idlie), "批量删除成功", &cuowu::ribaobucunzai)
         }
         "ribao_gengxin" => {
             let canshu = jiexi_canshu!(qingqiu, Ribaogengxincanshu, miyao);
@@ -321,6 +339,11 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
         "guanlian_shanchu" => {
             let canshu = jiexi_canshu!(qingqiu, Guanlianshanchu, miyao);
             chuli_shanchu_gengxin!(canshu, miyao, shujucaozuo_ribao_biaoqian::shanchu_guanlian(&canshu.ribaoid, &canshu.biaoqianid), "删除成功", &cuowu::guanlianbucunzai)
+        }
+        "guanlian_piliang_shanchu_ribaoidlie" => {
+            let canshu = jiexi_canshu!(qingqiu, Idliecanshu, miyao);
+            let idlie: Vec<&str> = canshu.idlie.iter().map(String::as_str).collect();
+            chuli_shanchu_gengxin!(canshu, miyao, shujucaozuo_ribao_biaoqian::piliang_shanchu_ribaoidlie(&idlie), "批量删除成功", &cuowu::shanchushibai)
         }
         "guanlian_chaxun_ribaoid" => {
             let canshu = jiexi_canshu!(qingqiu, Ribaoidcanshu, miyao);
@@ -410,6 +433,11 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
         "renwu_shanchu" => {
             let canshu = jiexi_canshu!(qingqiu, Idcanshu, miyao);
             chuli_shanchu_gengxin!(canshu, miyao, shujucaozuo_ribao_biaoqianrenwu::shanchu(&canshu.id), "删除成功", &cuowu::renwubucunzai)
+        }
+        "renwu_piliang_shanchu" => {
+            let canshu = jiexi_canshu!(qingqiu, Idliecanshu, miyao);
+            let idlie: Vec<&str> = canshu.idlie.iter().map(String::as_str).collect();
+            chuli_shanchu_gengxin!(canshu, miyao, shujucaozuo_ribao_biaoqianrenwu::piliang_shanchu(&idlie), "批量删除成功", &cuowu::renwubucunzai)
         }
         "renwu_xinzeng" => {
             let canshu = jiexi_canshu!(qingqiu, Renwuxinzengcanshu, miyao);

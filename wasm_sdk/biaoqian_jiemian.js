@@ -1,4 +1,6 @@
 // 标签管理 - 界面层
+import * as gj from './jiemian_gongju.js';
+
 export class Biaoqianjiemian {
     constructor(luoji, rongqiid) {
         this.luoji = luoji;
@@ -40,7 +42,7 @@ export class Biaoqianjiemian {
     }
 
     async xianshileixing() {
-        this.gengxincaozuo('<button class="aq-btn aq-btn-lv" onclick="biaoqian_xinzengleixing()">新增类型</button>');
+        this.gengxincaozuo('<button class="aq-btn aq-btn-lv" onclick="biaoqian_xinzengleixing()">新增类型</button><button class="aq-btn aq-btn-hong" onclick="biaoqian_piliangshanchu_leixing()">批量删除</button>');
         const nr = document.getElementById('biaoqian_neirong');
         nr.innerHTML = '<p style="color:#64748B">加载中...</p>';
         const jg = await this.luoji.leixing_chaxun_quanbu();
@@ -55,9 +57,10 @@ export class Biaoqianjiemian {
         } else {
             html = '<div style="display:grid;gap:12px">';
             for (const x of lie) {
-                html += `<div style="padding:12px;background:#F8FAFC;border-radius:8px;display:flex;justify-content:space-between;align-items:center">
-                    <span style="font-size:14px;color:#1E293B">${x.mingcheng}</span>
-                    <div style="display:flex;gap:8px">
+                html += `<div style="padding:12px;background:#F8FAFC;border-radius:8px;display:flex;gap:10px;align-items:center">
+                    <input type="checkbox" class="bqm_lx_pl_xz" data-id="${x.id}" style="width:16px;height:16px;cursor:pointer;flex-shrink:0">
+                    <span style="flex:1;font-size:14px;color:#1E293B">${x.mingcheng}</span>
+                    <div style="display:flex;gap:8px;flex-shrink:0">
                         <button class="aq-btn aq-btn-xiao" onclick="biaoqian_bianjibiaoqian('${x.id}')">标签</button>
                         <button class="aq-btn aq-btn-xiao" onclick="biaoqian_bianjileixing('${x.id}')">编辑</button>
                         <button class="aq-btn aq-btn-xiao" onclick="biaoqian_shanchuleixing('${x.id}')" style="background:#FEE2E2;color:#DC2626">删除</button>
@@ -70,7 +73,7 @@ export class Biaoqianjiemian {
     }
 
     async xianshibibaoqian() {
-        this.gengxincaozuo('<button class="aq-btn aq-btn-lv" onclick="biaoqian_xinzengbiaoqian()">新增标签</button>');
+        this.gengxincaozuo('<button class="aq-btn aq-btn-lv" onclick="biaoqian_xinzengbiaoqian()">新增标签</button><button class="aq-btn aq-btn-hong" onclick="biaoqian_piliangshanchu_biaoqian()">批量删除</button>');
         const nr = document.getElementById('biaoqian_neirong');
         nr.innerHTML = '<p style="color:#64748B">加载中...</p>';
         const leixingjg = await this.luoji.leixing_chaxun_quanbu();
@@ -93,9 +96,10 @@ export class Biaoqianjiemian {
             html = '<div style="display:grid;gap:12px">';
             for (const bq of biaoqianlie) {
                 const leixingming = leixingmap[bq.leixingid] || '未知类型';
-                html += `<div style="padding:12px;background:#F8FAFC;border-radius:8px;display:flex;justify-content:space-between;align-items:center">
-                    <div><span style="font-size:14px;color:#1E293B">${bq.zhi}</span><span style="margin-left:8px;font-size:12px;color:#64748B">[${leixingming}]</span></div>
-                    <div style="display:flex;gap:8px">
+                html += `<div style="padding:12px;background:#F8FAFC;border-radius:8px;display:flex;gap:10px;align-items:center">
+                    <input type="checkbox" class="bqm_bq_pl_xz" data-id="${bq.id}" style="width:16px;height:16px;cursor:pointer;flex-shrink:0">
+                    <div style="flex:1"><span style="font-size:14px;color:#1E293B">${bq.zhi}</span><span style="margin-left:8px;font-size:12px;color:#64748B">[${leixingming}]</span></div>
+                    <div style="display:flex;gap:8px;flex-shrink:0">
                         <button class="aq-btn aq-btn-xiao" onclick="biaoqian_bianjibiaoqian_danxiang('${bq.id}')">编辑</button>
                         <button class="aq-btn aq-btn-xiao" onclick="biaoqian_shanchubiaoqian('${bq.id}')" style="background:#FEE2E2;color:#DC2626">删除</button>
                     </div>
@@ -157,7 +161,7 @@ export class Biaoqianjiemian {
 
     async bianjibiaoqian(leixingid) {
         this.xuanzhongleixingid = leixingid;
-        this.gengxincaozuo(`<button class="aq-btn aq-btn-lv" onclick="biaoqian_xinzengbiaoqian_leixing('${leixingid}')">新增标签</button><button class="aq-btn" onclick="biaoqian_fanhui()">返回</button>`);
+        this.gengxincaozuo(`<button class="aq-btn aq-btn-lv" onclick="biaoqian_xinzengbiaoqian_leixing('${leixingid}')">新增标签</button><button class="aq-btn aq-btn-hong" onclick="biaoqian_piliangshanchu_biaoqian()">批量删除</button><button class="aq-btn" onclick="biaoqian_fanhui()">返回</button>`);
         const nr = document.getElementById('biaoqian_neirong');
         nr.innerHTML = '<p style="color:#64748B">加载中...</p>';
         const jg = await this.luoji.biaoqian_chaxun_leixingid(leixingid);
@@ -172,9 +176,10 @@ export class Biaoqianjiemian {
         } else {
             html = '<div style="display:grid;gap:12px">';
             for (const bq of lie) {
-                html += `<div style="padding:12px;background:#F8FAFC;border-radius:8px;display:flex;justify-content:space-between;align-items:center">
-                    <span style="font-size:14px;color:#1E293B">${bq.zhi}</span>
-                    <div style="display:flex;gap:8px">
+                html += `<div style="padding:12px;background:#F8FAFC;border-radius:8px;display:flex;gap:10px;align-items:center">
+                    <input type="checkbox" class="bqm_bq_pl_xz" data-id="${bq.id}" style="width:16px;height:16px;cursor:pointer;flex-shrink:0">
+                    <span style="flex:1;font-size:14px;color:#1E293B">${bq.zhi}</span>
+                    <div style="display:flex;gap:8px;flex-shrink:0">
                         <button class="aq-btn aq-btn-xiao" onclick="biaoqian_bianjibiaoqian_danxiang('${bq.id}')">编辑</button>
                         <button class="aq-btn aq-btn-xiao" onclick="biaoqian_shanchubiaoqian('${bq.id}')" style="background:#FEE2E2;color:#DC2626">删除</button>
                     </div>
@@ -284,5 +289,13 @@ export class Biaoqianjiemian {
     async fanhui() {
         this.xuanzhongleixingid = null;
         this.xianshileixing();
+    }
+
+    async piliangshanchu_leixing() {
+        await gj.piliangshanchu(this.luoji, { leibie: 'bqm_lx_pl_xz', mingcheng: '类型', shanchufn: id => this.luoji.leixing_piliang_shanchu(id), shuaxinfn: () => this.xianshileixing(), tishi: '关联标签也会被删除。' });
+    }
+
+    async piliangshanchu_biaoqian() {
+        await gj.piliangshanchu(this.luoji, { leibie: 'bqm_bq_pl_xz', mingcheng: '标签', shanchufn: id => this.luoji.biaoqian_piliang_shanchu(id), shuaxinfn: () => this.xuanzhongleixingid ? this.bianjibiaoqian(this.xuanzhongleixingid) : this.xianshibibaoqian() });
     }
 }

@@ -1,4 +1,6 @@
 // 用户管理 - 界面层
+import * as gj from './jiemian_gongju.js';
+
 export class Yonghujiemian {
     constructor(luoji, rongqiid) {
         this.luoji = luoji;
@@ -106,13 +108,15 @@ export class Yonghujiemian {
         const liebiao = jg.shuju?.liebiao || [], zongshu = jg.shuju?.zongshu || 0;
         if (!liebiao.length) { lb.innerHTML = this._konghtml('暂无用户数据'); return; }
         const th = 'padding:12px 16px;text-align:left;font-size:13px;font-weight:600;color:#475569';
-        let html = `<div style="background:white;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05)"><table style="width:100%;border-collapse:collapse"><thead style="background:#F8FAFC;border-bottom:1px solid #E2E8F0"><tr><th style="${th}">ID</th><th style="${th}">账号</th><th style="${th}">昵称</th><th style="${th}">用户组</th><th style="${th}">状态</th><th style="${th}">创建时间</th><th style="${th};text-align:center">操作</th></tr></thead><tbody>`;
+        let html = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="yonghu_piliangshanchu()" style="cursor:pointer">批量删除</button></div>';
+        html += `<div style="background:white;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05)"><table style="width:100%;border-collapse:collapse"><thead style="background:#F8FAFC;border-bottom:1px solid #E2E8F0"><tr><th style="${th};width:40px"><input type="checkbox" onchange="yonghu_quanxuan(this)" style="width:16px;height:16px;cursor:pointer"></th><th style="${th}">ID</th><th style="${th}">账号</th><th style="${th}">昵称</th><th style="${th}">用户组</th><th style="${th}">状态</th><th style="${th}">创建时间</th><th style="${th};text-align:center">操作</th></tr></thead><tbody>`;
         for (const yh of liebiao) {
             const yifj = yh.fengjin === '1';
             const zthtml = yifj
                 ? '<span style="display:inline-flex;align-items:center;padding:4px 10px;background:#FEE2E2;color:#991B1B;border-radius:6px;font-size:13px;font-weight:500">已封禁</span>'
                 : '<span style="display:inline-flex;align-items:center;padding:4px 10px;background:#D1FAE5;color:#065F46;border-radius:6px;font-size:13px;font-weight:500">正常</span>';
             html += `<tr style="border-bottom:1px solid #F1F5F9;transition:background-color 150ms" onmouseover="this.style.backgroundColor='#F8FAFC'" onmouseout="this.style.backgroundColor='transparent'">
+                <td style="padding:12px 16px"><input type="checkbox" class="yh_pl_xz" data-id="${yh.id}" style="width:16px;height:16px;cursor:pointer"></td>
                 <td style="padding:12px 16px;font-size:14px;color:#64748B">${yh.id}</td>
                 <td style="padding:12px 16px;font-size:14px;color:#0F172A;font-weight:500">${yh.zhanghao}</td>
                 <td style="padding:12px 16px;font-size:14px;color:#475569">${yh.nicheng || '-'}</td>
@@ -262,12 +266,14 @@ export class Yonghujiemian {
         const liebiao = jg.shuju?.liebiao || [], zongshu = jg.shuju?.zongshu || 0;
         if (!liebiao.length) { lb.innerHTML = this._konghtml('暂无用户组数据'); return; }
         const th = 'padding:12px 16px;text-align:left;font-size:13px;font-weight:600;color:#475569';
-        let html = `<div style="background:white;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05)"><table style="width:100%;border-collapse:collapse"><thead style="background:#F8FAFC;border-bottom:1px solid #E2E8F0"><tr><th style="${th}">ID</th><th style="${th}">名称</th><th style="${th}">默认组</th><th style="${th}">备注</th><th style="${th}">创建时间</th><th style="${th};text-align:center">操作</th></tr></thead><tbody>`;
+        let html = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="yonghuzu_piliangshanchu()" style="cursor:pointer">批量删除</button></div>';
+        html += `<div style="background:white;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05)"><table style="width:100%;border-collapse:collapse"><thead style="background:#F8FAFC;border-bottom:1px solid #E2E8F0"><tr><th style="${th};width:40px"><input type="checkbox" onchange="yonghuzu_quanxuan(this)" style="width:16px;height:16px;cursor:pointer"></th><th style="${th}">ID</th><th style="${th}">名称</th><th style="${th}">默认组</th><th style="${th}">备注</th><th style="${th}">创建时间</th><th style="${th};text-align:center">操作</th></tr></thead><tbody>`;
         for (const zu of liebiao) {
             const morenzhu = zu.morenzhu === '1'
                 ? '<span style="padding:4px 10px;background:#DBEAFE;color:#1E40AF;border-radius:6px;font-size:13px;font-weight:500">是</span>'
                 : '<span style="padding:4px 10px;background:#F1F5F9;color:#64748B;border-radius:6px;font-size:13px">否</span>';
             html += `<tr style="border-bottom:1px solid #F1F5F9;transition:background-color 150ms" onmouseover="this.style.backgroundColor='#F8FAFC'" onmouseout="this.style.backgroundColor='transparent'">
+                <td style="padding:12px 16px"><input type="checkbox" class="zu_pl_xz" data-id="${zu.id}" style="width:16px;height:16px;cursor:pointer"></td>
                 <td style="padding:12px 16px;font-size:14px;color:#64748B">${zu.id}</td>
                 <td style="padding:12px 16px;font-size:14px;color:#0F172A;font-weight:500">${this._zhuanyi(zu.mingcheng)}</td>
                 <td style="padding:12px 16px">${morenzhu}</td>
@@ -396,4 +402,19 @@ export class Yonghujiemian {
     yonghuzu_qingkong() { this.zu_sousuomoshi = false; this.zu_gjc = ''; this.zu_ye = 1; this.shuaxinyonghuzuliebiao(); }
     async yonghuzu_shangyiye() { if (this.zu_ye > 1) { this.zu_ye--; await this.shuaxinyonghuzuliebiao(); } }
     async yonghuzu_xiayiye() { this.zu_ye++; await this.shuaxinyonghuzuliebiao(); }
+
+    quanxuan_yonghu(cb) { gj.quanxuan('yh_pl_xz', cb); }
+    quanxuan_yonghuzu(cb) { gj.quanxuan('zu_pl_xz', cb); }
+
+    async piliangshanchu_yonghu() {
+        await gj.piliangshanchu(this.luoji, { leibie: 'yh_pl_xz', mingcheng: '用户', shanchufn: id => this.luoji.piliang_shanchu(id), shuaxinfn: () => this.shuaxinliebiao(), tishi: '此操作不可撤销。' });
+    }
+    async piliangshanchu_yonghuzu() {
+        await gj.piliangshanchu(this.luoji, {
+            leibie: 'zu_pl_xz', mingcheng: '用户组',
+            shanchufn: id => this.luoji.yonghuzu_piliang_shanchu(id),
+            shuaxinfn: () => this.shuaxinyonghuzuliebiao(),
+            houzhili: jg => { if (jg.shuju?.tiaoguo?.length) this.luoji.rizhi('部分跳过: ' + jg.shuju.tiaoguo.join('、'), 'warn'); }
+        });
+    }
 }

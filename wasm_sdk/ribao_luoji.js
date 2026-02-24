@@ -354,4 +354,34 @@ export class Ribaoluoji {
         const jg = await this.zhixing('renwu_biaoqian_ai_zhuangtai');
         return jg;
     }
+
+    async leixing_piliang_shanchu(idlie) {
+        const jg = await this.zhixing('leixing_piliang_shanchu', { idlie });
+        if (jg) this.rizhi('批量删除标签类型: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async biaoqian_piliang_shanchu(idlie) {
+        const jg = await this.zhixing('biaoqian_piliang_shanchu', { idlie });
+        if (jg) this.rizhi('批量删除标签: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async ribao_piliang_shanchu(idlie) {
+        const jg = await this.zhixing('ribao_piliang_shanchu', { idlie });
+        if (jg) this.rizhi('批量删除日报: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async guanlian_piliang_shanchu_ribaoidlie(idlie) {
+        const jg = await this.zhixing('guanlian_piliang_shanchu_ribaoidlie', { idlie });
+        if (jg) this.rizhi('批量删除关联: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async renwu_piliang_shanchu(idlie) {
+        const jg = await this.zhixing('renwu_piliang_shanchu', { idlie });
+        if (jg) this.rizhi('批量删除任务: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
 }

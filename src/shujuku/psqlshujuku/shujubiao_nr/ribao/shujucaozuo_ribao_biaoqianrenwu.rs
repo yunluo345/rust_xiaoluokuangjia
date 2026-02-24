@@ -120,6 +120,11 @@ pub async fn shanchu(id: &str) -> Option<u64> {
     ).await
 }
 
+/// 批量删除任务
+pub async fn piliang_shanchu(idlie: &[&str]) -> Option<u64> {
+    jichugongju::piliang_shanchu(biaoming, idlie).await
+}
+
 /// 重新入队（将已有任务重新发布为等待状态）
 pub async fn chongxin_ruidui(id: &str) -> Option<u64> {
     let shijian = jichugongju::huoqushijianchuo().to_string();
