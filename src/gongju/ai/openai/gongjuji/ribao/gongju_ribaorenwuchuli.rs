@@ -220,8 +220,11 @@ async fn ai_tiqu_biaoqian(neirong: &str, peizhi: &Ai, yiyou_biaoqian: Option<&st
     let biaoqian_tishi = peizhi.ribao_biaoqian.iter()
         .map(|bq| {
             let biecheng_str = bq.biecheng.join("、");
-            let bitian_str = if bq.bitian { "【必填】" } else { "" };
-            format!("{}{}（{}，别名：{}）", bitian_str, bq.mingcheng, bq.miaoshu, biecheng_str)
+            let qianzhui = [
+                bq.bitian.then_some("【必填】"),
+                bq.duozhi.then_some("【多值，用数组】"),
+            ].into_iter().flatten().collect::<String>();
+            format!("{}{}（{}，别名：{}）", qianzhui, bq.mingcheng, bq.miaoshu, biecheng_str)
         })
         .collect::<Vec<_>>()
         .join("；");
@@ -234,10 +237,12 @@ async fn ai_tiqu_biaoqian(neirong: &str, peizhi: &Ai, yiyou_biaoqian: Option<&st
         "你是日报标签提取助手。从日报内容中提取以下标签信息：{}\n\
         请仔细阅读日报内容，提取所有相关标签。\n\
         返回JSON格式：{{\"标签名1\": \"值1\", \"标签名2\": \"值2\"}}\n\
+        如果某个标签有多个值（如多个人名），必须使用数组：{{\"xxx\": [\"aaa\", \"bbb\"]}}\n\
         注意：\n\
         1. 标签名必须使用配置中的标准名称（不要使用别名）\n\
         2. 如果日报中没有某个标签的信息，不要返回该标签\n\
-        3. 只返回JSON，不要返回其他内容{}",
+        3. 标记了【多值】的标签，每个值必须单独一个数组元素，不要用逗号拼接\n\
+        4. 只返回JSON，不要返回其他内容{}",
         biaoqian_tishi, yiyou_tishi
     );
     
@@ -270,11 +275,36 @@ async fn ai_tiqu_biaoqian(neirong: &str, peizhi: &Ai, yiyou_biaoqian: Option<&st
     (!tiquxiang.is_empty()).then_some(tiquxiang)
 }
 
+/// 将 JSON 值拆分为多条文本（数组展开、分隔符拆分、数字转字符串）
+fn chaifenzhi(zhi: &Value, duozhi: bool) -> Vec<String> {
+    match zhi {
+        Value::Array(shuzu) => shuzu.iter()
+            .filter_map(|x| x.as_str().map(|s| s.trim().to_string()))
+            .filter(|s| !s.is_empty())
+            .collect(),
+        Value::String(s) if duozhi => s.split(&[',', '、', '，'][..])
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+            .collect(),
+        _ => zhi.as_str().map(|s| s.trim().to_string())
+            .or_else(|| zhi.as_i64().map(|n| n.to_string()))
+            .or_else(|| zhi.as_u64().map(|n| n.to_string()))
+            .filter(|s| !s.is_empty())
+            .into_iter()
+            .collect(),
+    }
+}
+
 fn tichubiaoqianxiang(neirong: &str, peizhi: &Ai) -> Vec<(String, String)> {
     let mut biezhuan: HashMap<String, String> = HashMap::new();
+    let mut duozhiji: HashSet<String> = HashSet::new();
     for biaoqian in &peizhi.ribao_biaoqian {
         biezhuan.insert(biaoqian.mingcheng.trim().to_string(), biaoqian.mingcheng.clone());
         biezhuan.insert(biaoqian.miaoshu.trim().to_string(), biaoqian.mingcheng.clone());
+        if biaoqian.duozhi {
+            duozhiji.insert(biaoqian.mingcheng.clone());
+        }
         for biecheng in &biaoqian.biecheng {
             let jian = biecheng.trim();
             if !jian.is_empty() {
@@ -286,24 +316,21 @@ fn tichubiaoqianxiang(neirong: &str, peizhi: &Ai) -> Vec<(String, String)> {
     let mut jieguo: Vec<(String, String)> = Vec::new();
     let mut quchong: HashSet<String> = HashSet::new();
 
+    let charu = |biaozhun: &str, wenzi: String, quchong: &mut HashSet<String>, jieguo: &mut Vec<(String, String)>| {
+        let jian = format!("{}|{}", biaozhun, wenzi);
+        if !wenzi.is_empty() && quchong.insert(jian) {
+            jieguo.push((biaozhun.to_string(), wenzi));
+        }
+    };
+
     if let Ok(Value::Object(duixiang)) = serde_json::from_str::<Value>(neirong) {
         for (leixing, zhi) in duixiang {
-            let leixing_trim = leixing.trim();
-            let biaozhun = match biezhuan.get(leixing_trim) {
-                Some(v) => v,
+            let biaozhun = match biezhuan.get(leixing.trim()) {
+                Some(v) => v.clone(),
                 None => continue,
             };
-            if let Some(wenzi) = zhi
-                .as_str()
-                .map(|s| s.trim().to_string())
-                .or_else(|| zhi.as_i64().map(|n| n.to_string()))
-                .or_else(|| zhi.as_u64().map(|n| n.to_string()))
-            {
-                let jian = format!("{}|{}", biaozhun, wenzi);
-                if !wenzi.is_empty() && !quchong.contains(&jian) {
-                    quchong.insert(jian);
-                    jieguo.push((biaozhun.clone(), wenzi));
-                }
+            for wenzi in chaifenzhi(&zhi, duozhiji.contains(&biaozhun)) {
+                charu(&biaozhun, wenzi, &mut quchong, &mut jieguo);
             }
         }
         if !jieguo.is_empty() {
@@ -318,13 +345,15 @@ fn tichubiaoqianxiang(neirong: &str, peizhi: &Ai) -> Vec<(String, String)> {
             .map(|(l, z)| (l.trim(), z.trim()))
         {
             let biaozhun = match biezhuan.get(leixing) {
-                Some(v) => v,
+                Some(v) => v.clone(),
                 None => continue,
             };
-            let jian = format!("{}|{}", biaozhun, zhi);
-            if !zhi.is_empty() && !quchong.contains(&jian) {
-                quchong.insert(jian);
-                jieguo.push((biaozhun.clone(), zhi.to_string()));
+            let zhilie: Vec<&str> = match duozhiji.contains(&biaozhun) {
+                true => zhi.split(&[',', '、', '，'][..]).map(str::trim).filter(|s| !s.is_empty()).collect(),
+                false => vec![zhi].into_iter().filter(|s| !s.is_empty()).collect(),
+            };
+            for pian in zhilie {
+                charu(&biaozhun, pian.to_string(), &mut quchong, &mut jieguo);
             }
         }
     }
@@ -371,12 +400,13 @@ fn tichubiaoqianxiang(neirong: &str, peizhi: &Ai) -> Vec<(String, String)> {
         if zhi.is_empty() {
             continue;
         }
-        let jian = format!("{}|{}", biaozhun, zhi);
-        if quchong.contains(&jian) {
-            continue;
+        let zhilie: Vec<&str> = match duozhiji.contains(biaozhun) {
+            true => zhi.split(&[',', '、', '，'][..]).map(str::trim).filter(|s| !s.is_empty()).collect(),
+            false => vec![zhi],
+        };
+        for pian in zhilie {
+            charu(biaozhun, pian.to_string(), &mut quchong, &mut jieguo);
         }
-        quchong.insert(jian);
-        jieguo.push((biaozhun.clone(), zhi.to_string()));
     }
 
     jieguo

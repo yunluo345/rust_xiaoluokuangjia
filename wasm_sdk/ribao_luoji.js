@@ -408,4 +408,26 @@ export class Ribaoluoji {
         if (jg) this.rizhi('查询类型图谱[' + mingcheng + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
         return jg;
     }
+
+    async tupu_sousuo(guanjianci, leixingmingcheng) {
+        const canshu = { guanjianci };
+        if (leixingmingcheng) canshu.leixingmingcheng = leixingmingcheng;
+        const jg = await this.zhixing('tupu_sousuo', canshu);
+        return jg;
+    }
+
+    async tupu_ribao_fenye(biaoqianid, yeshu, meiyetiaoshu) {
+        const jg = await this.zhixing('tupu_ribao_fenye', { biaoqianid, yeshu, meiyetiaoshu });
+        return jg;
+    }
+
+    async tupu_bian_ribao_fenye(yuan_biaoqianid, mubiao_biaoqianid, yeshu, meiyetiaoshu) {
+        const jg = await this.zhixing('tupu_bian_ribao_fenye', { yuan_biaoqianid, mubiao_biaoqianid, yeshu, meiyetiaoshu });
+        return jg;
+    }
+
+    async tupu_ribao_duobiaoqian_fenye(biaoqianidlie, yeshu, meiyetiaoshu) {
+        const jg = await this.zhixing('tupu_ribao_duobiaoqian_fenye', { biaoqianidlie, yeshu, meiyetiaoshu });
+        return jg;
+    }
 }

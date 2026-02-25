@@ -9,6 +9,8 @@ pub struct Ribaobiaoqian {
     #[serde(default = "moren_bitian")]
     pub bitian: bool,
     #[serde(default)]
+    pub duozhi: bool,
+    #[serde(default)]
     pub biecheng: Vec<String>,
 }
 
@@ -59,14 +61,18 @@ fn moren_bingxingrenwushu() -> u32 {
 }
 
 fn moren_guanxifenxi_tishici() -> String {
-    "你是人物关系分析助手。根据日报内容，分析其中提到的人物之间的关系。\n\
-    返回纯JSON，格式：{\"guanxi\":[{\"ren1\":\"姓名1\",\"ren2\":\"姓名2\",\"guanxi\":\"关系类型\",\"miaoshu\":\"关系描述\"}]}\n\
-    关系类型包括但不限于：同事、上下级、客户、合作伙伴、同学等。\n\
+    "你是日报关系分析助手。根据日报内容，分析其中提到的人物之间、公司之间的关系。\n\
+    返回纯JSON，格式：{\"guanxi\":[{\"ren1\":\"名称1\",\"ren2\":\"名称2\",\"guanxi\":\"关系类型\",\"miaoshu\":\"关系描述\"}]}\n\
+    人物关系类型：同事、上下级、客户、合作伙伴、同学等。\n\
+    公司关系类型：合作方、竞争对手、上下游、客户供应商、子母公司等。\n\
     注意：\n\
-    1. 只分析日报中明确提及的人物\n\
-    2. 如果无法确定具体关系，用\"相关\"作为关系类型\n\
-    3. miaoshu字段简要描述关系背景\n\
-    4. 只返回JSON，不要返回其他内容".to_string()
+    1. 同时分析人物关系和公司关系，放在同一个 guanxi 数组中\n\
+    2. ren1/ren2 可以是人名也可以是公司名\n\
+    3. 只分析日报中明确提及的实体\n\
+    4. 无法确定具体关系时用\"相关\"\n\
+    5. miaoshu 简要描述关系背景\n\
+    6. 只返回JSON，不要返回其他内容\n\
+    7. 如果两个实体之间没有关系，不要返回该条目，禁止使用\"无关联\"\"无关系\"\"无\"等作为关系类型".to_string()
 }
 
 fn moren_siweidaotu_weidu() -> Vec<Siweidaotuweidu> {
@@ -123,12 +129,14 @@ impl Default for Ai {
                     mingcheng: "我方人员".to_string(),
                     miaoshu: "我方公司参与人员姓名".to_string(),
                     bitian: true,
+                    duozhi: true,
                     biecheng: vec![],
                 },
                 Ribaobiaoqian {
                     mingcheng: "对方人员".to_string(),
                     miaoshu: "对方公司参与人员姓名".to_string(),
                     bitian: true,
+                    duozhi: true,
                     biecheng: vec![],
                 },
             ],

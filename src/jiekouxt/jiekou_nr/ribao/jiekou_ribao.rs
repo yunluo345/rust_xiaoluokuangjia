@@ -113,6 +113,18 @@ struct Renwuyonghuidcanshu { yonghuid: String, shuliang: i64 }
 #[derive(Deserialize)]
 struct Renwuxinzengcanshu { ribaoid: String, yonghuid: String }
 
+#[derive(Deserialize)]
+struct TupuSousuocanshu { guanjianci: String, leixingmingcheng: Option<String>, limit: Option<i64> }
+
+#[derive(Deserialize)]
+struct TupuRibaofenyecanshu { biaoqianid: String, yeshu: i64, meiyetiaoshu: i64 }
+
+#[derive(Deserialize)]
+struct TupuBianribaofenyecanshu { yuan_biaoqianid: String, mubiao_biaoqianid: String, yeshu: i64, meiyetiaoshu: i64 }
+
+#[derive(Deserialize)]
+struct TupuDuobiaoqianfenyecanshu { biaoqianidlie: Vec<String>, yeshu: i64, meiyetiaoshu: i64 }
+
 macro_rules! jiexi_canshu {
     ($qingqiu:expr, $canshu_leixing:ty, $miyao:expr) => {
         match serde_json::from_value::<$canshu_leixing>($qingqiu.canshu) {
@@ -468,6 +480,33 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
                 Some(shuju) => jiamichenggong("查询成功", shuju, miyao),
                 None => jiamishibai(&cuowu::chaxunshibai, miyao),
             }
+        }
+        "tupu_sousuo" => {
+            let canshu = jiexi_canshu!(qingqiu, TupuSousuocanshu, miyao);
+            let limit = canshu.limit.unwrap_or(20);
+            match shujucaozuo_ribao_biaoqian::tupu_sousuo(&canshu.guanjianci, canshu.leixingmingcheng.as_deref(), limit).await {
+                Some(jieguo) => jiamichenggong("查询成功", serde_json::json!({"liebiao": jieguo}), miyao),
+                None => jiamishibai(&cuowu::chaxunshibai, miyao),
+            }
+        }
+        "tupu_ribao_fenye" => {
+            let canshu = jiexi_canshu!(qingqiu, TupuRibaofenyecanshu, miyao);
+            let liebiao = shujucaozuo_ribao_biaoqian::tupu_ribao_fenye(&canshu.biaoqianid, canshu.yeshu, canshu.meiyetiaoshu).await.unwrap_or_default();
+            let zongshu = shujucaozuo_ribao_biaoqian::tongji_tupu_ribao_zongshu(&canshu.biaoqianid).await.unwrap_or(0);
+            jiamichenggong("查询成功", serde_json::json!({"liebiao": liebiao, "zongshu": zongshu}), miyao)
+        }
+        "tupu_bian_ribao_fenye" => {
+            let canshu = jiexi_canshu!(qingqiu, TupuBianribaofenyecanshu, miyao);
+            let liebiao = shujucaozuo_ribao_biaoqian::tupu_bian_ribao_fenye(&canshu.yuan_biaoqianid, &canshu.mubiao_biaoqianid, canshu.yeshu, canshu.meiyetiaoshu).await.unwrap_or_default();
+            let zongshu = shujucaozuo_ribao_biaoqian::tongji_tupu_bian_ribao_zongshu(&canshu.yuan_biaoqianid, &canshu.mubiao_biaoqianid).await.unwrap_or(0);
+            jiamichenggong("查询成功", serde_json::json!({"liebiao": liebiao, "zongshu": zongshu}), miyao)
+        }
+        "tupu_ribao_duobiaoqian_fenye" => {
+            let canshu = jiexi_canshu!(qingqiu, TupuDuobiaoqianfenyecanshu, miyao);
+            let biaoqianidlie: Vec<&str> = canshu.biaoqianidlie.iter().map(String::as_str).collect();
+            let liebiao = shujucaozuo_ribao_biaoqian::tupu_ribao_duobiaoqian_fenye(&biaoqianidlie, canshu.yeshu, canshu.meiyetiaoshu).await.unwrap_or_default();
+            let zongshu = shujucaozuo_ribao_biaoqian::tongji_tupu_duobiaoqian_zongshu(&biaoqianidlie).await.unwrap_or(0);
+            jiamichenggong("查询成功", serde_json::json!({"liebiao": liebiao, "zongshu": zongshu}), miyao)
         }
         _ => jiamishibai(&cuowu::bucaozuoleixing, miyao),
     }

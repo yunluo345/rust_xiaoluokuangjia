@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use serde_json::Value;
 use crate::gongju::jichugongju;
 use crate::shujuku::psqlshujuku::psqlcaozuo;
@@ -98,27 +99,71 @@ pub async fn chaxun_xiangguanbiaoqian(biaoqianid: &str, leixingmingcheng: &str) 
     ).await
 }
 
-/// 查询全量图谱数据：所有标签节点及共现边
-pub async fn chaxun_tupu_quanbu() -> Option<Value> {
-    let jiedian = psqlcaozuo::chaxun(
-        "SELECT b.id, b.zhi, b.leixingid, l.mingcheng AS leixingmingcheng FROM biaoqian b INNER JOIN biaoqianleixing l ON b.leixingid = l.id ORDER BY l.mingcheng, b.zhi",
-        &[],
-    ).await?;
-    let bian = psqlcaozuo::chaxun(
+// ========== 图谱核心辅助函数 ==========
+
+/// 查询图谱节点（标签 + 类型名称）
+/// tiaojian: WHERE 片段（不含 WHERE），为空则无过滤
+/// paixu: ORDER BY 片段（不含 ORDER BY），为空则不排序
+async fn chaxun_tupu_jiedian(tiaojian: &str, canshu: &[&str], paixu: &str) -> Option<Vec<Value>> {
+    let where_zi = if tiaojian.is_empty() { String::new() } else { format!(" WHERE {}", tiaojian) };
+    let order_zi = if paixu.is_empty() { String::new() } else { format!(" ORDER BY {}", paixu) };
+    psqlcaozuo::chaxun(
+        &format!(
+            "SELECT b.id, b.zhi, b.leixingid, l.mingcheng AS leixingmingcheng \
+             FROM biaoqian b INNER JOIN biaoqianleixing l ON b.leixingid = l.id{}{}",
+            where_zi, order_zi
+        ),
+        canshu,
+    ).await
+}
+
+/// 查询图谱边（共现关系）
+/// ewai_lianjie: 额外 JOIN 子句（含前导空格）
+/// tiaojian: WHERE 片段（不含 WHERE），为空则无过滤
+async fn chaxun_tupu_bian(ewai_lianjie: &str, tiaojian: &str, canshu: &[&str]) -> Vec<Value> {
+    let where_zi = if tiaojian.is_empty() { String::new() } else { format!(" WHERE {}", tiaojian) };
+    let sql = format!(
         "SELECT b1.id::TEXT AS yuan, b2.id::TEXT AS mubiao, COUNT(DISTINCT rb1.ribaoid)::TEXT AS quanzhong \
          FROM ribao_biaoqian rb1 \
          JOIN ribao_biaoqian rb2 ON rb1.ribaoid = rb2.ribaoid AND rb1.biaoqianid < rb2.biaoqianid \
          JOIN biaoqian b1 ON rb1.biaoqianid = b1.id \
-         JOIN biaoqian b2 ON rb2.biaoqianid = b2.id \
+         JOIN biaoqian b2 ON rb2.biaoqianid = b2.id{}{} \
          GROUP BY b1.id, b2.id",
-        &[],
-    ).await.unwrap_or_default();
-    Some(serde_json::json!({"jiedian": jiedian, "bian": bian}))
+        ewai_lianjie, where_zi
+    );
+    psqlcaozuo::chaxun(&sql, canshu).await.unwrap_or_default()
+}
+
+/// 从节点列表中提取 ID，查询这些节点之间的共现边
+async fn chaxun_tupu_bian_anzifanwei(jiedianlie: &[Value]) -> Vec<Value> {
+    let idlie: Vec<String> = jiedianlie.iter()
+        .filter_map(|j| j.get("id").and_then(|v| v.as_i64().map(|n| n.to_string()).or_else(|| v.as_str().map(String::from))))
+        .collect();
+    if idlie.is_empty() {
+        return Vec::new();
+    }
+    let zhanwei = idlie.iter().enumerate()
+        .map(|(i, _)| format!("${}", i + 1))
+        .collect::<Vec<_>>()
+        .join(",");
+    let tiaojian = format!("b1.id::TEXT IN ({z}) AND b2.id::TEXT IN ({z})", z = zhanwei);
+    let canshu: Vec<&str> = idlie.iter().map(String::as_str).collect();
+    chaxun_tupu_bian("", &tiaojian, &canshu).await
+}
+
+// ========== 图谱公开查询接口 ==========
+
+/// 查询全量图谱数据：所有标签节点及共现边
+pub async fn chaxun_tupu_quanbu() -> Option<Value> {
+    let jiedian = chaxun_tupu_jiedian("", &[], "l.mingcheng, b.zhi").await?;
+    let bian = chaxun_tupu_bian("", "", &[]).await;
+    let guanxi_bian = chaxun_tupu_guanxi_bian(&jiedian).await;
+    Some(serde_json::json!({"jiedian": jiedian, "bian": bian, "guanxi_bian": guanxi_bian}))
 }
 
 /// 以某标签为中心查询子图（1层关联）
 pub async fn chaxun_tupu_biaoqianid(biaoqianid: &str) -> Option<Value> {
-    let guanlianid = psqlcaozuo::chaxun(
+    let guanlian = psqlcaozuo::chaxun(
         "SELECT DISTINCT b2.id, b2.zhi, b2.leixingid, l.mingcheng AS leixingmingcheng \
          FROM ribao_biaoqian rb1 \
          JOIN ribao_biaoqian rb2 ON rb1.ribaoid = rb2.ribaoid AND rb1.biaoqianid != rb2.biaoqianid \
@@ -127,53 +172,248 @@ pub async fn chaxun_tupu_biaoqianid(biaoqianid: &str) -> Option<Value> {
          WHERE rb1.biaoqianid = $1::BIGINT",
         &[biaoqianid],
     ).await?;
-    let zhongxin = psqlcaozuo::chaxun(
-        "SELECT b.id, b.zhi, b.leixingid, l.mingcheng AS leixingmingcheng FROM biaoqian b INNER JOIN biaoqianleixing l ON b.leixingid = l.id WHERE b.id = $1::BIGINT",
-        &[biaoqianid],
-    ).await.unwrap_or_default();
+    let zhongxin = chaxun_tupu_jiedian("b.id = $1::BIGINT", &[biaoqianid], "").await.unwrap_or_default();
     let mut jiedian = zhongxin;
-    jiedian.extend(guanlianid);
-    let idlie: Vec<String> = jiedian.iter()
-        .filter_map(|j| j.get("id").and_then(|v| v.as_i64().map(|n| n.to_string()).or_else(|| v.as_str().map(String::from))))
-        .collect();
-    let tiaojian = idlie.iter().enumerate()
-        .map(|(i, _)| format!("${}", i + 1))
-        .collect::<Vec<_>>()
-        .join(",");
-    let sql = format!(
-        "SELECT b1.id::TEXT AS yuan, b2.id::TEXT AS mubiao, COUNT(DISTINCT rb1.ribaoid)::TEXT AS quanzhong \
-         FROM ribao_biaoqian rb1 \
-         JOIN ribao_biaoqian rb2 ON rb1.ribaoid = rb2.ribaoid AND rb1.biaoqianid < rb2.biaoqianid \
-         JOIN biaoqian b1 ON rb1.biaoqianid = b1.id \
-         JOIN biaoqian b2 ON rb2.biaoqianid = b2.id \
-         WHERE b1.id::TEXT IN ({t}) AND b2.id::TEXT IN ({t}) \
-         GROUP BY b1.id, b2.id",
-        t = tiaojian
-    );
-    let canshu: Vec<&str> = idlie.iter().map(String::as_str).collect();
-    let bian = psqlcaozuo::chaxun(&sql, &canshu).await.unwrap_or_default();
-    Some(serde_json::json!({"jiedian": jiedian, "bian": bian}))
+    jiedian.extend(guanlian);
+    let bian = chaxun_tupu_bian_anzifanwei(&jiedian).await;
+    let guanxi_bian = chaxun_tupu_guanxi_bian(&jiedian).await;
+    Some(serde_json::json!({"jiedian": jiedian, "bian": bian, "guanxi_bian": guanxi_bian}))
 }
 
 /// 按标签类型筛选图谱
 pub async fn chaxun_tupu_leixingmingcheng(leixingmingcheng: &str) -> Option<Value> {
-    let jiedian = psqlcaozuo::chaxun(
-        "SELECT b.id, b.zhi, b.leixingid, l.mingcheng AS leixingmingcheng \
-         FROM biaoqian b INNER JOIN biaoqianleixing l ON b.leixingid = l.id \
-         WHERE l.mingcheng = $1 ORDER BY b.zhi",
+    let jiedian = chaxun_tupu_jiedian("l.mingcheng = $1", &[leixingmingcheng], "b.zhi").await?;
+    let bian = chaxun_tupu_bian(
+        " JOIN biaoqianleixing l1 ON b1.leixingid = l1.id \
+         JOIN biaoqianleixing l2 ON b2.leixingid = l2.id",
+        "l1.mingcheng = $1 OR l2.mingcheng = $1",
         &[leixingmingcheng],
+    ).await;
+    let guanxi_bian = chaxun_tupu_guanxi_bian(&jiedian).await;
+    Some(serde_json::json!({"jiedian": jiedian, "bian": bian, "guanxi_bian": guanxi_bian}))
+}
+
+// ========== 图谱增强接口 ==========
+
+/// 搜索标签节点（按关键词模糊匹配，返回统计信息）
+pub async fn tupu_sousuo(guanjianci: &str, leixingmingcheng: Option<&str>, limit: i64) -> Option<Vec<Value>> {
+    let mohu = format!("%{}%", guanjianci);
+    let limit_str = limit.to_string();
+    match leixingmingcheng {
+        Some(lx) => psqlcaozuo::chaxun(
+            "SELECT b.id AS biaoqianid, b.zhi, l.mingcheng AS leixingmingcheng, \
+             COUNT(DISTINCT rb.ribaoid)::TEXT AS ribao_zongshu, \
+             MAX(r.fabushijian) AS zuijin_fabushijian \
+             FROM biaoqian b \
+             INNER JOIN biaoqianleixing l ON b.leixingid = l.id \
+             LEFT JOIN ribao_biaoqian rb ON b.id = rb.biaoqianid \
+             LEFT JOIN ribao r ON rb.ribaoid = r.id \
+             WHERE b.zhi LIKE $1 AND l.mingcheng = $2 \
+             GROUP BY b.id, b.zhi, l.mingcheng \
+             ORDER BY COUNT(DISTINCT rb.ribaoid) DESC \
+             LIMIT $3::BIGINT",
+            &[&mohu, lx, &limit_str],
+        ).await,
+        None => psqlcaozuo::chaxun(
+            "SELECT b.id AS biaoqianid, b.zhi, l.mingcheng AS leixingmingcheng, \
+             COUNT(DISTINCT rb.ribaoid)::TEXT AS ribao_zongshu, \
+             MAX(r.fabushijian) AS zuijin_fabushijian \
+             FROM biaoqian b \
+             INNER JOIN biaoqianleixing l ON b.leixingid = l.id \
+             LEFT JOIN ribao_biaoqian rb ON b.id = rb.biaoqianid \
+             LEFT JOIN ribao r ON rb.ribaoid = r.id \
+             WHERE b.zhi LIKE $1 \
+             GROUP BY b.id, b.zhi, l.mingcheng \
+             ORDER BY COUNT(DISTINCT rb.ribaoid) DESC \
+             LIMIT $2::BIGINT",
+            &[&mohu, &limit_str],
+        ).await,
+    }
+}
+
+/// 按标签ID分页查询关联的日报（图谱节点→日报）
+pub async fn tupu_ribao_fenye(biaoqianid: &str, yeshu: i64, meiyetiaoshu: i64) -> Option<Vec<Value>> {
+    let (tiaoshu, pianyi) = jichugongju::jisuanfenye(yeshu, meiyetiaoshu);
+    psqlcaozuo::chaxun(
+        "SELECT r.*, y.nicheng AS fabuzhemingcheng, y.zhanghao AS fabuzhezhanghao \
+         FROM ribao r \
+         INNER JOIN ribao_biaoqian rb ON r.id = rb.ribaoid \
+         LEFT JOIN yonghu y ON r.yonghuid = y.id \
+         WHERE rb.biaoqianid = $1::BIGINT \
+         ORDER BY r.fabushijian DESC \
+         LIMIT $2::BIGINT OFFSET $3::BIGINT",
+        &[biaoqianid, &tiaoshu, &pianyi],
+    ).await
+}
+
+/// 统计标签关联的日报总数
+pub async fn tongji_tupu_ribao_zongshu(biaoqianid: &str) -> Option<i64> {
+    let jieguo = psqlcaozuo::chaxun(
+        "SELECT COUNT(DISTINCT rb.ribaoid)::TEXT AS count \
+         FROM ribao_biaoqian rb \
+         WHERE rb.biaoqianid = $1::BIGINT",
+        &[biaoqianid],
     ).await?;
-    let bian = psqlcaozuo::chaxun(
-        "SELECT b1.id::TEXT AS yuan, b2.id::TEXT AS mubiao, COUNT(DISTINCT rb1.ribaoid)::TEXT AS quanzhong \
-         FROM ribao_biaoqian rb1 \
-         JOIN ribao_biaoqian rb2 ON rb1.ribaoid = rb2.ribaoid AND rb1.biaoqianid < rb2.biaoqianid \
-         JOIN biaoqian b1 ON rb1.biaoqianid = b1.id \
-         JOIN biaoqian b2 ON rb2.biaoqianid = b2.id \
-         JOIN biaoqianleixing l1 ON b1.leixingid = l1.id \
-         JOIN biaoqianleixing l2 ON b2.leixingid = l2.id \
-         WHERE l1.mingcheng = $1 OR l2.mingcheng = $1 \
-         GROUP BY b1.id, b2.id",
-        &[leixingmingcheng],
-    ).await.unwrap_or_default();
-    Some(serde_json::json!({"jiedian": jiedian, "bian": bian}))
+    jieguo.first()?.get("count")?.as_str()?.parse().ok()
+}
+
+/// 按两个标签共现分页查询日报（图谱边→日报）
+pub async fn tupu_bian_ribao_fenye(yuan_biaoqianid: &str, mubiao_biaoqianid: &str, yeshu: i64, meiyetiaoshu: i64) -> Option<Vec<Value>> {
+    let (tiaoshu, pianyi) = jichugongju::jisuanfenye(yeshu, meiyetiaoshu);
+    psqlcaozuo::chaxun(
+        "SELECT r.*, y.nicheng AS fabuzhemingcheng, y.zhanghao AS fabuzhezhanghao \
+         FROM ribao r \
+         INNER JOIN ribao_biaoqian rb1 ON r.id = rb1.ribaoid \
+         INNER JOIN ribao_biaoqian rb2 ON r.id = rb2.ribaoid \
+         LEFT JOIN yonghu y ON r.yonghuid = y.id \
+         WHERE rb1.biaoqianid = $1::BIGINT AND rb2.biaoqianid = $2::BIGINT \
+         ORDER BY r.fabushijian DESC \
+         LIMIT $3::BIGINT OFFSET $4::BIGINT",
+        &[yuan_biaoqianid, mubiao_biaoqianid, &tiaoshu, &pianyi],
+    ).await
+}
+
+/// 统计两个标签共现的日报总数
+pub async fn tongji_tupu_bian_ribao_zongshu(yuan_biaoqianid: &str, mubiao_biaoqianid: &str) -> Option<i64> {
+    let jieguo = psqlcaozuo::chaxun(
+        "SELECT COUNT(DISTINCT r.id)::TEXT AS count \
+         FROM ribao r \
+         INNER JOIN ribao_biaoqian rb1 ON r.id = rb1.ribaoid \
+         INNER JOIN ribao_biaoqian rb2 ON r.id = rb2.ribaoid \
+         WHERE rb1.biaoqianid = $1::BIGINT AND rb2.biaoqianid = $2::BIGINT",
+        &[yuan_biaoqianid, mubiao_biaoqianid],
+    ).await?;
+    jieguo.first()?.get("count")?.as_str()?.parse().ok()
+}
+
+/// 多标签交集分页查询日报
+pub async fn tupu_ribao_duobiaoqian_fenye(biaoqianidlie: &[&str], yeshu: i64, meiyetiaoshu: i64) -> Option<Vec<Value>> {
+    if biaoqianidlie.is_empty() {
+        return None;
+    }
+    let (tiaoshu, pianyi) = jichugongju::jisuanfenye(yeshu, meiyetiaoshu);
+    let shuliang = biaoqianidlie.len();
+    let zhanwei = biaoqianidlie.iter().enumerate()
+        .map(|(i, _)| format!("${}", i + 1))
+        .collect::<Vec<_>>()
+        .join(",");
+    let sql = format!(
+        "SELECT r.*, y.nicheng AS fabuzhemingcheng, y.zhanghao AS fabuzhezhanghao \
+         FROM ribao r \
+         LEFT JOIN yonghu y ON r.yonghuid = y.id \
+         WHERE r.id IN (\
+           SELECT rb.ribaoid FROM ribao_biaoqian rb \
+           WHERE rb.biaoqianid::TEXT IN ({}) \
+           GROUP BY rb.ribaoid \
+           HAVING COUNT(DISTINCT rb.biaoqianid) = {} \
+         ) \
+         ORDER BY r.fabushijian DESC \
+         LIMIT ${}::BIGINT OFFSET ${}::BIGINT",
+        zhanwei, shuliang, shuliang + 1, shuliang + 2
+    );
+    let mut canshu: Vec<&str> = biaoqianidlie.to_vec();
+    canshu.push(&tiaoshu);
+    canshu.push(&pianyi);
+    psqlcaozuo::chaxun(&sql, &canshu).await
+}
+
+/// 从节点列表中提取关系边（基于 ribao.kuozhan 中的 AI 关系分析）
+async fn chaxun_tupu_guanxi_bian(jiedianlie: &[Value]) -> Vec<Value> {
+    // 构建 name→id 映射
+    let mut mingcheng_dao_id: HashMap<String, String> = HashMap::new();
+    for j in jiedianlie {
+        if let (Some(id), Some(zhi)) = (
+            j.get("id").and_then(|v| v.as_i64().map(|n| n.to_string()).or_else(|| v.as_str().map(String::from))),
+            j.get("zhi").and_then(|v| v.as_str()),
+        ) {
+            mingcheng_dao_id.insert(zhi.to_string(), id);
+        }
+    }
+    if mingcheng_dao_id.is_empty() {
+        return Vec::new();
+    }
+    // 查询所有含 kuozhan 的日报
+    let ribaolie = match psqlcaozuo::chaxun(
+        "SELECT id, kuozhan FROM ribao WHERE kuozhan IS NOT NULL AND kuozhan != ''",
+        &[],
+    ).await {
+        Some(lie) => lie,
+        None => return Vec::new(),
+    };
+    // 解析每条日报的关系，匹配节点
+    // key = (yuan_id, mubiao_id, guanxi), value = (cishu, miaoshu_set)
+    let mut juhe: HashMap<(String, String, String), (i64, Vec<String>)> = HashMap::new();
+    for r in &ribaolie {
+        let kuozhan_str = match r.get("kuozhan").and_then(|v| v.as_str()) {
+            Some(s) if !s.is_empty() => s,
+            _ => continue,
+        };
+        let kuozhan: Value = match serde_json::from_str(kuozhan_str) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let guanxilie = match kuozhan.get("guanxifenxi")
+            .and_then(|gx| gx.get("guanxi"))
+            .and_then(|g| g.as_array()) {
+            Some(arr) => arr,
+            None => continue,
+        };
+        for gx in guanxilie {
+            let ren1 = match gx.get("ren1").and_then(|v| v.as_str()) { Some(s) => s, None => continue };
+            let ren2 = match gx.get("ren2").and_then(|v| v.as_str()) { Some(s) => s, None => continue };
+            let guanxi = gx.get("guanxi").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            // 过滤掉无意义的关系类型
+            if guanxi.is_empty() || guanxi.contains("无关") || guanxi == "无" {
+                continue;
+            }
+            let miaoshu = gx.get("miaoshu").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let yuan_id = match mingcheng_dao_id.get(ren1) { Some(id) => id.clone(), None => continue };
+            let mubiao_id = match mingcheng_dao_id.get(ren2) { Some(id) => id.clone(), None => continue };
+            if yuan_id == mubiao_id { continue; }
+            // 保证 key 方向一致（小ID在前）
+            let key = if yuan_id < mubiao_id {
+                (yuan_id.clone(), mubiao_id.clone(), guanxi)
+            } else {
+                (mubiao_id.clone(), yuan_id.clone(), guanxi)
+            };
+            let entry = juhe.entry(key).or_insert((0, Vec::new()));
+            entry.0 += 1;
+            if !miaoshu.is_empty() && !entry.1.contains(&miaoshu) {
+                entry.1.push(miaoshu);
+            }
+        }
+    }
+    // 转为 JSON 数组
+    juhe.into_iter().map(|((yuan, mubiao, guanxi), (cishu, miaoshulie))| {
+        serde_json::json!({
+            "yuan": yuan,
+            "mubiao": mubiao,
+            "guanxi": guanxi,
+            "miaoshu": miaoshulie.join("；"),
+            "cishu": cishu.to_string()
+        })
+    }).collect()
+}
+
+/// 统计多标签交集的日报总数
+pub async fn tongji_tupu_duobiaoqian_zongshu(biaoqianidlie: &[&str]) -> Option<i64> {
+    if biaoqianidlie.is_empty() {
+        return None;
+    }
+    let shuliang = biaoqianidlie.len();
+    let zhanwei = biaoqianidlie.iter().enumerate()
+        .map(|(i, _)| format!("${}", i + 1))
+        .collect::<Vec<_>>()
+        .join(",");
+    let sql = format!(
+        "SELECT COUNT(*)::TEXT AS count FROM (\
+           SELECT rb.ribaoid FROM ribao_biaoqian rb \
+           WHERE rb.biaoqianid::TEXT IN ({}) \
+           GROUP BY rb.ribaoid \
+           HAVING COUNT(DISTINCT rb.biaoqianid) = {} \
+         ) t",
+        zhanwei, shuliang
+    );
+    let jieguo = psqlcaozuo::chaxun(&sql, biaoqianidlie).await?;
+    jieguo.first()?.get("count")?.as_str()?.parse().ok()
 }
