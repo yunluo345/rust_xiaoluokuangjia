@@ -443,6 +443,32 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
             let canshu = jiexi_canshu!(qingqiu, Renwuxinzengcanshu, miyao);
             chuli_xinzeng!(canshu, miyao, shujucaozuo_ribao_biaoqianrenwu::faburenwu(&canshu.ribaoid, &canshu.yonghuid, 3))
         }
+        "renwu_piliang_xinzeng_quanbu" => {
+            match shujucaozuo_ribao_biaoqianrenwu::piliang_faburenwu_quanbu(3).await {
+                Some(shuju) => jiamichenggong("批量创建成功", shuju, miyao),
+                None => jiamishibai(&cuowu::chuangjianshi, miyao),
+            }
+        }
+        "tupu_quanbu" => {
+            match shujucaozuo_ribao_biaoqian::chaxun_tupu_quanbu().await {
+                Some(shuju) => jiamichenggong("查询成功", shuju, miyao),
+                None => jiamishibai(&cuowu::chaxunshibai, miyao),
+            }
+        }
+        "tupu_biaoqianid" => {
+            let canshu = jiexi_canshu!(qingqiu, Biaoqianidcanshu, miyao);
+            match shujucaozuo_ribao_biaoqian::chaxun_tupu_biaoqianid(&canshu.biaoqianid).await {
+                Some(shuju) => jiamichenggong("查询成功", shuju, miyao),
+                None => jiamishibai(&cuowu::chaxunshibai, miyao),
+            }
+        }
+        "tupu_leixingmingcheng" => {
+            let canshu = jiexi_canshu!(qingqiu, Mingchengcanshu, miyao);
+            match shujucaozuo_ribao_biaoqian::chaxun_tupu_leixingmingcheng(&canshu.mingcheng).await {
+                Some(shuju) => jiamichenggong("查询成功", shuju, miyao),
+                None => jiamishibai(&cuowu::chaxunshibai, miyao),
+            }
+        }
         _ => jiamishibai(&cuowu::bucaozuoleixing, miyao),
     }
 }

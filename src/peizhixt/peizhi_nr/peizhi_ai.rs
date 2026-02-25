@@ -42,6 +42,8 @@ pub struct Ai {
     pub ribao_biaoqian: Vec<Ribaobiaoqian>,
     #[serde(default = "moren_siweidaotu_weidu")]
     pub siweidaotu_weidu: Vec<Siweidaotuweidu>,
+    #[serde(default = "moren_guanxifenxi_tishici")]
+    pub guanxifenxi_tishici: String,
 }
 
 fn moren_ribao_biaoqianrenwu_chongshi_cishu() -> u32 {
@@ -54,6 +56,17 @@ fn moren_ribao_biaoqianrenwu_bingfashuliang() -> u32 {
 
 fn moren_bingxingrenwushu() -> u32 {
     5
+}
+
+fn moren_guanxifenxi_tishici() -> String {
+    "你是人物关系分析助手。根据日报内容，分析其中提到的人物之间的关系。\n\
+    返回纯JSON，格式：{\"guanxi\":[{\"ren1\":\"姓名1\",\"ren2\":\"姓名2\",\"guanxi\":\"关系类型\",\"miaoshu\":\"关系描述\"}]}\n\
+    关系类型包括但不限于：同事、上下级、客户、合作伙伴、同学等。\n\
+    注意：\n\
+    1. 只分析日报中明确提及的人物\n\
+    2. 如果无法确定具体关系，用\"相关\"作为关系类型\n\
+    3. miaoshu字段简要描述关系背景\n\
+    4. 只返回JSON，不要返回其他内容".to_string()
 }
 
 fn moren_siweidaotu_weidu() -> Vec<Siweidaotuweidu> {
@@ -120,6 +133,7 @@ impl Default for Ai {
                 },
             ],
             siweidaotu_weidu: moren_siweidaotu_weidu(),
+            guanxifenxi_tishici: moren_guanxifenxi_tishici(),
         }
     }
 }

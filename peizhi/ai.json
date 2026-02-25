@@ -1,5 +1,6 @@
 {
   "bingxingrenwushu": 5,
+  "guanxifenxi_tishici": "你是人物关系分析助手。根据日报内容，分析其中提到的人物之间的关系。\n返回纯JSON，格式：{\"guanxi\":[{\"ren1\":\"姓名1\",\"ren2\":\"姓名2\",\"guanxi\":\"关系类型\",\"miaoshu\":\"关系描述\"}]}\n关系类型包括但不限于：同事、上下级、客户、合作伙伴、同学等。\n注意：\n1. 只分析日报中明确提及的人物\n2. 如果无法确定具体关系，用\"相关\"作为关系类型\n3. miaoshu字段简要描述关系背景\n4. 只返回JSON，不要返回其他内容",
   "ribao_biaoqian": [
     {
       "biecheng": [
@@ -83,7 +84,7 @@
       "mingcheng": "工作内容"
     }
   ],
-  "ribao_biaoqianrenwu_bingfashuliang": 5,
+  "ribao_biaoqianrenwu_bingfashuliang": 2,
   "ribao_biaoqianrenwu_chongshi_cishu": 3,
   "siweidaotu_weidu": [
     {

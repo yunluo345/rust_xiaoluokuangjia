@@ -384,4 +384,28 @@ export class Ribaoluoji {
         if (jg) this.rizhi('批量删除任务: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
         return jg;
     }
+
+    async renwu_piliang_xinzeng_quanbu() {
+        const jg = await this.zhixing('renwu_piliang_xinzeng_quanbu');
+        if (jg) this.rizhi('批量创建任务: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async tupu_chaxun_quanbu() {
+        const jg = await this.zhixing('tupu_quanbu');
+        if (jg) this.rizhi('查询全量图谱: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async tupu_chaxun_biaoqianid(biaoqianid) {
+        const jg = await this.zhixing('tupu_biaoqianid', { biaoqianid });
+        if (jg) this.rizhi('查询标签图谱[' + biaoqianid + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async tupu_chaxun_leixingmingcheng(mingcheng) {
+        const jg = await this.zhixing('tupu_leixingmingcheng', { mingcheng });
+        if (jg) this.rizhi('查询类型图谱[' + mingcheng + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
 }

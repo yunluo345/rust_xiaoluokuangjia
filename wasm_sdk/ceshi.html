@@ -143,7 +143,13 @@
                         .forEach(id => document.getElementById(id).disabled = false);
                     if (kehu.yidenglu()) {
                         rizhi('检测到已保存的登录令牌，自动恢复登录状态', 'info');
-                        await chushihuamianban(false);
+                        let zidongquanxian = false;
+                        try {
+                            const lingpai = localStorage.getItem('lingpai') || '';
+                            const zaiti = JSON.parse(atob(lingpai.split('.')[1]));
+                            zidongquanxian = zaiti?.yonghuzuid === '1';
+                        } catch (_) {}
+                        await chushihuamianban(zidongquanxian);
                     } else {
                         rizhi('请先登录以加载各功能面板', 'warn');
                     }
@@ -393,6 +399,9 @@
                 ribao_siweidaotu: 'siweidaotu',
                 ribao_guanbisiweidaotu: 'guanbisiweidaotu',
                 ribao_xiazaisiweidaotu: 'xiazaisiweidaotu',
+                ribao_tupu_jiazai: '_tupu_jiazai',
+                ribao_guanxifenxi: 'guanxifenxi',
+                ribao_piliang_xinzengrenwu: 'piliang_xinzengrenwu',
             });
 
             bangding(() => biaoqian_jm, {

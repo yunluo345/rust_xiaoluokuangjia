@@ -176,6 +176,46 @@ async fn ai_shengcheng_siweidaotu(neirong: &str, peizhi: &Ai) -> Option<String> 
     }
 }
 
+async fn ai_shengcheng_guanxifenxi(neirong: &str, peizhi: &Ai) -> Option<String> {
+    let aipeizhi = crate::jiekouxt::jiekou_nr::ai::huoqu_peizhi().await?
+        .shezhi_chaoshi(60)
+        .shezhi_chongshi(1);
+
+    let mut guanli = aixiaoxiguanli::Xiaoxiguanli::xingjian()
+        .shezhi_xitongtishici(&peizhi.guanxifenxi_tishici);
+    guanli.zhuijia_yonghuxiaoxi(format!("请分析以下日报中的人物关系：\n\n{}", neirong));
+
+    let huifu = openaizhuti::putongqingqiu(&aipeizhi, &guanli).await?;
+    let jinghua = huifu.trim()
+        .trim_start_matches("```json").trim_start_matches("```")
+        .trim_end_matches("```")
+        .trim();
+
+    match serde_json::from_str::<Value>(jinghua) {
+        Ok(_) => {
+            println!("[关系分析] 生成成功 长度={}", jinghua.len());
+            Some(jinghua.to_string())
+        }
+        Err(e) => {
+            println!("[关系分析] JSON解析失败: {} 原文={}", e, jinghua.chars().take(80).collect::<String>());
+            None
+        }
+    }
+}
+
+/// 解析kuozhan为结构化JSON，兼容旧格式
+fn jiexi_kuozhan(kuozhan_str: Option<&str>) -> Value {
+    let raw = match kuozhan_str.filter(|s| !s.trim().is_empty()) {
+        Some(s) => s,
+        None => return json!({}),
+    };
+    match serde_json::from_str::<Value>(raw) {
+        Ok(v) if v.get("siweidaotu").is_some() => v,
+        Ok(v) if v.is_object() => json!({"siweidaotu": v}),
+        _ => json!({}),
+    }
+}
+
 async fn ai_tiqu_biaoqian(neirong: &str, peizhi: &Ai, yiyou_biaoqian: Option<&str>) -> Option<Vec<(String, String)>> {
     let biaoqian_tishi = peizhi.ribao_biaoqian.iter()
         .map(|bq| {
@@ -529,7 +569,11 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
     }
 
     let xuyao_zhaiyao = ribao.get("zhaiyao").and_then(|v| v.as_str()).map_or(true, |s| s.trim().is_empty());
-    let xuyao_kuozhan = ribao.get("kuozhan").and_then(|v| v.as_str()).map_or(true, |s| s.trim().is_empty());
+    let kuozhan_yuanshi = ribao.get("kuozhan").and_then(|v| v.as_str());
+    let mut kuozhan_jiegou = jiexi_kuozhan(kuozhan_yuanshi);
+    let xuyao_siweidaotu = kuozhan_jiegou.get("siweidaotu").is_none();
+    let xuyao_guanxifenxi = kuozhan_jiegou.get("guanxifenxi").is_none();
+    let mut kuozhan_yigengxin = false;
 
     let zhaiyao_jieguo = match xuyao_zhaiyao {
         true => match ai_shengcheng_zhaiyao(neirong).await {
@@ -549,10 +593,13 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
         },
     };
 
-    let daotu_jieguo = match xuyao_kuozhan {
+    let daotu_jieguo = match xuyao_siweidaotu {
         true => match ai_shengcheng_siweidaotu(neirong, peizhi).await {
             Some(daotu) => {
-                let _ = shujucaozuo_ribao::gengxin(&ribaoid, &[("kuozhan", &daotu)]).await;
+                if let Ok(daotu_json) = serde_json::from_str::<Value>(&daotu) {
+                    kuozhan_jiegou["siweidaotu"] = daotu_json;
+                    kuozhan_yigengxin = true;
+                }
                 println!("[任务处理] 任务={} 日报={} 思维导图已生成", renwuid, ribaoid);
                 true
             }
@@ -567,6 +614,32 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
         },
     };
 
+    let guanxi_jieguo = match xuyao_guanxifenxi {
+        true => match ai_shengcheng_guanxifenxi(neirong, peizhi).await {
+            Some(guanxi) => {
+                if let Ok(guanxi_json) = serde_json::from_str::<Value>(&guanxi) {
+                    kuozhan_jiegou["guanxifenxi"] = guanxi_json;
+                    kuozhan_yigengxin = true;
+                }
+                println!("[任务处理] 任务={} 日报={} 关系分析已生成", renwuid, ribaoid);
+                true
+            }
+            None => {
+                println!("[任务处理] 任务={} 关系分析生成失败，跳过", renwuid);
+                false
+            }
+        },
+        false => {
+            println!("[任务处理] 任务={} 日报={} 关系分析已存在，跳过", renwuid, ribaoid);
+            false
+        },
+    };
+
+    if kuozhan_yigengxin {
+        let kuozhan_wenben = kuozhan_jiegou.to_string();
+        let _ = shujucaozuo_ribao::gengxin(&ribaoid, &[("kuozhan", &kuozhan_wenben)]).await;
+    }
+
     println!("[任务处理] ✓ 任务={} 日报={} 绑定标签数={}", renwuid, ribaoid, bangdingshu);
     json!({
         "chenggong": true,
@@ -576,6 +649,7 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
         "tiqujieguo": tiqujieguo,
         "zhaiyao": zhaiyao_jieguo,
         "siweidaotu": daotu_jieguo,
+        "guanxifenxi": guanxi_jieguo,
     })
 }
 

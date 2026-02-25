@@ -112,6 +112,22 @@ pub async fn faburenwu(ribaoid: &str, yonghuid: &str, zuidachangshicishu: i64) -
     xinzeng_huogengxin(ribaoid, yonghuid, zuidachangshicishu).await
 }
 
+/// 批量为所有无任务的日报创建标签任务
+pub async fn piliang_faburenwu_quanbu(zuidachangshicishu: i64) -> Option<Value> {
+    let shijian = jichugongju::huoqushijianchuo().to_string();
+    let jieguo = psqlcaozuo::chaxun(
+        &format!(
+            "INSERT INTO {} (ribaoid, yonghuid, zhuangtai, changshicishu, zuidachangshicishu, biaoqianjieguo, chuangjianshijian, gengxinshijian) \
+             SELECT r.id, r.yonghuid, 'false', 0, $1::INT, NULL, $2, $2 \
+             FROM ribao r WHERE NOT EXISTS (SELECT 1 FROM {} rw WHERE rw.ribaoid = r.id) \
+             RETURNING id::TEXT, ribaoid::TEXT",
+            biaoming, biaoming
+        ),
+        &[&zuidachangshicishu.to_string(), &shijian],
+    ).await?;
+    Some(json!({"xinzengshu": jieguo.len(), "liebiao": jieguo}))
+}
+
 /// 根据ID删除任务
 pub async fn shanchu(id: &str) -> Option<u64> {
     psqlcaozuo::zhixing(
