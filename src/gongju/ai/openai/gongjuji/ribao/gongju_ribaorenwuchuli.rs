@@ -11,6 +11,7 @@ use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::{
 };
 use llm::chat::Tool;
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 
 use super::super::Gongjufenzu;
@@ -86,23 +87,161 @@ fn yanzheng_bitian_biaoqian(tiquxiang: &[(String, String)], peizhi: &Ai) -> Opti
     
     (!queshi.is_empty()).then_some(queshi)
 }
-
-async fn ai_shengcheng_zhaiyao(neirong: &str) -> Option<String> {
+async fn ai_putongqingqiu_wenben(xitongtishici: &str, yonghuxiaoxi: String, chaoshi: u64) -> Option<String> {
     let aipeizhi = crate::jiekouxt::jiekou_nr::ai::huoqu_peizhi().await?
-        .shezhi_chaoshi(60)
+        .shezhi_chaoshi(chaoshi)
         .shezhi_chongshi(1);
 
     let mut guanli = aixiaoxiguanli::Xiaoxiguanli::xingjian()
-        .shezhi_xitongtishici(
-            "你是日报摘要生成助手。根据日报内容生成简洁摘要。\n\
-            要求：\n\
-            1. 控制在100字以内\n\
-            2. 突出重点工作和关键成果\n\
-            3. 只返回摘要文本，不要返回其他内容"
-        );
-    guanli.zhuijia_yonghuxiaoxi(format!("请为以下日报生成摘要：\n\n{}", neirong));
+        .shezhi_xitongtishici(xitongtishici);
+    guanli.zhuijia_yonghuxiaoxi(yonghuxiaoxi);
 
-    let huifu = openaizhuti::putongqingqiu(&aipeizhi, &guanli).await?;
+    openaizhuti::putongqingqiu(&aipeizhi, &guanli)
+        .await
+        .map(|h| h.trim().to_string())
+}
+
+fn jinghua_json_huifu(huifu: &str) -> &str {
+    huifu.trim()
+        .trim_start_matches("```json")
+        .trim_start_matches("```")
+        .trim_end_matches("```")
+        .trim()
+}
+
+fn jisuan_sha256(wenben: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(wenben.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
+
+fn anzi_fenduan(wenben: &str, meiduanchangdu: usize, zhongdiechangdu: usize, zuidaduanshu: usize) -> Vec<String> {
+    if meiduanchangdu == 0 || zuidaduanshu == 0 {
+        return vec![wenben.to_string()];
+    }
+    let zifu: Vec<char> = wenben.chars().collect();
+    if zifu.len() <= meiduanchangdu {
+        return vec![wenben.to_string()];
+    }
+
+    let buchang = meiduanchangdu.saturating_sub(zhongdiechangdu).max(1);
+    let mut kaishi = 0usize;
+    let mut duanlie: Vec<String> = Vec::new();
+    while kaishi < zifu.len() && duanlie.len() < zuidaduanshu {
+        let jieshu = (kaishi + meiduanchangdu).min(zifu.len());
+        duanlie.push(zifu[kaishi..jieshu].iter().collect());
+        if jieshu >= zifu.len() {
+            break;
+        }
+        kaishi += buchang;
+    }
+    duanlie
+}
+
+fn tiqu_guanxilie(huifu: &str) -> Vec<Value> {
+    let jinghua = jinghua_json_huifu(huifu);
+    let json_obj = match serde_json::from_str::<Value>(jinghua) {
+        Ok(v) => v,
+        Err(_) => return Vec::new(),
+    };
+    json_obj
+        .get("guanxi")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default()
+}
+
+struct GuanxiJuheXiang {
+    miaoshulie: Vec<String>,
+    zuigao_xindu: f64,
+    zhengjulie: Vec<String>,
+    juese_ren1: Option<String>,
+    juese_ren2: Option<String>,
+}
+
+fn hebing_guanxilie(guanxilie: Vec<Value>) -> Vec<Value> {
+    let mut juhe: HashMap<(String, String, String), GuanxiJuheXiang> = HashMap::new();
+    for gx in guanxilie {
+        let ren1 = match gx.get("ren1").and_then(|v| v.as_str()).map(str::trim).filter(|s| !s.is_empty()) {
+            Some(s) => s.to_string(),
+            None => continue,
+        };
+        let ren2 = match gx.get("ren2").and_then(|v| v.as_str()).map(str::trim).filter(|s| !s.is_empty()) {
+            Some(s) => s.to_string(),
+            None => continue,
+        };
+        let guanxi = match gx.get("guanxi").and_then(|v| v.as_str()).map(str::trim).filter(|s| !s.is_empty()) {
+            Some(s) => s.to_string(),
+            None => continue,
+        };
+        let miaoshu = gx.get("miaoshu").and_then(|v| v.as_str()).map(str::trim).unwrap_or("").to_string();
+        let xindu = gx.get("xindu").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        let zhengju = gx.get("zhengjupianduan").and_then(|v| v.as_str()).map(str::trim).unwrap_or("").to_string();
+        let juese_r1 = gx.get("juese").and_then(|j| j.get("ren1")).and_then(|v| v.as_str()).map(str::trim)
+            .filter(|s| !s.is_empty()).map(String::from);
+        let juese_r2 = gx.get("juese").and_then(|j| j.get("ren2")).and_then(|v| v.as_str()).map(str::trim)
+            .filter(|s| !s.is_empty()).map(String::from);
+
+        let (a, b, jr1, jr2) = if ren1 <= ren2 {
+            (ren1, ren2, juese_r1, juese_r2)
+        } else {
+            (ren2, ren1, juese_r2, juese_r1)
+        };
+        let entry = juhe.entry((a, b, guanxi)).or_insert_with(|| GuanxiJuheXiang {
+            miaoshulie: Vec::new(),
+            zuigao_xindu: 0.0,
+            zhengjulie: Vec::new(),
+            juese_ren1: None,
+            juese_ren2: None,
+        });
+        if !miaoshu.is_empty() && !entry.miaoshulie.contains(&miaoshu) {
+            entry.miaoshulie.push(miaoshu);
+        }
+        if xindu > entry.zuigao_xindu {
+            entry.zuigao_xindu = xindu;
+        }
+        if !zhengju.is_empty() && !entry.zhengjulie.contains(&zhengju) {
+            entry.zhengjulie.push(zhengju);
+        }
+        if entry.juese_ren1.is_none() {
+            entry.juese_ren1 = jr1;
+        }
+        if entry.juese_ren2.is_none() {
+            entry.juese_ren2 = jr2;
+        }
+    }
+
+    juhe.into_iter().map(|((ren1, ren2, guanxi), xiang)| {
+        let mut jieguo = json!({
+            "ren1": ren1,
+            "ren2": ren2,
+            "guanxi": guanxi,
+            "miaoshu": xiang.miaoshulie.join("；"),
+            "xindu": xiang.zuigao_xindu,
+            "zhengjupianduan": xiang.zhengjulie.join("；"),
+        });
+        if xiang.juese_ren1.is_some() || xiang.juese_ren2.is_some() {
+            jieguo["juese"] = json!({
+                "ren1": xiang.juese_ren1.unwrap_or_default(),
+                "ren2": xiang.juese_ren2.unwrap_or_default(),
+            });
+        }
+        jieguo
+    }).collect()
+}
+
+async fn ai_shengcheng_zhaiyao(neirong: &str) -> Option<String> {
+    let xitongtishici =
+        "你是日报摘要生成助手。根据日报内容生成简洁摘要。\n\
+        要求：\n\
+        1. 控制在100字以内\n\
+        2. 突出重点工作和关键成果\n\
+        3. 只返回摘要文本，不要返回其他内容";
+    let huifu = ai_putongqingqiu_wenben(
+        xitongtishici,
+        format!("请为以下日报生成摘要：\n\n{}", neirong),
+        60,
+    ).await?;
     let zhaiyao = huifu.trim().to_string();
     println!("[摘要生成] {}", zhaiyao.chars().take(60).collect::<String>());
     (!zhaiyao.is_empty()).then_some(zhaiyao)
@@ -149,20 +288,14 @@ fn goujian_siweidaotu_tishici(peizhi: &Ai) -> String {
 }
 
 async fn ai_shengcheng_siweidaotu(neirong: &str, peizhi: &Ai) -> Option<String> {
-    let aipeizhi = crate::jiekouxt::jiekou_nr::ai::huoqu_peizhi().await?
-        .shezhi_chaoshi(120)
-        .shezhi_chongshi(1);
 
     let xitongtishici = goujian_siweidaotu_tishici(peizhi);
-    let mut guanli = aixiaoxiguanli::Xiaoxiguanli::xingjian()
-        .shezhi_xitongtishici(&xitongtishici);
-    guanli.zhuijia_yonghuxiaoxi(format!("请对以下日报进行全面分析并生成思维导图：\n\n{}", neirong));
-
-    let huifu = openaizhuti::putongqingqiu(&aipeizhi, &guanli).await?;
-    let jinghua = huifu.trim()
-        .trim_start_matches("```json").trim_start_matches("```")
-        .trim_end_matches("```")
-        .trim();
+    let huifu = ai_putongqingqiu_wenben(
+        &xitongtishici,
+        format!("请对以下日报进行全面分析并生成思维导图：\n\n{}", neirong),
+        120,
+    ).await?;
+    let jinghua = jinghua_json_huifu(&huifu);
 
     match serde_json::from_str::<Value>(jinghua) {
         Ok(_) => {
@@ -177,30 +310,65 @@ async fn ai_shengcheng_siweidaotu(neirong: &str, peizhi: &Ai) -> Option<String> 
 }
 
 async fn ai_shengcheng_guanxifenxi(neirong: &str, peizhi: &Ai) -> Option<String> {
-    let aipeizhi = crate::jiekouxt::jiekou_nr::ai::huoqu_peizhi().await?
-        .shezhi_chaoshi(60)
-        .shezhi_chongshi(1);
-
-    let mut guanli = aixiaoxiguanli::Xiaoxiguanli::xingjian()
-        .shezhi_xitongtishici(&peizhi.guanxifenxi_tishici);
-    guanli.zhuijia_yonghuxiaoxi(format!("请分析以下日报中的人物关系：\n\n{}", neirong));
-
-    let huifu = openaizhuti::putongqingqiu(&aipeizhi, &guanli).await?;
-    let jinghua = huifu.trim()
-        .trim_start_matches("```json").trim_start_matches("```")
-        .trim_end_matches("```")
-        .trim();
-
-    match serde_json::from_str::<Value>(jinghua) {
-        Ok(_) => {
-            println!("[关系分析] 生成成功 长度={}", jinghua.len());
-            Some(jinghua.to_string())
+    let neirong_changdu = neirong.chars().count();
+    let danpian_shangxian = peizhi.guanxifenxi_danpian_zifushangxian.max(500);
+    if neirong_changdu <= danpian_shangxian {
+        let huifu = ai_putongqingqiu_wenben(
+            &peizhi.guanxifenxi_tishici,
+            format!("请分析以下日报中的人物关系：\n\n{}", neirong),
+            60,
+        ).await?;
+        let guanxilie = hebing_guanxilie(tiqu_guanxilie(&huifu));
+        if guanxilie.is_empty() {
+            println!("[关系分析] 单篇模式未提取到有效关系");
+            return None;
         }
-        Err(e) => {
-            println!("[关系分析] JSON解析失败: {} 原文={}", e, jinghua.chars().take(80).collect::<String>());
-            None
-        }
+        let jieguo = json!({"guanxi": guanxilie}).to_string();
+        println!("[关系分析] 单篇模式成功 长度={}", jieguo.len());
+        return Some(jieguo);
     }
+
+    let duanlie = anzi_fenduan(
+        neirong,
+        peizhi.guanxifenxi_fenduan_daxiao.max(200),
+        peizhi.guanxifenxi_fenduan_zhongdie.min(peizhi.guanxifenxi_fenduan_daxiao.saturating_sub(1)),
+        peizhi.guanxifenxi_zuida_fenduanshu.max(1),
+    );
+    println!(
+        "[关系分析] 超长日报启用分段模式 原始长度={} 分段数={}",
+        neirong_changdu,
+        duanlie.len()
+    );
+
+    let mut zong_guanxilie: Vec<Value> = Vec::new();
+    for (idx, duan) in duanlie.iter().enumerate() {
+        let huifu = match ai_putongqingqiu_wenben(
+            &peizhi.guanxifenxi_tishici,
+            format!("请分析以下日报中的人物关系（第{}/{}段）：\n\n{}", idx + 1, duanlie.len(), duan),
+            60,
+        ).await {
+            Some(h) => h,
+            None => {
+                println!("[关系分析] 分段{}调用失败，已跳过", idx + 1);
+                continue;
+            }
+        };
+        let guanxilie = tiqu_guanxilie(&huifu);
+        if guanxilie.is_empty() {
+            println!("[关系分析] 分段{}未提取到关系", idx + 1);
+            continue;
+        }
+        zong_guanxilie.extend(guanxilie);
+    }
+
+    let hebinghou = hebing_guanxilie(zong_guanxilie);
+    if hebinghou.is_empty() {
+        println!("[关系分析] 分段模式未提取到有效关系");
+        return None;
+    }
+    let jieguo = json!({"guanxi": hebinghou}).to_string();
+    println!("[关系分析] 分段模式成功 长度={}", jieguo.len());
+    Some(jieguo)
 }
 
 /// 解析kuozhan为结构化JSON，兼容旧格式
@@ -297,20 +465,45 @@ fn chaifenzhi(zhi: &Value, duozhi: bool) -> Vec<String> {
 }
 
 fn tichubiaoqianxiang(neirong: &str, peizhi: &Ai) -> Vec<(String, String)> {
-    let mut biezhuan: HashMap<String, String> = HashMap::new();
+    let mut biezhuan_duoduiyi: HashMap<String, HashSet<String>> = HashMap::new();
     let mut duozhiji: HashSet<String> = HashSet::new();
+    let mut zhuce_bieming = |biecheng: &str, biaozhunmingcheng: &str| {
+        let jian = biecheng.trim();
+        if jian.is_empty() {
+            return;
+        }
+        biezhuan_duoduiyi
+            .entry(jian.to_string())
+            .or_default()
+            .insert(biaozhunmingcheng.to_string());
+    };
     for biaoqian in &peizhi.ribao_biaoqian {
-        biezhuan.insert(biaoqian.mingcheng.trim().to_string(), biaoqian.mingcheng.clone());
-        biezhuan.insert(biaoqian.miaoshu.trim().to_string(), biaoqian.mingcheng.clone());
+        zhuce_bieming(&biaoqian.mingcheng, &biaoqian.mingcheng);
+        zhuce_bieming(&biaoqian.miaoshu, &biaoqian.mingcheng);
         if biaoqian.duozhi {
             duozhiji.insert(biaoqian.mingcheng.clone());
         }
         for biecheng in &biaoqian.biecheng {
-            let jian = biecheng.trim();
-            if !jian.is_empty() {
-                biezhuan.insert(jian.to_string(), biaoqian.mingcheng.clone());
-            }
+            zhuce_bieming(biecheng, &biaoqian.mingcheng);
         }
+    }
+
+    let mut biezhuan: HashMap<String, String> = HashMap::new();
+    let mut chongtu_bieming: Vec<String> = Vec::new();
+    for (biecheng, biaozhunjihe) in biezhuan_duoduiyi {
+        match biaozhunjihe.len() {
+            1 => {
+                if let Some(biaozhun) = biaozhunjihe.into_iter().next() {
+                    biezhuan.insert(biecheng, biaozhun);
+                }
+            }
+            n if n > 1 => chongtu_bieming.push(biecheng),
+            _ => {}
+        }
+    }
+    if !chongtu_bieming.is_empty() {
+        chongtu_bieming.sort();
+        println!("[标签提取] 检测到别名冲突，已忽略: {}", chongtu_bieming.join("、"));
     }
 
     let mut jieguo: Vec<(String, String)> = Vec::new();
@@ -601,8 +794,11 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
     let xuyao_zhaiyao = ribao.get("zhaiyao").and_then(|v| v.as_str()).map_or(true, |s| s.trim().is_empty());
     let kuozhan_yuanshi = ribao.get("kuozhan").and_then(|v| v.as_str());
     let mut kuozhan_jiegou = jiexi_kuozhan(kuozhan_yuanshi);
+    let neirong_hash = jisuan_sha256(neirong);
     let xuyao_siweidaotu = kuozhan_jiegou.get("siweidaotu").is_none();
-    let xuyao_guanxifenxi = kuozhan_jiegou.get("guanxifenxi").is_none();
+    let guanxifenxi_hash_yiyou = kuozhan_jiegou.get("guanxifenxi_neirong_hash").and_then(|v| v.as_str());
+    let xuyao_guanxifenxi = kuozhan_jiegou.get("guanxifenxi").is_none()
+        || guanxifenxi_hash_yiyou != Some(neirong_hash.as_str());
     let mut kuozhan_yigengxin = false;
 
     let zhaiyao_jieguo = match xuyao_zhaiyao {
@@ -649,6 +845,7 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
             Some(guanxi) => {
                 if let Ok(guanxi_json) = serde_json::from_str::<Value>(&guanxi) {
                     kuozhan_jiegou["guanxifenxi"] = guanxi_json;
+                    kuozhan_jiegou["guanxifenxi_neirong_hash"] = Value::String(neirong_hash.clone());
                     kuozhan_yigengxin = true;
                 }
                 println!("[任务处理] 任务={} 日报={} 关系分析已生成", renwuid, ribaoid);
@@ -660,7 +857,7 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
             }
         },
         false => {
-            println!("[任务处理] 任务={} 日报={} 关系分析已存在，跳过", renwuid, ribaoid);
+            println!("[任务处理] 任务={} 日报={} 关系分析未变化，跳过", renwuid, ribaoid);
             false
         },
     };

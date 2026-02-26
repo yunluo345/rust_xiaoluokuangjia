@@ -317,32 +317,76 @@ pub async fn tupu_ribao_duobiaoqian_fenye(biaoqianidlie: &[&str], yeshu: i64, me
     psqlcaozuo::chaxun(&sql, &canshu).await
 }
 
+/// 类型优先级：同名实体命中多类型时，按此优先级选取主节点
+fn leixing_youxianji(leixing: &str) -> u8 {
+    match leixing {
+        "我方人员" => 0,
+        "对方人员" => 1,
+        "客户名字" => 2,
+        "客户公司" => 3,
+        "地点" => 4,
+        _ => 5,
+    }
+}
+
 /// 从节点列表中提取关系边（基于 ribao.kuozhan 中的 AI 关系分析）
 async fn chaxun_tupu_guanxi_bian(jiedianlie: &[Value]) -> Vec<Value> {
-    // 构建 name→id 映射
-    let mut mingcheng_dao_id: HashMap<String, String> = HashMap::new();
+    // 构建 name→(id, leixing, youxianji) 映射，同名多节点按优先级选主节点
+    let mut mingcheng_dao_hourenlie: HashMap<String, Vec<(String, String, u8)>> = HashMap::new();
     for j in jiedianlie {
-        if let (Some(id), Some(zhi)) = (
+        if let (Some(id), Some(zhi), Some(leixing)) = (
             j.get("id").and_then(|v| v.as_i64().map(|n| n.to_string()).or_else(|| v.as_str().map(String::from))),
             j.get("zhi").and_then(|v| v.as_str()),
+            j.get("leixingmingcheng").and_then(|v| v.as_str()),
         ) {
-            mingcheng_dao_id.insert(zhi.to_string(), id);
+            let yxj = leixing_youxianji(leixing);
+            mingcheng_dao_hourenlie.entry(zhi.to_string()).or_default().push((id, leixing.to_string(), yxj));
         }
+    }
+
+    let mut mingcheng_dao_id: HashMap<String, String> = HashMap::new();
+    let mut hebing_mingcheng: Vec<String> = Vec::new();
+    for (mingcheng, mut hourenlie) in mingcheng_dao_hourenlie {
+        hourenlie.sort_by(|a, b| a.2.cmp(&b.2).then_with(|| a.0.cmp(&b.0)));
+        hourenlie.dedup_by(|a, b| a.0 == b.0);
+        let (zhu_id, zhu_leixing, _) = &hourenlie[0];
+        mingcheng_dao_id.insert(mingcheng.clone(), zhu_id.clone());
+        if hourenlie.len() > 1 {
+            let houbu: Vec<String> = hourenlie[1..].iter()
+                .map(|(id, lx, _)| format!("{}({})", lx, id))
+                .collect();
+            println!(
+                "[图谱关系边] 同名\"{}\" 命中多节点，主节点={}({}) 候选={}",
+                mingcheng, zhu_leixing, zhu_id, houbu.join(",")
+            );
+            hebing_mingcheng.push(mingcheng);
+        }
+    }
+    if !hebing_mingcheng.is_empty() {
+        hebing_mingcheng.sort();
+        println!("[图谱关系边] 已按优先级合并 {} 个同名实体: {}", hebing_mingcheng.len(), hebing_mingcheng.join("、"));
     }
     if mingcheng_dao_id.is_empty() {
         return Vec::new();
     }
     // 查询所有含 kuozhan 的日报
     let ribaolie = match psqlcaozuo::chaxun(
-        "SELECT id, kuozhan FROM ribao WHERE kuozhan IS NOT NULL AND kuozhan != ''",
+        "SELECT id, kuozhan FROM ribao WHERE kuozhan IS NOT NULL AND kuozhan != '' AND kuozhan LIKE '%\"guanxifenxi\"%'",
         &[],
     ).await {
         Some(lie) => lie,
         None => return Vec::new(),
     };
     // 解析每条日报的关系，匹配节点
-    // key = (yuan_id, mubiao_id, guanxi), value = (cishu, miaoshu_set)
-    let mut juhe: HashMap<(String, String, String), (i64, Vec<String>)> = HashMap::new();
+    struct BianJuhe {
+        cishu: i64,
+        miaoshulie: Vec<String>,
+        zuigao_xindu: f64,
+        zhengjulie: Vec<String>,
+        juese_ren1: Option<String>,
+        juese_ren2: Option<String>,
+    }
+    let mut juhe: HashMap<(String, String, String), BianJuhe> = HashMap::new();
     for r in &ribaolie {
         let kuozhan_str = match r.get("kuozhan").and_then(|v| v.as_str()) {
             Some(s) if !s.is_empty() => s,
@@ -362,36 +406,62 @@ async fn chaxun_tupu_guanxi_bian(jiedianlie: &[Value]) -> Vec<Value> {
             let ren1 = match gx.get("ren1").and_then(|v| v.as_str()) { Some(s) => s, None => continue };
             let ren2 = match gx.get("ren2").and_then(|v| v.as_str()) { Some(s) => s, None => continue };
             let guanxi = gx.get("guanxi").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            // 过滤掉无意义的关系类型
             if guanxi.is_empty() || guanxi.contains("无关") || guanxi == "无" {
                 continue;
             }
             let miaoshu = gx.get("miaoshu").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let xindu = gx.get("xindu").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let zhengju = gx.get("zhengjupianduan").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let juese_r1 = gx.get("juese").and_then(|j| j.get("ren1")).and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty()).map(String::from);
+            let juese_r2 = gx.get("juese").and_then(|j| j.get("ren2")).and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty()).map(String::from);
+
             let yuan_id = match mingcheng_dao_id.get(ren1) { Some(id) => id.clone(), None => continue };
             let mubiao_id = match mingcheng_dao_id.get(ren2) { Some(id) => id.clone(), None => continue };
             if yuan_id == mubiao_id { continue; }
             // 保证 key 方向一致（小ID在前）
-            let key = if yuan_id < mubiao_id {
-                (yuan_id.clone(), mubiao_id.clone(), guanxi)
+            let (k_yuan, k_mubiao, k_jr1, k_jr2) = if yuan_id < mubiao_id {
+                (yuan_id, mubiao_id, juese_r1, juese_r2)
             } else {
-                (mubiao_id.clone(), yuan_id.clone(), guanxi)
+                (mubiao_id, yuan_id, juese_r2, juese_r1)
             };
-            let entry = juhe.entry(key).or_insert((0, Vec::new()));
-            entry.0 += 1;
-            if !miaoshu.is_empty() && !entry.1.contains(&miaoshu) {
-                entry.1.push(miaoshu);
+            let entry = juhe.entry((k_yuan, k_mubiao, guanxi)).or_insert_with(|| BianJuhe {
+                cishu: 0, miaoshulie: Vec::new(), zuigao_xindu: 0.0,
+                zhengjulie: Vec::new(), juese_ren1: None, juese_ren2: None,
+            });
+            entry.cishu += 1;
+            if !miaoshu.is_empty() && !entry.miaoshulie.contains(&miaoshu) {
+                entry.miaoshulie.push(miaoshu);
             }
+            if xindu > entry.zuigao_xindu {
+                entry.zuigao_xindu = xindu;
+            }
+            if !zhengju.is_empty() && !entry.zhengjulie.contains(&zhengju) {
+                entry.zhengjulie.push(zhengju);
+            }
+            if entry.juese_ren1.is_none() { entry.juese_ren1 = k_jr1; }
+            if entry.juese_ren2.is_none() { entry.juese_ren2 = k_jr2; }
         }
     }
     // 转为 JSON 数组
-    juhe.into_iter().map(|((yuan, mubiao, guanxi), (cishu, miaoshulie))| {
-        serde_json::json!({
+    juhe.into_iter().map(|((yuan, mubiao, guanxi), bj)| {
+        let mut bian = serde_json::json!({
             "yuan": yuan,
             "mubiao": mubiao,
             "guanxi": guanxi,
-            "miaoshu": miaoshulie.join("；"),
-            "cishu": cishu.to_string()
-        })
+            "miaoshu": bj.miaoshulie.join("；"),
+            "cishu": bj.cishu.to_string(),
+            "xindu": bj.zuigao_xindu,
+            "zhengjupianduan": bj.zhengjulie.join("；"),
+        });
+        if bj.juese_ren1.is_some() || bj.juese_ren2.is_some() {
+            bian["juese"] = serde_json::json!({
+                "ren1": bj.juese_ren1.unwrap_or_default(),
+                "ren2": bj.juese_ren2.unwrap_or_default(),
+            });
+        }
+        bian
     }).collect()
 }
 
