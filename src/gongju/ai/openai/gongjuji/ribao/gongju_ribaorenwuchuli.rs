@@ -784,13 +784,6 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
     })
     .to_string();
 
-    if shujucaozuo_ribao_biaoqianrenwu::biaojichenggong(&renwuid, &biaoqianjieguo)
-        .await
-        .is_none()
-    {
-        return chuli_shibai(&renwuid, &ribaoid, "任务完成状态更新失败").await;
-    }
-
     let xuyao_zhaiyao = ribao.get("zhaiyao").and_then(|v| v.as_str()).map_or(true, |s| s.trim().is_empty());
     let kuozhan_yuanshi = ribao.get("kuozhan").and_then(|v| v.as_str());
     let mut kuozhan_jiegou = jiexi_kuozhan(kuozhan_yuanshi);
@@ -801,70 +794,95 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
         || guanxifenxi_hash_yiyou != Some(neirong_hash.as_str());
     let mut kuozhan_yigengxin = false;
 
-    let zhaiyao_jieguo = match xuyao_zhaiyao {
-        true => match ai_shengcheng_zhaiyao(neirong).await {
-            Some(zhaiyao) => {
-                let _ = shujucaozuo_ribao::gengxin(&ribaoid, &[("zhaiyao", &zhaiyao)]).await;
-                println!("[任务处理] 任务={} 日报={} 摘要已生成", renwuid, ribaoid);
-                Some(zhaiyao)
-            }
-            None => {
-                println!("[任务处理] 任务={} 摘要生成失败，跳过", renwuid);
-                None
-            }
-        },
-        false => {
+    // 三步 AI 处理并发执行
+    let zhaiyao_fut = async {
+        if xuyao_zhaiyao { ai_shengcheng_zhaiyao(neirong).await } else { None }
+    };
+    let daotu_fut = async {
+        if xuyao_siweidaotu { ai_shengcheng_siweidaotu(neirong, peizhi).await } else { None }
+    };
+    let guanxi_fut = async {
+        if xuyao_guanxifenxi { ai_shengcheng_guanxifenxi(neirong, peizhi).await } else { None }
+    };
+    let (zhaiyao_yuanshi, daotu_yuanshi, guanxi_yuanshi) = futures::join!(zhaiyao_fut, daotu_fut, guanxi_fut);
+
+    // 处理摘要结果
+    let zhaiyao_jieguo = match (xuyao_zhaiyao, zhaiyao_yuanshi) {
+        (true, Some(zhaiyao)) => {
+            let _ = shujucaozuo_ribao::gengxin(&ribaoid, &[("zhaiyao", &zhaiyao)]).await;
+            println!("[任务处理] 任务={} 日报={} 摘要已生成", renwuid, ribaoid);
+            Some(zhaiyao)
+        }
+        (true, None) => {
+            println!("[任务处理] 任务={} 摘要生成失败，跳过", renwuid);
+            None
+        }
+        _ => {
             println!("[任务处理] 任务={} 日报={} 摘要已存在，跳过", renwuid, ribaoid);
             None
-        },
+        }
     };
 
-    let daotu_jieguo = match xuyao_siweidaotu {
-        true => match ai_shengcheng_siweidaotu(neirong, peizhi).await {
-            Some(daotu) => {
-                if let Ok(daotu_json) = serde_json::from_str::<Value>(&daotu) {
-                    kuozhan_jiegou["siweidaotu"] = daotu_json;
-                    kuozhan_yigengxin = true;
-                }
-                println!("[任务处理] 任务={} 日报={} 思维导图已生成", renwuid, ribaoid);
-                true
+    // 处理思维导图结果
+    let daotu_jieguo = match (xuyao_siweidaotu, daotu_yuanshi) {
+        (true, Some(daotu)) => {
+            if let Ok(daotu_json) = serde_json::from_str::<Value>(&daotu) {
+                kuozhan_jiegou["siweidaotu"] = daotu_json;
+                kuozhan_yigengxin = true;
             }
-            None => {
-                println!("[任务处理] 任务={} 思维导图生成失败，跳过", renwuid);
-                false
-            }
-        },
-        false => {
+            println!("[任务处理] 任务={} 日报={} 思维导图已生成", renwuid, ribaoid);
+            true
+        }
+        (true, None) => {
+            println!("[任务处理] 任务={} 思维导图生成失败，跳过", renwuid);
+            false
+        }
+        _ => {
             println!("[任务处理] 任务={} 日报={} 思维导图已存在，跳过", renwuid, ribaoid);
             false
-        },
+        }
     };
 
-    let guanxi_jieguo = match xuyao_guanxifenxi {
-        true => match ai_shengcheng_guanxifenxi(neirong, peizhi).await {
-            Some(guanxi) => {
-                if let Ok(guanxi_json) = serde_json::from_str::<Value>(&guanxi) {
-                    kuozhan_jiegou["guanxifenxi"] = guanxi_json;
-                    kuozhan_jiegou["guanxifenxi_neirong_hash"] = Value::String(neirong_hash.clone());
-                    kuozhan_yigengxin = true;
-                }
-                println!("[任务处理] 任务={} 日报={} 关系分析已生成", renwuid, ribaoid);
-                true
+    // 处理关系分析结果
+    let guanxi_jieguo = match (xuyao_guanxifenxi, guanxi_yuanshi) {
+        (true, Some(guanxi)) => {
+            if let Ok(guanxi_json) = serde_json::from_str::<Value>(&guanxi) {
+                kuozhan_jiegou["guanxifenxi"] = guanxi_json;
+                kuozhan_jiegou["guanxifenxi_neirong_hash"] = Value::String(neirong_hash.clone());
+                kuozhan_yigengxin = true;
             }
-            None => {
-                println!("[任务处理] 任务={} 关系分析生成失败，跳过", renwuid);
-                false
-            }
-        },
-        false => {
+            println!("[任务处理] 任务={} 日报={} 关系分析已生成", renwuid, ribaoid);
+            true
+        }
+        (true, None) => {
+            println!("[任务处理] 任务={} 关系分析生成失败，跳过", renwuid);
+            false
+        }
+        _ => {
             println!("[任务处理] 任务={} 日报={} 关系分析未变化，跳过", renwuid, ribaoid);
             false
-        },
+        }
     };
 
     if kuozhan_yigengxin {
         let kuozhan_wenben = kuozhan_jiegou.to_string();
         let _ = shujucaozuo_ribao::gengxin(&ribaoid, &[("kuozhan", &kuozhan_wenben)]).await;
+    }
+
+    // 任一 AI 步骤需要执行但失败，则标记任务失败以触发重试
+    let ai_shibai = (xuyao_zhaiyao && zhaiyao_jieguo.is_none())
+        || (xuyao_siweidaotu && !daotu_jieguo)
+        || (xuyao_guanxifenxi && !guanxi_jieguo);
+    if ai_shibai {
+        return chuli_shibai(&renwuid, &ribaoid, "AI生成步骤部分失败").await;
+    }
+
+    // 全部 AI 处理完成后才标记任务成功
+    if shujucaozuo_ribao_biaoqianrenwu::biaojichenggong(&renwuid, &biaoqianjieguo)
+        .await
+        .is_none()
+    {
+        return chuli_shibai(&renwuid, &ribaoid, "任务完成状态更新失败").await;
     }
 
     println!("[任务处理] ✓ 任务={} 日报={} 绑定标签数={}", renwuid, ribaoid, bangdingshu);
@@ -878,6 +896,34 @@ async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
         "siweidaotu": daotu_jieguo,
         "guanxifenxi": guanxi_jieguo,
     })
+}
+
+/// 按任务ID单独处理一条任务（不经过调度器，直接执行）
+pub async fn zhixing_dange_renwu_neibu(renwuid: &str) -> Result<Value, String> {
+    let renwu = shujucaozuo_ribao_biaoqianrenwu::chaxun_id(renwuid)
+        .await
+        .ok_or_else(|| format!("任务不存在: {}", renwuid))?;
+
+    let zhuangtai = renwu.get("zhuangtai").and_then(|v| v.as_str()).unwrap_or("");
+    if zhuangtai == "processing" {
+        return Err(format!("任务正在处理中: {}", renwuid));
+    }
+
+    // 已完成或已失败的任务需要先清除旧产物并重置状态再重新处理
+    if zhuangtai == "true" || zhuangtai == "shibai" {
+        shujucaozuo_ribao_biaoqianrenwu::chongxin_ruidui(renwuid)
+            .await
+            .ok_or_else(|| format!("重置任务失败: {}", renwuid))?;
+    }
+
+    // 原子领取任务（置为 processing 并增加尝试次数）
+    let renwu = shujucaozuo_ribao_biaoqianrenwu::lingqu_zhiding(renwuid)
+        .await
+        .ok_or_else(|| format!("领取任务失败（可能已被其他进程处理）: {}", renwuid))?;
+
+    let peizhi = peizhixitongzhuti::duqupeizhi::<Ai>(Ai::wenjianming()).unwrap_or_default();
+    let jieguo = chuli_dange_renwu(renwu, &peizhi).await;
+    Ok(jieguo)
 }
 
 pub async fn zhixing_neibu() -> Result<Value, String> {

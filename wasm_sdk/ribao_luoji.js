@@ -258,6 +258,15 @@ export class Ribaoluoji {
         return jg;
     }
 
+    async guanlian_chaxun_ribaoid_daixinxi_shipei(ribaoid) {
+        if (this.shifouquanxian) {
+            return this.guanlian_chaxun_ribaoid_daixinxi(ribaoid);
+        }
+        const jg = await this.yonghuzhixing('chaxun_ribao_biaoqian', { ribaoid });
+        if (jg) this.rizhi('查询自己日报标签[' + ribaoid + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
     async guanlian_chaxun_xiangguanbiaoqian(biaoqianid, leixingmingcheng) {
         const jg = await this.zhixing('guanlian_chaxun_xiangguanbiaoqian', { biaoqianid, leixingmingcheng });
         if (jg) this.rizhi('查询相关标签[' + biaoqianid + ',' + leixingmingcheng + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
@@ -341,6 +350,12 @@ export class Ribaoluoji {
     async renwu_biaoqian_ai_chuli() {
         const jg = await this.zhixing('renwu_biaoqian_ai_chuli');
         if (jg) this.rizhi('标签任务处理: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async renwu_dange_chuli(id) {
+        const jg = await this.zhixing('renwu_dange_chuli', { id });
+        if (jg) this.rizhi('单任务处理[' + id + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
         return jg;
     }
 

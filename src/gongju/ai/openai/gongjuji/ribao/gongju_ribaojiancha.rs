@@ -2,10 +2,7 @@ use crate::gongju::ai::openai::{aixiaoxiguanli, openaizhuti};
 use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::yonghuyanzheng;
 use crate::peizhixt::peizhi_nr::peizhi_ai::Ai;
 use crate::peizhixt::peizhixitongzhuti;
-use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::{
-    shujucaozuo_ribao,
-    shujucaozuo_ribao_biaoqianrenwu,
-};
+use crate::gongju::ai::openai::gongjuji::ribao::gongju_ribaotijiao;
 use llm::chat::Tool;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -175,14 +172,13 @@ pub async fn zhixing(canshu: &str, lingpai: &str) -> String {
         return json!({"cuowu": "日报审核未通过", "yuanyin": yuanyin, "shuju": jianchajieguo}).to_string();
     }
     let fabushijian = huoqu_fabushijian(&qingqiu);
-    let ribaoid = match shujucaozuo_ribao::xinzeng(&zaiti.yonghuid, &neirong, &fabushijian).await {
-        Some(id) => id,
-        None => return json!({"cuowu": "日报提交失败"}).to_string(),
-    };
     let renwuchongshi = peizhi.ribao_biaoqianrenwu_chongshi_cishu as i64;
-    let renwuid = match shujucaozuo_ribao_biaoqianrenwu::faburenwu(&ribaoid, &zaiti.yonghuid, renwuchongshi).await {
-        Some(id) => id,
-        None => return json!({"cuowu": "日报提交成功但任务发布失败", "ribaoid": ribaoid}).to_string(),
+    let jieguo = match gongju_ribaotijiao::tijiao_ribao_bingzidongqidong(&zaiti.yonghuid, &neirong, &fabushijian, renwuchongshi).await {
+        Ok(j) => j,
+        Err(gongju_ribaotijiao::Tijiaocuowu::Ribaochuangjianshibai) => return json!({"cuowu": "日报提交失败"}).to_string(),
+        Err(gongju_ribaotijiao::Tijiaocuowu::Renwufabushibai { ribaoid }) => {
+            return json!({"cuowu": "日报提交成功但任务发布失败", "ribaoid": ribaoid}).to_string();
+        }
     };
-    json!({"chenggong": true, "shuju": jianchajieguo, "ribaoid": ribaoid, "renwuid": renwuid}).to_string()
+    json!({"chenggong": true, "shuju": jianchajieguo, "ribaoid": jieguo.ribaoid, "renwuid": jieguo.renwuid}).to_string()
 }

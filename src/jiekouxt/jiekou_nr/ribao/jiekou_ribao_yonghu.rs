@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use crate::jiekouxt::jiekouxtzhuti::{self, Jiekoudinyi, Qingqiufangshi};
 use crate::jiekouxt::jiamichuanshu::jiamichuanshuzhongjian;
+use crate::gongju::ai::openai::gongjuji::ribao::gongju_ribaotijiao;
 use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::shujucaozuo_ribao;
+use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::shujucaozuo_ribao_biaoqian;
 use crate::gongju::jwtgongju;
 
 use crate::gongju::zhuangtaima::ribaojiekou_zhuangtai::{Zhuangtai, cuowu};
@@ -29,12 +31,22 @@ struct Xinzengcanshu { neirong: String, fabushijian: String }
 #[derive(Deserialize)]
 struct Fenyecanshu { yeshu: Option<i64>, meiyetiaoshu: Option<i64> }
 
+#[derive(Deserialize)]
+struct Ribaoidcanshu { ribaoid: String }
+
 fn jiamishibai(zhuangtai: &Zhuangtai, miyao: &[u8]) -> HttpResponse {
     jiamichuanshuzhongjian::jiamixiangying(jiekouxtzhuti::shibai(zhuangtai.ma, zhuangtai.xiaoxi), miyao)
 }
 
 fn jiamichenggong(xiaoxi: impl Into<String>, shuju: Value, miyao: &[u8]) -> HttpResponse {
     jiamichuanshuzhongjian::jiamixiangying(jiekouxtzhuti::chenggong(xiaoxi, shuju), miyao)
+}
+
+fn ribao_shuyu_yonghu(ribao: &Value, yonghuid: &str) -> bool {
+    ribao
+        .get("yonghuid")
+        .and_then(|v| v.as_str())
+        .is_some_and(|id| id == yonghuid)
 }
 
 async fn chulicaozuo(caozuo: &str, canshu: Value, yonghuid: &str, miyao: &[u8]) -> HttpResponse {
@@ -44,9 +56,10 @@ async fn chulicaozuo(caozuo: &str, canshu: Value, yonghuid: &str, miyao: &[u8]) 
                 Ok(c) => c,
                 Err(_) => return jiamishibai(&cuowu::canshugeshibuzhengque, miyao),
             };
-            match shujucaozuo_ribao::xinzeng(yonghuid, &c.neirong, &c.fabushijian).await {
-                Some(id) => jiamichenggong("创建成功", serde_json::json!({"id": id}), miyao),
-                None => jiamishibai(&cuowu::chuangjianshi, miyao),
+            let chongshi = gongju_ribaotijiao::huoqu_moren_chongshicishu();
+            match gongju_ribaotijiao::tijiao_ribao_bingzidongqidong(yonghuid, &c.neirong, &c.fabushijian, chongshi).await {
+                Ok(jieguo) => jiamichenggong("创建成功", serde_json::json!({"id": jieguo.ribaoid}), miyao),
+                Err(_) => jiamishibai(&cuowu::chuangjianshi, miyao),
             }
         }
         "chaxun" => {
@@ -76,6 +89,23 @@ async fn chulicaozuo(caozuo: &str, canshu: Value, yonghuid: &str, miyao: &[u8]) 
             let liebiao = shujucaozuo_ribao::chaxun_fenye(yeshu, meiyetiaoshu).await.unwrap_or_default();
             let zongshu = shujucaozuo_ribao::tongji_zongshu().await.unwrap_or(0);
             jiamichenggong("查询成功", serde_json::json!({"liebiao": liebiao, "zongshu": zongshu}), miyao)
+        }
+        "chaxun_ribao_biaoqian" => {
+            let c: Ribaoidcanshu = match serde_json::from_value(canshu) {
+                Ok(c) => c,
+                Err(_) => return jiamishibai(&cuowu::canshugeshibuzhengque, miyao),
+            };
+            let ribao = match shujucaozuo_ribao::chaxun_id(&c.ribaoid).await {
+                Some(v) => v,
+                None => return jiamishibai(&cuowu::ribaobucunzai, miyao),
+            };
+            if !ribao_shuyu_yonghu(&ribao, yonghuid) {
+                return jiamishibai(&cuowu::quanxianbuzu, miyao);
+            }
+            match shujucaozuo_ribao_biaoqian::chaxun_ribaoid_daixinxi(&c.ribaoid).await {
+                Some(jieguo) => jiamichenggong("查询成功", serde_json::json!(jieguo), miyao),
+                None => jiamishibai(&cuowu::chaxunshibai, miyao),
+            }
         }
         "tongji_zongshu" => {
             match shujucaozuo_ribao::tongji_yonghuid_zongshu(yonghuid).await {
@@ -113,4 +143,22 @@ pub async fn chuli(req: HttpRequest, ti: web::Bytes) -> HttpResponse {
     let zaiti = req.extensions().get::<jwtgongju::Zaiti>().cloned().unwrap();
 
     chulicaozuo(&qingqiu.caozuo, qingqiu.canshu, &zaiti.yonghuid, &miyao).await
+}
+
+#[cfg(test)]
+mod ceshi {
+    use super::*;
+
+    #[test]
+    fn ribao_guishu_jiancha_zhengque() {
+        let ribao = serde_json::json!({ "yonghuid": "1001" });
+        assert!(ribao_shuyu_yonghu(&ribao, "1001"));
+        assert!(!ribao_shuyu_yonghu(&ribao, "1002"));
+    }
+
+    #[test]
+    fn ribao_guishu_jiancha_queshao_ziduan() {
+        let ribao = serde_json::json!({ "id": "1" });
+        assert!(!ribao_shuyu_yonghu(&ribao, "1"));
+    }
 }

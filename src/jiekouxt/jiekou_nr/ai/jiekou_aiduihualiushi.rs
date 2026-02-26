@@ -96,14 +96,18 @@ async fn chuliqingqiu(ti: &[u8], lingpai: &str) -> HttpResponse {
         None => return cuowu_sse("暂无可用AI渠道或配置错误"),
     };
 
-    let (gongjulie, yitu_miaoshu) = super::huoqu_yitu_gongju(&peizhi, &qingqiu.xiaoxilie).await;
+    let (gongjulie, yitu_miaoshu, yitu_sikao) = super::huoqu_yitu_gongju(&peizhi, &qingqiu.xiaoxilie).await;
     println!("[AI对话流式] 意图: {} 工具数: {}", yitu_miaoshu, gongjulie.len());
 
     let (fasongqi, jieshouqi) = futures::channel::mpsc::unbounded::<Result<web::Bytes, actix_web::Error>>();
     let lingpai = lingpai.to_string();
 
     actix_web::rt::spawn(async move {
-        if !fasongshuju(&fasongqi, serde_json::json!({"shijian": "yitu", "yitu": yitu_miaoshu})) {
+        let mut yitu_json = serde_json::json!({"shijian": "yitu", "yitu": yitu_miaoshu});
+        if let Some(s) = yitu_sikao {
+            yitu_json["sikao"] = serde_json::json!(s);
+        }
+        if !fasongshuju(&fasongqi, yitu_json) {
             return;
         }
 
@@ -124,8 +128,11 @@ async fn chuliqingqiu(ti: &[u8], lingpai: &str) -> HttpResponse {
             }
 
             match openaizhuti::putongqingqiu_react(&peizhi, &guanli).await {
-                Some(openaizhuti::ReactJieguo::Wenben(huifu)) => {
-                    zhuzi_fasong(&fasongqi, &huifu).await;
+                Some(openaizhuti::ReactJieguo::Wenben { neirong, sikao }) => {
+                    if let Some(s) = sikao {
+                        fasongshuju(&fasongqi, serde_json::json!({"shijian": "sikao", "neirong": s}));
+                    }
+                    zhuzi_fasong(&fasongqi, &neirong).await;
                     return;
                 }
                 Some(openaizhuti::ReactJieguo::Gongjudiaoyong(lie)) => {
@@ -135,8 +142,11 @@ async fn chuliqingqiu(ti: &[u8], lingpai: &str) -> HttpResponse {
                 if chongfu >= 2 {
                         println!("[流式ReAct] 工具重复调用，移除工具做最终回复");
                         guanli.qingkong_gongjulie();
-                            if let Some(huifu) = openaizhuti::putongqingqiu(&peizhi, &guanli).await {
-                                zhuzi_fasong(&fasongqi, &huifu).await;
+                            if let Some((neirong, sikao)) = openaizhuti::putongqingqiu_daisikao(&peizhi, &guanli).await {
+                                if let Some(s) = sikao {
+                                    fasongshuju(&fasongqi, serde_json::json!({"shijian": "sikao", "neirong": s}));
+                                }
+                                zhuzi_fasong(&fasongqi, &neirong).await;
                             } else {
                                 let _ = fasongshuju(&fasongqi, serde_json::json!({"cuowu": "AI服务调用失败"}));
                             }

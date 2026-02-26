@@ -4,8 +4,8 @@ use super::aixiaoxiguanli::Xiaoxiguanli;
 
 /// ReAct 单次调用结果
 pub enum ReactJieguo {
-    /// AI 返回了纯文本回复
-    Wenben(String),
+    /// AI 返回了纯文本回复（含可选思考过程）
+    Wenben { neirong: String, sikao: Option<String> },
     /// AI 要求调用工具
     Gongjudiaoyong(Vec<llm::ToolCall>),
 }
@@ -90,7 +90,7 @@ fn goujian_qingqiuti(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli, liushi: bool, dai
     ti
 }
 
-/// 发送 HTTP 请求（含重试），返回成功的原始响应
+/// 发送 HTTP 请求（含重试+退避），返回成功的原始响应
 async fn fasong_qingqiu(peizhi: &Aipeizhi, ti: &serde_json::Value) -> Option<reqwest::Response> {
     let dizhi = format!("{}/chat/completions", peizhi.jiekoudizhi.trim_end_matches('/'));
     let chaoshi = std::time::Duration::from_secs(peizhi.chaoshishijian);
@@ -113,8 +113,25 @@ async fn fasong_qingqiu(peizhi: &Aipeizhi, ti: &serde_json::Value) -> Option<req
                 let zt = x.status();
                 let nr = x.text().await.unwrap_or_default();
                 println!("[OpenAI] 请求失败 状态: {} 响应: {}", zt, nr);
+                if cishu < peizhi.chongshicishu {
+                    let jichu = if zt.as_u16() == 429 {
+                        5 * (cishu as u64 + 1)
+                    } else {
+                        2 * (cishu as u64 + 1)
+                    };
+                    let yanchi = jichu + fastrand::u64(0..4);
+                    println!("[OpenAI] 等待{}秒后重试", yanchi);
+                    tokio::time::sleep(std::time::Duration::from_secs(yanchi)).await;
+                }
             }
-            Err(e) => println!("[OpenAI] 请求异常: {}", e),
+            Err(e) => {
+                println!("[OpenAI] 请求异常: {}", e);
+                if cishu < peizhi.chongshicishu {
+                    let yanchi = 2 * (cishu as u64 + 1) + fastrand::u64(0..3);
+                    println!("[OpenAI] 等待{}秒后重试", yanchi);
+                    tokio::time::sleep(std::time::Duration::from_secs(yanchi)).await;
+                }
+            }
         }
     }
     None
@@ -123,8 +140,17 @@ async fn fasong_qingqiu(peizhi: &Aipeizhi, ti: &serde_json::Value) -> Option<req
 /// 从 AI 响应 JSON 中提取文本内容（过滤空文本）
 fn tiqu_wenben(json: &serde_json::Value) -> Option<String> {
     json["choices"][0]["message"]["content"].as_str()
-        .map(|s| s.to_string())
-        .filter(|s| !s.trim().is_empty())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+/// 从 AI 响应 JSON 中提取思考过程（兼容 reasoning_content 和 reasoning 字段）
+fn tiqu_sikao(json: &serde_json::Value) -> Option<String> {
+    let msg = &json["choices"][0]["message"];
+    msg["reasoning_content"].as_str()
+        .or_else(|| msg["reasoning"].as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
 }
 
 /// 非流式请求，返回解析后的 JSON
@@ -142,23 +168,100 @@ async fn feiliushi_json(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli, dai_gongju: bo
 
 // ── 对外接口 ──
 
-/// 非流式调用
-pub async fn putongqingqiu(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli) -> Option<String> {
+/// 判断响应体是否为限流错误（某些API返回HTTP 200但body含限流状态码）
+fn shifou_xianliu_xiangying(json: &serde_json::Value) -> bool {
+    if let Some(xiaoxi) = json.get("msg").and_then(|v| v.as_str()) {
+        if xiaoxi.to_lowercase().contains("rate limit") {
+            return true;
+        }
+    }
+    match json.get("status") {
+        Some(serde_json::Value::String(s)) => s == "429" || s == "449",
+        Some(serde_json::Value::Number(n)) => matches!(n.as_u64(), Some(429) | Some(449)),
+        _ => false,
+    }
+}
+
+/// 非流式调用内部实现（含响应体限流退避重试），返回 (wenben, sikao)
+async fn putongqingqiu_neibu(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli) -> Option<(String, Option<String>)> {
     println!("[OpenAI] 非流式调用 模型:{} 接口:{}", peizhi.moxing, peizhi.jiekoudizhi);
-    let json = feiliushi_json(peizhi, guanli, false).await?;
-    let yuanshi = json["choices"][0]["message"]["content"].to_string();
-    let xianshi_nr: String = yuanshi.chars().take(150).collect();
-    println!("[OpenAI] 响应content原文: {}{}", xianshi_nr, if yuanshi.chars().count() > 150 { "..." } else { "" });
-    let wenben = tiqu_wenben(&json)?;
-    println!("[OpenAI] 非流式调用成功");
-    Some(wenben)
+    let zuida_xianliu_chongshi: u32 = 3;
+    for changshi in 0..=zuida_xianliu_chongshi {
+        let json = match feiliushi_json(peizhi, guanli, false).await {
+            Some(j) => j,
+            None => return None,
+        };
+        let yuanshi = json["choices"][0]["message"]["content"].to_string();
+        let xianshi_nr: String = yuanshi.chars().take(150).collect();
+        println!("[OpenAI] 响应content原文: {}{}", xianshi_nr, if yuanshi.chars().count() > 150 { "..." } else { "" });
+
+        // 检测响应体内限流（HTTP 200 但 body 含 429/449）
+        if json.get("choices").is_none() && shifou_xianliu_xiangying(&json) {
+            if changshi < zuida_xianliu_chongshi {
+                let yanchi = 5 * (changshi as u64 + 1) + fastrand::u64(0..5);
+                println!("[OpenAI] 响应体限流，等待{}秒后重试（{}/{})", yanchi, changshi + 1, zuida_xianliu_chongshi);
+                tokio::time::sleep(std::time::Duration::from_secs(yanchi)).await;
+                continue;
+            }
+            println!("[OpenAI] 响应体限流，重试已耗尽");
+            return None;
+        }
+
+        let wenben = tiqu_wenben(&json)?;
+        let sikao = tiqu_sikao(&json);
+        println!("[OpenAI] 非流式调用成功{}", if sikao.is_some() { "（含思考）" } else { "" });
+        return Some((wenben, sikao));
+    }
+    None
+}
+
+/// 非流式调用（仅返回文本）
+pub async fn putongqingqiu(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli) -> Option<String> {
+    putongqingqiu_neibu(peizhi, guanli).await.map(|(w, _)| w)
+}
+
+/// 非流式调用（返回文本 + 思考内容）
+pub async fn putongqingqiu_daisikao(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli) -> Option<(String, Option<String>)> {
+    putongqingqiu_neibu(peizhi, guanli).await
+}
+
+/// 从 content 文本中解析 <tool_call> 格式的工具调用（兼容部分模型不走标准 tool_calls 字段的情况）
+fn jiexi_wenben_gongjudiaoyong(neirong: &str) -> Option<Vec<llm::ToolCall>> {
+    let mut jieguo = Vec::new();
+    let mut sousuo = neirong;
+    while let Some(kaishi) = sousuo.find("<tool_call>") {
+        let houtui = &sousuo[kaishi + 11..];
+        let jieshu = houtui.find("</tool_call>")?;
+        let json_str = houtui[..jieshu].trim();
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(json_str) {
+            let mingcheng = json["name"].as_str()
+                .or_else(|| json["function"]["name"].as_str());
+            let canshu = json["arguments"].as_object()
+                .map(|o| serde_json::to_string(o).unwrap_or_default())
+                .or_else(|| json["arguments"].as_str().map(|s| s.to_string()))
+                .or_else(|| json["parameters"].as_object()
+                    .map(|o| serde_json::to_string(o).unwrap_or_default()));
+            if let (Some(ming), Some(can)) = (mingcheng, canshu) {
+                jieguo.push(llm::ToolCall {
+                    id: format!("textcall_{}", jieguo.len()),
+                    call_type: "function".to_string(),
+                    function: llm::FunctionCall {
+                        name: ming.to_string(),
+                        arguments: can,
+                    },
+                });
+            }
+        }
+        sousuo = &houtui[jieshu + 12..];
+    }
+    if jieguo.is_empty() { None } else { Some(jieguo) }
 }
 
 /// 非流式 ReAct 单次调用，返回文本或工具调用
 pub async fn putongqingqiu_react(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli) -> Option<ReactJieguo> {
     println!("[ReAct] 非流式调用 模型:{} 接口:{}", peizhi.moxing, peizhi.jiekoudizhi);
     let json = feiliushi_json(peizhi, guanli, true).await?;
-    // 优先检查工具调用
+    // 优先检查标准 tool_calls 字段
     if let Some(diaoyong_shuzu) = json["choices"][0]["message"]["tool_calls"].as_array() {
         if !diaoyong_shuzu.is_empty() {
             let diaoyong: Vec<llm::ToolCall> = diaoyong_shuzu.iter().filter_map(|tc| {
@@ -177,18 +280,26 @@ pub async fn putongqingqiu_react(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli) -> Op
             }
         }
     }
-    // 检查文本回复
-    if let Some(wenben) = tiqu_wenben(&json) {
-        println!("[ReAct] AI 返回文本回复");
-        return Some(ReactJieguo::Wenben(wenben));
+    // 兗底：从 content 中解析 <tool_call> 标签格式的工具调用
+    if let Some(neirong) = tiqu_wenben(&json) {
+        if neirong.contains("<tool_call>") {
+            if let Some(diaoyong) = jiexi_wenben_gongjudiaoyong(&neirong) {
+                println!("[ReAct] 从 content 文本中解析到 {} 个工具调用", diaoyong.len());
+                return Some(ReactJieguo::Gongjudiaoyong(diaoyong));
+            }
+        }
+        let sikao = tiqu_sikao(&json);
+        println!("[ReAct] AI 返回文本回复{}", if sikao.is_some() { "（含思考过程）" } else { "" });
+        return Some(ReactJieguo::Wenben { neirong, sikao });
     }
     // 兜底：移除工具重试
     println!("[ReAct] 响应无文本也无工具调用，移除工具做最终回复");
     if guanli.huoqu_gongjulie().is_some() {
         if let Some(json2) = feiliushi_json(peizhi, guanli, false).await {
             if let Some(wenben) = tiqu_wenben(&json2) {
+                let sikao = tiqu_sikao(&json2);
                 println!("[ReAct] 移除工具后成功获取文本回复");
-                return Some(ReactJieguo::Wenben(wenben));
+                return Some(ReactJieguo::Wenben { neirong: wenben, sikao });
             }
         }
     }

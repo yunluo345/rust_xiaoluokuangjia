@@ -139,7 +139,7 @@ export class Ribaojiemian {
 
         const ribaobiaoqianmap = {};
         const guanlianjieguo = await Promise.all(
-            liebiao.map(rb => this.luoji.guanlian_chaxun_ribaoid_daixinxi(rb.id))
+            liebiao.map(rb => this.luoji.guanlian_chaxun_ribaoid_daixinxi_shipei(rb.id))
         );
         for (let i = 0; i < liebiao.length; i++) {
             const gljg = guanlianjieguo[i];
@@ -196,7 +196,7 @@ export class Ribaojiemian {
                     <div style="display:flex;gap:6px;margin-left:12px">
                         <button class="aq-btn aq-btn-xiao aq-btn-huang" onclick="ribao_bianji('${rb.id}')">编辑</button>
                         <button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="ribao_shanchu('${rb.id}')">删除</button>
-                        <button class="aq-btn aq-btn-xiao" onclick="ribao_guanlianguanlian('${rb.id}')">管理标签</button>
+                        ${this.shifouquanxian ? `<button class="aq-btn aq-btn-xiao" onclick="ribao_guanlianguanlian('${rb.id}')">管理标签</button>` : ''}
                         ${this._cunzai_kuozhan_daotu(rb) ? `<button class="aq-btn aq-btn-xiao aq-btn-zhu" onclick="ribao_siweidaotu('${rb.id}')">导图</button>` : ''}
                         ${this._cunzai_kuozhan_guanxi(rb) ? `<button class="aq-btn aq-btn-xiao" onclick="ribao_guanxifenxi('${rb.id}')" style="background:#F5F3FF;color:#7C3AED">关系</button>` : ''}
                         ${biaoqianlie.length > 0 ? `<button class="aq-btn aq-btn-xiao" onclick="ribao_tiaozhuan_tupu('${rb.id}')" style="background:#F0F9FF;color:#0369A1">图谱</button>` : ''}
@@ -1029,7 +1029,7 @@ export class Ribaojiemian {
     }
 
     async tiaozhuan_tupu(ribaoid) {
-        const gljg = await this.luoji.guanlian_chaxun_ribaoid_daixinxi(ribaoid);
+        const gljg = await this.luoji.guanlian_chaxun_ribaoid_daixinxi_shipei(ribaoid);
         const biaoqianlie = gljg?.zhuangtaima === 200 ? gljg.shuju || [] : [];
         if (biaoqianlie.length === 0) {
             this.luoji.rizhi('该日报暂无标签，无法跳转图谱', 'warn');
@@ -1134,6 +1134,7 @@ export class Ribaojiemian {
                 <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(rw.biaoqianjieguo || '').replace(/"/g, '&quot;')}">${jieguo}</td>
                 <td style="white-space:nowrap">${jiexishijian(rw.chuangjianshijian)}</td>
                 <td style="white-space:nowrap">
+                    ${(rw.zhuangtai === 'false' || rw.zhuangtai === 'shibai') ? `<button class="aq-btn aq-btn-xiao aq-btn-lv" onclick="ribao_renwu_dange_chuli('${rw.id}')">处理</button>` : ''}
                     <button class="aq-btn aq-btn-xiao aq-btn-huang" onclick="ribao_chongxinruidui('${rw.id}')">重新入队</button>
                     <button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="ribao_shanchurenwu('${rw.id}')">删除</button>
                 </td>
@@ -1152,6 +1153,15 @@ export class Ribaojiemian {
     async chongxinruidui(id) {
         const jg = await this.luoji.renwu_chongxin_ruidui(id);
         if (jg && jg.zhuangtaima === 200) this.shuaxinrenwuliebiao();
+    }
+
+    async renwu_dange_chuli(id) {
+        this.luoji.rizhi('正在处理任务[' + id + ']...', 'info');
+        this.luoji.renwu_dange_chuli(id).then(jg => {
+            if (jg) this.shuaxinrenwuliebiao();
+        });
+        await new Promise(r => setTimeout(r, 500));
+        await this.shuaxinrenwuliebiao();
     }
 
     async shanchurenwu(id) {

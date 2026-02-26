@@ -45,6 +45,15 @@ pub async fn gengxin(id: &str, ziduanlie: &[(&str, &str)]) -> Option<u64> {
     psqlcaozuo::zhixing(&sql, &canshu).await
 }
 
+/// 清空日报AI衍生结果（摘要、扩展字段）
+pub async fn qingkong_aishengcheng(id: &str) -> Option<u64> {
+    let shijian = jichugongju::huoqushijianchuo().to_string();
+    psqlcaozuo::zhixing(
+        &format!("UPDATE {} SET zhaiyao = NULL, kuozhan = NULL, gengxinshijian = $2 WHERE id = $1::BIGINT", biaoming),
+        &[id, &shijian],
+    ).await
+}
+
 /// 根据ID查询单个日报
 pub async fn chaxun_id(id: &str) -> Option<Value> {
     let jieguo = psqlcaozuo::chaxun(

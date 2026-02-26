@@ -26,14 +26,20 @@ async fn chuliqingqiu(ti: &[u8], lingpai: &str) -> HttpResponse {
         None => return jiekouxtzhuti::shibai(500, "暂无可用AI渠道或配置错误"),
     };
 
-    let (gongjulie, yitu_miaoshu) = super::huoqu_yitu_gongju(&peizhi, &qingqiu.xiaoxilie).await;
+    let (gongjulie, yitu_miaoshu, yitu_sikao) = super::huoqu_yitu_gongju(&peizhi, &qingqiu.xiaoxilie).await;
     println!("[AI对话] 意图: {} 工具数: {}", yitu_miaoshu, gongjulie.len());
 
     let mut guanli = super::goujian_guanli_anyitu(&qingqiu, gongjulie);
 
     match super::react_xunhuan(&peizhi, &mut guanli, "ReAct", lingpai, &qingqiu).await {
-        Some(ReactJieguo::Wenben(huifu)) => {
-            let shuju = serde_json::json!({ "huifu": huifu, "yitu": yitu_miaoshu });
+        Some(ReactJieguo::Wenben { neirong, sikao }) => {
+            let mut shuju = serde_json::json!({ "huifu": neirong, "yitu": yitu_miaoshu });
+            if let Some(s) = sikao {
+                shuju["sikao"] = serde_json::json!(s);
+            }
+            if let Some(s) = yitu_sikao {
+                shuju["yitu_sikao"] = serde_json::json!(s);
+            }
             jiekouxtzhuti::chenggong("对话成功", shuju)
         }
         _ => jiekouxtzhuti::shibai(500, "AI服务调用失败或处理超时"),

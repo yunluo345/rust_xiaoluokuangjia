@@ -81,6 +81,7 @@ pub struct YituJieguo {
     pub leixing: String,
     pub guanjianci: Vec<String>,
     pub yuanwen: String,
+    pub sikao: Option<String>,
 }
 
 /// 构建消息管理器：设置系统提示词、注册工具、填充历史消息
@@ -171,7 +172,7 @@ async fn fenxi_yitu(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi]) -> Option
         guanli.zhuijia_yonghuxiaoxi(benci_neirong);
     }
     println!("[意图分析] 开始分析: {}", benci_neirong);
-    let huifu = openaizhuti::putongqingqiu(peizhi, &guanli).await?;
+    let (huifu, sikao) = openaizhuti::putongqingqiu_daisikao(peizhi, &guanli).await?;
     println!("[意图分析] AI返回: {}", huifu);
     let jinghua = huifu.trim()
         .trim_start_matches("```json")
@@ -195,7 +196,7 @@ async fn fenxi_yitu(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi]) -> Option
             vec![]
         };
         println!("[意图分析] 类型: {} 关键词: {:?}", leixing, guanjianci);
-        Some(YituJieguo { leixing, guanjianci, yuanwen: huifu })
+        Some(YituJieguo { leixing, guanjianci, yuanwen: huifu, sikao })
     } else {
         println!("[意图分析] JSON解析失败");
         None
@@ -242,35 +243,37 @@ fn zhineng_tiqu_gongju_youxian(guanjianci_lie: &[String], yuanwen: &str) -> Vec<
 }
 
 /// 意图分析 + 工具筛选：先AI分析，失败则降级关键词匹配，再失败则无工具
-pub async fn huoqu_yitu_gongju(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi]) -> (Vec<llm::chat::Tool>, String) {
+/// 返回 (gongjulie, yitu_miaoshu, yitu_sikao)
+pub async fn huoqu_yitu_gongju(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi]) -> (Vec<llm::chat::Tool>, String, Option<String>) {
     let benci_neirong = xiaoxilie.last().map(|x| x.neirong.as_str()).unwrap_or("");
     // 1. 尝试AI意图分析
     if let Some(yitu) = fenxi_yitu(peizhi, xiaoxilie).await {
+        let sikao = yitu.sikao;
         if yitu.leixing == "gongjudiaoyong" {
             let guanjianci_miaoshu = yitu.guanjianci.join(", ");
             let gongju = zhineng_tiqu_gongju_youxian(&yitu.guanjianci, benci_neirong);
             println!("[意图] 工具调用，关键词: [{}] 匹配到 {} 个工具", guanjianci_miaoshu, gongju.len());
-            return (gongju, format!("工具调用: [{}]", guanjianci_miaoshu));
+            return (gongju, format!("工具调用: [{}]", guanjianci_miaoshu), sikao);
         }
-        // AI判断为普通对话，但用关键词做兜底校验，防止AI误判
+        // AI判断为普通对话，但用关键词做兗底校验，防止AI误判
         let doudigongju = gongjuji::zhineng_tiqu_gongju(benci_neirong);
         if !doudigongju.is_empty() {
-            println!("[意图] AI判断普通对话，但关键词兜底匹配到 {} 个工具，覆盖为工具调用", doudigongju.len());
-            return (doudigongju, "工具调用(关键词兜底)".to_string());
+            println!("[意图] AI判断普通对话，但关键词兗底匹配到 {} 个工具，覆盖为工具调用", doudigongju.len());
+            return (doudigongju, "工具调用(关键词兗底)".to_string(), sikao);
         }
         println!("[意图] 普通对话");
-        return (vec![], "普通对话".to_string());
+        return (vec![], "普通对话".to_string(), sikao);
     }
     // 2. AI分析失败，降级为直接关键词匹配
     println!("[意图] AI分析失败，降级关键词匹配");
     let gongju = gongjuji::zhineng_tiqu_gongju(benci_neirong);
     if !gongju.is_empty() {
         println!("[意图] 降级匹配到 {} 个工具", gongju.len());
-        return (gongju, "工具调用(降级匹配)".to_string());
+        return (gongju, "工具调用(降级匹配)".to_string(), None);
     }
     // 3. 都失败，无工具直接对话
     println!("[意图] 降级无结果，普通对话");
-    (vec![], "普通对话(降级)".to_string())
+    (vec![], "普通对话(降级)".to_string(), None)
 }
 
 /// 并发执行工具调用
@@ -313,7 +316,7 @@ pub async fn react_xunhuan(
         guanli.caijian_shangxiawen(peizhi.zuida_token);
         println!("[{}] 第 {} 轮循环 (token: {})", qz, cishu, guanli.dangqian_token());
         match openaizhuti::putongqingqiu_react(peizhi, guanli).await {
-            Some(ReactJieguo::Wenben(huifu)) => return Some(ReactJieguo::Wenben(huifu)),
+            Some(ReactJieguo::Wenben { neirong, sikao }) => return Some(ReactJieguo::Wenben { neirong, sikao }),
             Some(ReactJieguo::Gongjudiaoyong(lie)) => {
                 let hash = gongju_qianming(&lie);
                 if hash == shangci_hash && shangci_hash != 0 {
@@ -321,8 +324,8 @@ pub async fn react_xunhuan(
                     if chongfu >= chongfu_yuzhi {
                         println!("[{}] 工具重复调用 {} 次，移除工具做最终回复", qz, chongfu + 1);
                         guanli.qingkong_gongjulie();
-                        if let Some(huifu) = openaizhuti::putongqingqiu(peizhi, guanli).await {
-                            return Some(ReactJieguo::Wenben(huifu));
+                        if let Some((huifu, sikao)) = openaizhuti::putongqingqiu_daisikao(peizhi, guanli).await {
+                            return Some(ReactJieguo::Wenben { neirong: huifu, sikao });
                         }
                         return None;
                     }

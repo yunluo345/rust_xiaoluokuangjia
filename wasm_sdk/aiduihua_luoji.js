@@ -109,10 +109,12 @@ export class Aiduihualuoji {
     }
 
     // 添加消息到当前会话
-    tianjiaxiaoxi(juese, neirong) {
+    tianjiaxiaoxi(juese, neirong, sikao) {
         const huihua = this.huoqudangqianhuihua();
         if (!huihua) return;
-        huihua.xiaoxilie.push({ juese, neirong });
+        const xiaoxi = { juese, neirong };
+        if (sikao) xiaoxi.sikao = sikao;
+        huihua.xiaoxilie.push(xiaoxi);
         // 第一条用户消息时自动命名
         if (juese === 'user' && huihua.mingcheng === '新对话') {
             huihua.mingcheng = neirong.substring(0, 20) + (neirong.length > 20 ? '...' : '');
@@ -193,7 +195,12 @@ export class Aiduihualuoji {
 
             if (jieguo.zhuangtaima === 200 && jieguo.shuju && jieguo.shuju.huifu) {
                 const huifu = jieguo.shuju.huifu;
-                this.tianjiaxiaoxi('assistant', huifu);
+                const sikao = jieguo.shuju.sikao || null;
+                const yitu_sikao = jieguo.shuju.yitu_sikao || null;
+                if (yitu_sikao) {
+                    this.tianjiaxiaoxi('assistant', `[意图思考] ${yitu_sikao}`);
+                }
+                this.tianjiaxiaoxi('assistant', huifu, sikao);
                 this.rizhi('AI回复成功', 'ok');
                 return huifu;
             } else {

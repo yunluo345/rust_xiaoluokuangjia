@@ -3,10 +3,13 @@ use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 use futures::stream::{self, StreamExt};
+use tokio::time::sleep;
+use std::time::Duration;
 use crate::gongju::jichugongju;
 use crate::peizhixt::peizhi_nr::peizhi_ai::Ai;
 use crate::peizhixt::peizhixitongzhuti;
 use crate::shujuku::psqlshujuku::psqlcaozuo;
+use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::{shujucaozuo_ribao, shujucaozuo_ribao_biaoqian};
 
 #[allow(non_upper_case_globals)]
 const biaoming: &str = "ribao_biaoqianrenwu";
@@ -16,6 +19,23 @@ static yunxingzhong: OnceLock<AtomicBool> = OnceLock::new();
 
 fn huoqu_yunxingbiaozhi() -> &'static AtomicBool {
     yunxingzhong.get_or_init(|| AtomicBool::new(false))
+}
+
+fn huoquzifuchuan(shuju: &Value, ziduan: &str) -> Option<String> {
+    shuju.get(ziduan).and_then(|v| {
+        v.as_str()
+            .map(|s| s.to_string())
+            .or_else(|| v.as_i64().map(|n| n.to_string()))
+            .or_else(|| v.as_u64().map(|n| n.to_string()))
+    })
+}
+
+/// 重新入队前清理日报AI生成结果：删除已绑定标签，清空摘要与扩展字段
+async fn qingli_ribao_aishengcheng(ribaoid: &str) -> bool {
+    if shujucaozuo_ribao_biaoqian::shanchu_ribaoid(ribaoid).await.is_none() {
+        return false;
+    }
+    matches!(shujucaozuo_ribao::qingkong_aishengcheng(ribaoid).await, Some(n) if n > 0)
 }
 
 /// 查询任务调度器是否正在运行
@@ -47,6 +67,12 @@ where
     println!("[任务调度] 启动调度器 并发数={}", bingfa);
     let mut zongjieguolie: Vec<Value> = Vec::new();
 
+    // 熔断器参数
+    let zuida_lianxushibai: u32 = 5;
+    let mut lianxushibai_jishu: u32 = 0;
+    let jichuyanchi_miao: u64 = 2; // 基础延迟秒数
+    let zuida_yanchi_miao: u64 = 60;
+
     if let Some(tongji) = psqlcaozuo::chaxun(
         &format!("SELECT id::TEXT, zhuangtai, changshicishu::TEXT, zuidachangshicishu::TEXT FROM {} ORDER BY id", biaoming), &[]
     ).await {
@@ -76,8 +102,32 @@ where
         .await;
 
         let pici_chenggong = jieguolie.iter().filter(|v| v.get("chenggong").and_then(|z| z.as_bool()).unwrap_or(false)).count();
-        println!("[任务调度] 本批完成: 总数={} 成功={} 失败={}", jieguolie.len(), pici_chenggong, jieguolie.len() - pici_chenggong);
+        let pici_zongshu = jieguolie.len();
+        println!("[任务调度] 本批完成: 总数={} 成功={} 失败={}", pici_zongshu, pici_chenggong, pici_zongshu - pici_chenggong);
         zongjieguolie.extend(jieguolie);
+
+        // 熔断器：连续全部失败检测
+        if pici_chenggong == 0 {
+            lianxushibai_jishu += 1;
+            if lianxushibai_jishu >= zuida_lianxushibai {
+                println!(
+                    "[任务调度] ⚠ 连续 {} 批全部失败，触发熔断停止调度（可能API服务异常）",
+                    lianxushibai_jishu
+                );
+                break;
+            }
+            // 指数退避延迟：2^(n-1) 秒，最大60秒
+            let yanchi = jichuyanchi_miao
+                .saturating_mul(2u64.saturating_pow(lianxushibai_jishu.saturating_sub(1)));
+            let yanchi = yanchi.min(zuida_yanchi_miao);
+            println!(
+                "[任务调度] 本批全部失败（连续第{}批），退避等待 {}秒后继续",
+                lianxushibai_jishu, yanchi
+            );
+            sleep(Duration::from_secs(yanchi)).await;
+        } else {
+            lianxushibai_jishu = 0;
+        }
     }
 
     huoqu_yunxingbiaozhi().store(false, Ordering::SeqCst);
@@ -143,6 +193,11 @@ pub async fn piliang_shanchu(idlie: &[&str]) -> Option<u64> {
 
 /// 重新入队（将已有任务重新发布为等待状态）
 pub async fn chongxin_ruidui(id: &str) -> Option<u64> {
+    let renwu = chaxun_id(id).await?;
+    let ribaoid = huoquzifuchuan(&renwu, "ribaoid")?;
+    if !qingli_ribao_aishengcheng(&ribaoid).await {
+        return None;
+    }
     let shijian = jichugongju::huoqushijianchuo().to_string();
     psqlcaozuo::zhixing(
         &format!("UPDATE {} SET zhuangtai = 'false', changshicishu = 0, biaoqianjieguo = NULL, gengxinshijian = $2 WHERE id = $1::BIGINT", biaoming),
@@ -178,13 +233,32 @@ pub async fn biaojichenggong(id: &str, biaoqianjieguo: &str) -> Option<u64> {
     ).await
 }
 
-/// 标记任务失败
+/// 标记任务失败：若仍可重试则写回 false，耗尽则写 shibai
 pub async fn biaojishibai(id: &str) -> Option<u64> {
     let shijian = jichugongju::huoqushijianchuo().to_string();
     psqlcaozuo::zhixing(
-        &format!("UPDATE {} SET zhuangtai = 'shibai', gengxinshijian = $2 WHERE id = $1::BIGINT", biaoming),
+        &format!(
+            "UPDATE {} SET zhuangtai = CASE WHEN changshicishu < zuidachangshicishu THEN 'false' ELSE 'shibai' END, gengxinshijian = $2 WHERE id = $1::BIGINT",
+            biaoming
+        ),
         &[id, &shijian],
-    ).await
+    )
+    .await
+}
+
+/// 领取指定 ID 的任务（原子操作：置为 processing 并增加尝试次数）
+/// 仅领取状态为 false 且尝试次数未耗尽的任务，shibai 状态需先调用 chongxin_ruidui 重置
+pub async fn lingqu_zhiding(id: &str) -> Option<Value> {
+    let shijian = jichugongju::huoqushijianchuo().to_string();
+    let jieguo = psqlcaozuo::chaxun(
+        &format!(
+            "WITH dailingqu AS (SELECT id FROM {} WHERE id = $1::BIGINT AND zhuangtai = 'false' AND changshicishu < zuidachangshicishu LIMIT 1 FOR UPDATE SKIP LOCKED) UPDATE {} r SET zhuangtai = 'processing', changshicishu = changshicishu + 1, gengxinshijian = $2 FROM dailingqu d WHERE r.id = d.id RETURNING r.*",
+            biaoming, biaoming
+        ),
+        &[id, &shijian],
+    )
+    .await?;
+    jieguo.into_iter().next()
 }
 
 /// 根据任务ID查询详情
@@ -207,6 +281,9 @@ pub async fn chaxun_ribaoid(ribaoid: &str) -> Option<Value> {
 
 /// 重新入队（按日报ID）
 pub async fn chongxin_ruidui_ribaoid(ribaoid: &str) -> Option<u64> {
+    if !qingli_ribao_aishengcheng(ribaoid).await {
+        return None;
+    }
     let shijian = jichugongju::huoqushijianchuo().to_string();
     psqlcaozuo::zhixing(
         &format!("UPDATE {} SET zhuangtai = 'false', changshicishu = 0, biaoqianjieguo = NULL, gengxinshijian = $2 WHERE ribaoid = $1::BIGINT", biaoming),

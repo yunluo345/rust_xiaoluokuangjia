@@ -4,6 +4,7 @@ export class Aiduihuajiemian {
         this.luoji = luoji;
         this.rongqi = document.getElementById(rongqiid);
         this.liushihuifu = ''; // 流式回复缓存
+        this.liushisikao = ''; // 流式思考内容缓存
         this.liushishijianlie = []; // 流式事件消息列表
         this.zhengzaifasong = false;
     }
@@ -129,6 +130,7 @@ export class Aiduihuajiemian {
                                 <span style="font-size:12px;font-weight:600;color:${yanse}">${juese_text}</span>
                                 <button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="aiduihua_shanchuxiaoxi(${idx})" style="padding:2px 6px;font-size:11px;min-height:20px">删除</button>
                             </div>
+                            ${xiaoxi.sikao ? `<details style="margin-bottom:6px;border:1px solid #E9D5FF;border-radius:6px;padding:4px 8px;background:#FAF5FF"><summary style="cursor:pointer;font-size:12px;color:#7C3AED;user-select:none">💭 思考过程</summary><div style="font-size:12px;color:#6B21A8;white-space:pre-wrap;word-break:break-word;margin-top:4px">${this.zhuanyihtml(xiaoxi.sikao)}</div></details>` : ''}
                             <div style="font-size:13px;color:#1E293B;white-space:pre-wrap;word-break:break-word">${this.zhuanyihtml(xiaoxi.neirong)}</div>
                         </div>
                     </div>`;
@@ -228,6 +230,7 @@ export class Aiduihuajiemian {
             } else {
                 // 流式
                 this.liushihuifu = '';
+                this.liushisikao = '';
                 await this.luoji.liushiduihua(neirong, 'aiduihua_liushi_huidiao', 'aiduihua_duquqi_huidiao');
             }
         } finally {
@@ -238,7 +241,7 @@ export class Aiduihuajiemian {
                     this.luoji.tianjiaxiaoxi('assistant', sj);
                 }
                 if (this.liushihuifu) {
-                    this.luoji.tianjiaxiaoxi('assistant', this.liushihuifu);
+                    this.luoji.tianjiaxiaoxi('assistant', this.liushihuifu, this.liushisikao || null);
                 } else if (this.liushishijianlie.length === 0) {
                     // 没有收到任何回复，移除用户消息
                     this.luoji.shanchuzuihouyonghuxiaoxi();
@@ -263,6 +266,20 @@ export class Aiduihuajiemian {
             // 非流式也支持终止
             await this.luoji.zhongzhiliushi();
         }
+    }
+
+    tianjiasikaoqipao(neirong, biaoti) {
+        const quyu = document.getElementById('aiduihua_quyu');
+        if (!quyu) return;
+        const qipao = document.createElement('div');
+        qipao.className = 'aiduihua_shijian_linshi';
+        qipao.style.cssText = 'display:flex;justify-content:flex-start;margin-bottom:6px';
+        qipao.innerHTML = `<details style="max-width:80%;border:1px solid #E9D5FF;border-radius:6px;padding:4px 8px;background:#FAF5FF">
+            <summary style="cursor:pointer;font-size:12px;color:#7C3AED;user-select:none">💭 ${this.zhuanyihtml(biaoti || '思考过程')}</summary>
+            <div style="font-size:12px;color:#6B21A8;white-space:pre-wrap;word-break:break-word;margin-top:4px">${this.zhuanyihtml(neirong)}</div>
+        </details>`;
+        quyu.appendChild(qipao);
+        quyu.scrollTop = quyu.scrollHeight;
     }
 
     tianjiashijianqipao(neirong) {
@@ -297,6 +314,9 @@ export class Aiduihuajiemian {
                     const sj = `[意图] ${json.yitu}`;
                     this.liushishijianlie.push(sj);
                     this.tianjiashijianqipao(sj);
+                    if (json.sikao) {
+                        this.tianjiasikaoqipao(json.sikao, '意图分析思考');
+                    }
                     continue;
                 }
                 if (json.shijian === 'xunhuan' && json.neirong) {
@@ -315,6 +335,11 @@ export class Aiduihuajiemian {
                     const sj = `[工具结果] ${json.neirong}`;
                     this.liushishijianlie.push(sj);
                     this.tianjiashijianqipao(sj);
+                    continue;
+                }
+                if (json.shijian === 'sikao' && json.neirong) {
+                    this.liushisikao += json.neirong;
+                    this.gengxinliushisikao();
                     continue;
                 }
                 if (json.neirong) {
@@ -353,11 +378,37 @@ export class Aiduihuajiemian {
         }
     }
 
+    // 更新流式思考内容显示
+    gengxinliushisikao() {
+        const quyu = document.getElementById('aiduihua_quyu');
+        if (!quyu || !this.liushisikao) return;
+
+        let sikaoqu = document.getElementById('aiduihua_liushi_sikao');
+        if (!sikaoqu) {
+            sikaoqu = document.createElement('div');
+            sikaoqu.id = 'aiduihua_liushi_sikao';
+            sikaoqu.style.cssText = 'display:flex;justify-content:flex-start;margin-bottom:6px';
+            sikaoqu.innerHTML = `
+                <details open style="max-width:80%;border:1px solid #E9D5FF;border-radius:6px;padding:6px 10px;background:#FAF5FF">
+                    <summary style="cursor:pointer;font-size:12px;color:#7C3AED;user-select:none">💭 思考中...</summary>
+                    <div id="aiduihua_liushi_sikao_neirong" style="font-size:12px;color:#6B21A8;white-space:pre-wrap;word-break:break-word;margin-top:4px"></div>
+                </details>
+            `;
+            quyu.appendChild(sikaoqu);
+        }
+        const nr = document.getElementById('aiduihua_liushi_sikao_neirong');
+        if (nr) nr.textContent = this.liushisikao;
+        quyu.scrollTop = quyu.scrollHeight;
+    }
+
     qingchulishilinshi() {
         const linshi = document.getElementById('aiduihua_liushi_linshi');
         if (linshi) linshi.remove();
+        const sikaolinshi = document.getElementById('aiduihua_liushi_sikao');
+        if (sikaolinshi) sikaolinshi.remove();
         document.querySelectorAll('.aiduihua_shijian_linshi').forEach(el => el.remove());
         this.liushihuifu = '';
+        this.liushisikao = '';
         this.liushishijianlie = [];
     }
 

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use crate::jiekouxt::jiekouxtzhuti::{self, Jiekoudinyi, Qingqiufangshi};
 use crate::jiekouxt::jiamichuanshu::jiamichuanshuzhongjian;
+use crate::gongju::ai::openai::gongjuji::ribao::gongju_ribaotijiao;
 use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::{
     shujucaozuo_biaoqianleixing, shujucaozuo_biaoqian,
     shujucaozuo_ribao, shujucaozuo_ribao_biaoqian,
@@ -273,7 +274,11 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
         }
         "ribao_xinzeng" => {
             let canshu = jiexi_canshu!(qingqiu, Ribaoxinzengcanshu, miyao);
-            chuli_xinzeng!(canshu, miyao, shujucaozuo_ribao::xinzeng(&canshu.yonghuid, &canshu.neirong, &canshu.fabushijian))
+            let chongshi = gongju_ribaotijiao::huoqu_moren_chongshicishu();
+            match gongju_ribaotijiao::tijiao_ribao_bingzidongqidong(&canshu.yonghuid, &canshu.neirong, &canshu.fabushijian, chongshi).await {
+                Ok(jieguo) => jiamichenggong("创建成功", serde_json::json!({"id": jieguo.ribaoid}), miyao),
+                Err(_) => jiamishibai(&cuowu::chuangjianshi, miyao),
+            }
         }
         "ribao_shanchu" => {
             let canshu = jiexi_canshu!(qingqiu, Idcanshu, miyao);
@@ -387,6 +392,13 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
         }
         "renwu_biaoqian_ai_chuli" => {
             match gongju_ribaorenwuchuli::zhixing_neibu().await {
+                Ok(shuju) => jiamichenggong("处理成功", shuju, miyao),
+                Err(xiaoxi) => jiamishibai_dongtai(500, xiaoxi, miyao),
+            }
+        }
+        "renwu_dange_chuli" => {
+            let canshu = jiexi_canshu!(qingqiu, Idcanshu, miyao);
+            match gongju_ribaorenwuchuli::zhixing_dange_renwu_neibu(&canshu.id).await {
                 Ok(shuju) => jiamichenggong("处理成功", shuju, miyao),
                 Err(xiaoxi) => jiamishibai_dongtai(500, xiaoxi, miyao),
             }
