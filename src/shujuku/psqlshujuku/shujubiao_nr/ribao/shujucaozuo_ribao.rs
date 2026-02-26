@@ -6,11 +6,12 @@ use crate::shujuku::psqlshujuku::psqlcaozuo;
 const biaoming: &str = "ribao";
 
 /// 新增日报，返回自增ID
-pub async fn xinzeng(yonghuid: &str, neirong: &str, fabushijian: &str) -> Option<String> {
+pub async fn xinzeng(yonghuid: &str, neirong: &str, fabushijian: &str, biaoti: Option<&str>) -> Option<String> {
     let shijian = jichugongju::huoqushijianchuo().to_string();
+    let biaotizhi = biaoti.unwrap_or("");
     let jieguo = psqlcaozuo::chaxun(
-        &format!("INSERT INTO {} (yonghuid, neirong, fabushijian, zhaiyao, kuozhan, chuangjianshijian, gengxinshijian) VALUES ($1::BIGINT,$2,$3,NULL,NULL,$4,$5) RETURNING id::TEXT", biaoming),
-        &[yonghuid, neirong, fabushijian, &shijian, &shijian],
+        &format!("INSERT INTO {} (yonghuid, neirong, biaoti, fabushijian, zhaiyao, kuozhan, chuangjianshijian, gengxinshijian) VALUES ($1::BIGINT,$2,NULLIF($3,''),$4,NULL,NULL,$5,$6) RETURNING id::TEXT", biaoming),
+        &[yonghuid, neirong, &biaotizhi, fabushijian, &shijian, &shijian],
     ).await?;
     jieguo.first().and_then(|v| v.get("id")?.as_str().map(String::from))
 }
@@ -131,6 +132,24 @@ pub async fn tongji_guanjianci_zongshu(guanjianci: &str) -> Option<i64> {
     let jieguo = psqlcaozuo::chaxun(
         &format!("SELECT COUNT(*)::TEXT as count FROM {} WHERE neirong LIKE $1", biaoming),
         &[&mohu],
+    ).await?;
+    jieguo.first()?.get("count")?.as_str()?.parse().ok()
+}
+
+/// 按发布时间范围分页查询日报
+pub async fn chaxun_fabushijian_fenye(kaishi: &str, jieshu: &str, yeshu: i64, meiyetiaoshu: i64) -> Option<Vec<Value>> {
+    let (tiaoshu, pianyi) = jichugongju::jisuanfenye(yeshu, meiyetiaoshu);
+    psqlcaozuo::chaxun(
+        &format!("SELECT r.*, y.nicheng as fabuzhemingcheng, y.zhanghao as fabuzhezhanghao FROM {} r LEFT JOIN yonghu y ON r.yonghuid = y.id WHERE r.fabushijian >= $1 AND r.fabushijian <= $2 ORDER BY r.fabushijian DESC LIMIT $3::BIGINT OFFSET $4::BIGINT", biaoming),
+        &[kaishi, jieshu, &tiaoshu, &pianyi],
+    ).await
+}
+
+/// 统计发布时间范围内日报总数
+pub async fn tongji_fabushijian_zongshu(kaishi: &str, jieshu: &str) -> Option<i64> {
+    let jieguo = psqlcaozuo::chaxun(
+        &format!("SELECT COUNT(*)::TEXT as count FROM {} WHERE fabushijian >= $1 AND fabushijian <= $2", biaoming),
+        &[kaishi, jieshu],
     ).await?;
     jieguo.first()?.get("count")?.as_str()?.parse().ok()
 }

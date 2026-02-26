@@ -67,7 +67,7 @@ async fn tiqu_biaoqian(neirong: &str, peizhi: &Ai) -> Option<String> {
         .map(|bq| format!("{}（别称：{}）", bq.mingcheng, bq.biecheng.join("、")))
         .collect();
     let xitongtishici = format!(
-        "从日报文本中提取以下标签信息，返回纯JSON格式（不要markdown代码块）：\n\n{}\n\n严格提取规则：\n1. 标签名使用配置中的「标准名称」（如\"我方人员\"而非\"汇报人\"）\n2. 只提取文中**明确写出的具体信息**（如\"张三\"\"2026-02-14\"\"北京市海淀区\"）\n3. 如果文中只有泛指词汇（\"客户方\"\"相关负责人\"\"对方\"\"联系人\"\"办公室\"\"公司\"等），该字段值设为null\n4. 绝对禁止推测、编造或从上下文猜测未明确写出的信息\n5. 只返回JSON对象，格式：{{\"我方人员\":\"张三\",\"对方人员\":null,\"日报时间\":\"2026-02-14\",...}}",
+        "从日报文本中提取以下标签信息，并生成一个简洁的日报标题，返回纯JSON格式（不要markdown代码块）：\n\n{}\n\n严格提取规则：\n1. 标签名使用配置中的「标准名称」（如\"我方人员\"而非\"汇报人\"）\n2. 只提取文中**明确写出的具体信息**（如\"张三\"\"2026-02-14\"\"北京市海淀区\"）\n3. 如果文中只有泛指词汇（\"客户方\"\"相关负责人\"\"对方\"\"联系人\"\"办公室\"\"公司\"等），该字段值设为null\n4. 绝对禁止推测、编造或从上下文猜测未明确写出的信息\n5. 返回JSON对象必须包含\"biaoti\"字段，值为15字以内的日报标题，概括核心工作\n6. 格式：{{\"biaoti\":\"标题内容\",\"我方人员\":\"张三\",\"对方人员\":null,\"日报时间\":\"2026-02-14\",...}}",
         biaoqian_shuoming.join("\n")
     );
     let aipeizhi = crate::jiekouxt::jiekou_nr::ai::huoqu_peizhi().await?.shezhi_chaoshi(30).shezhi_chongshi(1);
@@ -173,7 +173,8 @@ pub async fn zhixing(canshu: &str, lingpai: &str) -> String {
     }
     let fabushijian = huoqu_fabushijian(&qingqiu);
     let renwuchongshi = peizhi.ribao_biaoqianrenwu_chongshi_cishu as i64;
-    let jieguo = match gongju_ribaotijiao::tijiao_ribao_bingzidongqidong(&zaiti.yonghuid, &neirong, &fabushijian, renwuchongshi).await {
+    let biaoti = ribaoshuju.get("biaoti").and_then(|v| v.as_str()).map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    let jieguo = match gongju_ribaotijiao::tijiao_ribao_bingzidongqidong(&zaiti.yonghuid, &neirong, &fabushijian, renwuchongshi, biaoti.as_deref()).await {
         Ok(j) => j,
         Err(gongju_ribaotijiao::Tijiaocuowu::Ribaochuangjianshibai) => return json!({"cuowu": "日报提交失败"}).to_string(),
         Err(gongju_ribaotijiao::Tijiaocuowu::Renwufabushibai { ribaoid }) => {

@@ -116,12 +116,12 @@ export class Ribaoluoji {
         return jg;
     }
 
-    async ribao_xinzeng(yonghuid, neirong, fabushijian) {
+    async ribao_xinzeng(yonghuid, biaoti, neirong, fabushijian) {
         let jg;
         if (this.shifouquanxian) {
-            jg = await this.zhixing('ribao_xinzeng', { yonghuid, neirong, fabushijian });
+            jg = await this.zhixing('ribao_xinzeng', { yonghuid, biaoti, neirong, fabushijian });
         } else {
-            jg = await this.yonghuzhixing('xinzeng', { neirong, fabushijian });
+            jg = await this.yonghuzhixing('xinzeng', { biaoti, neirong, fabushijian });
         }
         if (jg) this.rizhi('新增日报: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
         return jg;
@@ -203,6 +203,15 @@ export class Ribaoluoji {
         }
         const jg = await this.yonghuzhixing('chaxun_fenye', { yeshu, meiyetiaoshu });
         if (jg) this.rizhi('分页查询日报: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async fabushijianchaxunfenye_shipei(kaishi, jieshu, yeshu, meiyetiaoshu) {
+        const canshu = { kaishi, jieshu, yeshu, meiyetiaoshu };
+        const jg = this.shifouquanxian
+            ? await this.zhixing('ribao_chaxun_fabushijian_fenye', canshu)
+            : await this.yonghuzhixing('chaxun_fabushijian_fenye', canshu);
+        if (jg) this.rizhi('时间范围查询日报: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
         return jg;
     }
 

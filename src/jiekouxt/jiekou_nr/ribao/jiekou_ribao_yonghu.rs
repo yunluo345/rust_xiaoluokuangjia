@@ -26,10 +26,13 @@ pub const dinyi: Jiekoudinyi = Jiekoudinyi {
 struct Qingqiuti { caozuo: String, #[serde(flatten)] canshu: Value }
 
 #[derive(Deserialize)]
-struct Xinzengcanshu { neirong: String, fabushijian: String }
+struct Xinzengcanshu { biaoti: String, neirong: String, fabushijian: String }
 
 #[derive(Deserialize)]
 struct Fenyecanshu { yeshu: Option<i64>, meiyetiaoshu: Option<i64> }
+
+#[derive(Deserialize)]
+struct Shijianchaxuncanshu { kaishi: String, jieshu: String, yeshu: Option<i64>, meiyetiaoshu: Option<i64> }
 
 #[derive(Deserialize)]
 struct Ribaoidcanshu { ribaoid: String }
@@ -57,7 +60,8 @@ async fn chulicaozuo(caozuo: &str, canshu: Value, yonghuid: &str, miyao: &[u8]) 
                 Err(_) => return jiamishibai(&cuowu::canshugeshibuzhengque, miyao),
             };
             let chongshi = gongju_ribaotijiao::huoqu_moren_chongshicishu();
-            match gongju_ribaotijiao::tijiao_ribao_bingzidongqidong(yonghuid, &c.neirong, &c.fabushijian, chongshi).await {
+            let biaoti = (!c.biaoti.trim().is_empty()).then(|| c.biaoti.as_str());
+            match gongju_ribaotijiao::tijiao_ribao_bingzidongqidong(yonghuid, &c.neirong, &c.fabushijian, chongshi, biaoti).await {
                 Ok(jieguo) => jiamichenggong("创建成功", serde_json::json!({"id": jieguo.ribaoid}), miyao),
                 Err(_) => jiamishibai(&cuowu::chuangjianshi, miyao),
             }
@@ -118,6 +122,17 @@ async fn chulicaozuo(caozuo: &str, canshu: Value, yonghuid: &str, miyao: &[u8]) 
                 Some(zongshu) => jiamichenggong("统计成功", serde_json::json!({"count": zongshu}), miyao),
                 None => jiamishibai(&cuowu::tongjishibai, miyao),
             }
+        }
+        "chaxun_fabushijian_fenye" => {
+            let c: Shijianchaxuncanshu = match serde_json::from_value(canshu) {
+                Ok(c) => c,
+                Err(_) => return jiamishibai(&cuowu::canshugeshibuzhengque, miyao),
+            };
+            let yeshu = c.yeshu.unwrap_or(1);
+            let meiyetiaoshu = c.meiyetiaoshu.unwrap_or(10);
+            let liebiao = shujucaozuo_ribao::chaxun_fabushijian_fenye(&c.kaishi, &c.jieshu, yeshu, meiyetiaoshu).await.unwrap_or_default();
+            let zongshu = shujucaozuo_ribao::tongji_fabushijian_zongshu(&c.kaishi, &c.jieshu).await.unwrap_or(0);
+            jiamichenggong("查询成功", serde_json::json!({"liebiao": liebiao, "zongshu": zongshu}), miyao)
         }
         _ => jiamishibai(&cuowu::bucaozuoleixing, miyao),
     }

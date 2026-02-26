@@ -66,6 +66,14 @@ const chongfu_yuzhi: u32 = 1;
 #[allow(non_upper_case_globals)]
 const zhaiyao_xiaoxishuliang: usize = 5;
 
+fn shifou_shijianxiaoxi(xiaoxi: &Xiaoxi) -> bool {
+    xiaoxi.juese == "assistant" && xiaoxi.neirong.trim().starts_with('[')
+}
+
+fn guolv_youxiao_xiaoxilie(xiaoxilie: &[Xiaoxi]) -> Vec<&Xiaoxi> {
+    xiaoxilie.iter().filter(|x| !shifou_shijianxiaoxi(x)).collect()
+}
+
 #[derive(Deserialize)]
 pub struct Xiaoxi {
     pub juese: String,
@@ -135,32 +143,35 @@ pub async fn huoqu_peizhi() -> Option<aipeizhi::Aipeizhi> {
     aipeizhi::Aipeizhi::cong_qudaoshuju(&qudao)
 }
 
-/// 生成上下文摘要：将历史对话压缩为简短摘要
+/// 生成上下文摘要：过滤事件消息后取最近N条有效消息压缩为摘要
 async fn shengcheng_zhaiyao(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi]) -> Option<String> {
-    let changdu = xiaoxilie.len();
-    if changdu <= 2 {
+    let youxiao = guolv_youxiao_xiaoxilie(xiaoxilie);
+    if youxiao.len() <= 2 {
         return None;
     }
-    let kaishi = changdu.saturating_sub(zhaiyao_xiaoxishuliang);
-    let lishi_xiaoxi = &xiaoxilie[kaishi..changdu.saturating_sub(1)];
+    let kaishi = youxiao.len().saturating_sub(zhaiyao_xiaoxishuliang);
+    let lishi = &youxiao[kaishi..youxiao.len().saturating_sub(1)];
     let mut guanli = aixiaoxiguanli::Xiaoxiguanli::xingjian()
         .shezhi_xitongtishici(zhaiyao_tishici);
-    for xiaoxi in lishi_xiaoxi {
+    for xiaoxi in lishi {
         match xiaoxi.juese.as_str() {
             "user" => guanli.zhuijia_yonghuxiaoxi(&xiaoxi.neirong),
             "assistant" => guanli.zhuijia_zhushouneirong(&xiaoxi.neirong),
             _ => {}
         }
     }
-    println!("[上下文摘要] 开始生成摘要，历史消息数: {}", lishi_xiaoxi.len());
+    println!("[上下文摘要] 开始生成摘要，有效消息数: {} (原始: {})", lishi.len(), xiaoxilie.len());
     let zhaiyao = openaizhuti::putongqingqiu(peizhi, &guanli).await?;
     println!("[上下文摘要] 摘要: {}", zhaiyao);
     Some(zhaiyao)
 }
 
-/// 意图分析：用AI判断用户本次消息的意图
+/// 意图分析：取最后一条有效用户消息分析意图
 async fn fenxi_yitu(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi]) -> Option<YituJieguo> {
-    let benci_neirong = xiaoxilie.last().map(|x| x.neirong.as_str()).unwrap_or("");
+    let benci_neirong = xiaoxilie.iter().rev()
+        .find(|x| !shifou_shijianxiaoxi(x))
+        .map(|x| x.neirong.as_str())
+        .unwrap_or("");
     let zhaiyao = shengcheng_zhaiyao(peizhi, xiaoxilie).await;
     let tishici = match &zhaiyao {
         Some(z) => format!("{}\n\n上下文摘要：{}", yitu_tishici, z),
@@ -245,7 +256,10 @@ fn zhineng_tiqu_gongju_youxian(guanjianci_lie: &[String], yuanwen: &str) -> Vec<
 /// 意图分析 + 工具筛选：先AI分析，失败则降级关键词匹配，再失败则无工具
 /// 返回 (gongjulie, yitu_miaoshu, yitu_sikao)
 pub async fn huoqu_yitu_gongju(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi]) -> (Vec<llm::chat::Tool>, String, Option<String>) {
-    let benci_neirong = xiaoxilie.last().map(|x| x.neirong.as_str()).unwrap_or("");
+    let benci_neirong = xiaoxilie.iter().rev()
+        .find(|x| !shifou_shijianxiaoxi(x))
+        .map(|x| x.neirong.as_str())
+        .unwrap_or("");
     // 1. 尝试AI意图分析
     if let Some(yitu) = fenxi_yitu(peizhi, xiaoxilie).await {
         let sikao = yitu.sikao;

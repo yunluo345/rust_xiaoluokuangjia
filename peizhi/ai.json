@@ -90,6 +90,18 @@
       "bitian": true,
       "miaoshu": "本次工作的具体内容描述",
       "mingcheng": "工作内容"
+    },
+    {
+      "biecheng": [
+        "联系电话",
+        "客户电话",
+        "客户手机",
+        "联系方式"
+      ],
+      "bitian": true,
+      "duozhi": true,
+      "miaoshu": "客户的联系电话或其他联系方式",
+      "mingcheng": "客户联系方式"
     }
   ],
   "ribao_biaoqianrenwu_bingfashuliang": 2,

@@ -341,11 +341,7 @@
 
             window.ribao_shuaxin = () => {
                 if (ribao_jm) {
-                    ribao_jm.sousuobiaoqianid = null;
-                    ribao_jm.sousuoleixing = null;
-                    ribao_jm.sousuoguanjiancizhi = null;
-                    ribao_jm.sousuoyonghuid = null;
-                    ribao_jm.dangqianyeshu = 1;
+                    ribao_jm.qingchusousuo();
                     ribao_jm.shuaxindangqianshitu();
                 }
             };
@@ -382,6 +378,7 @@
                 ribao_sousuoshuru_huiche: 'sousuoshuru_huiche',
                 ribao_sousuobiaoqian_xuanze: 'sousuobiaoqian_xuanze',
                 ribao_sousuoyonghuid_xuanze: 'sousuoyonghuid_xuanze',
+                ribao_sousuoshijian: 'sousuoshijianfanwei',
                 ribao_dianjibibaoqian: 'dianjibibaoqian',
                 ribao_qingchusousuo: 'qingchusousuo',
                 ribao_chakanguanlian: 'chakanguanlian',

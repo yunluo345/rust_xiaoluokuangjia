@@ -47,8 +47,9 @@ pub async fn tijiao_ribao_bingzidongqidong(
     neirong: &str,
     fabushijian: &str,
     chongshicishu: i64,
+    biaoti: Option<&str>,
 ) -> Result<Tijiaojieguo, Tijiaocuowu> {
-    let ribaoid = shujucaozuo_ribao::xinzeng(yonghuid, neirong, fabushijian)
+    let ribaoid = shujucaozuo_ribao::xinzeng(yonghuid, neirong, fabushijian, biaoti)
         .await
         .ok_or(Tijiaocuowu::Ribaochuangjianshibai)?;
 

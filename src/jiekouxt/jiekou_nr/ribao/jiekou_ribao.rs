@@ -55,7 +55,7 @@ struct Biaoqianchaxuncanshu { leixingid: String }
 struct Biaoqianchaxunzhicanshu { leixingid: String, zhi: String }
 
 #[derive(Deserialize)]
-struct Ribaoxinzengcanshu { yonghuid: String, neirong: String, fabushijian: String }
+struct Ribaoxinzengcanshu { yonghuid: String, biaoti: String, neirong: String, fabushijian: String }
 
 #[derive(Deserialize)]
 struct Ribaogengxincanshu { id: String, ziduanlie: Vec<(String, String)> }
@@ -95,6 +95,9 @@ struct Xiangguanbiaoqiancanshu { biaoqianid: String, leixingmingcheng: String }
 
 #[derive(Deserialize)]
 struct Guanjiancifenyecanshu { guanjianci: String, yeshu: i64, meiyetiaoshu: i64 }
+
+#[derive(Deserialize)]
+struct Shijianchaxuncanshu { kaishi: String, jieshu: String, yeshu: i64, meiyetiaoshu: i64 }
 
 #[derive(Deserialize)]
 struct Renwuchulicanshu { shuliang: Option<i64> }
@@ -275,7 +278,8 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
         "ribao_xinzeng" => {
             let canshu = jiexi_canshu!(qingqiu, Ribaoxinzengcanshu, miyao);
             let chongshi = gongju_ribaotijiao::huoqu_moren_chongshicishu();
-            match gongju_ribaotijiao::tijiao_ribao_bingzidongqidong(&canshu.yonghuid, &canshu.neirong, &canshu.fabushijian, chongshi).await {
+            let biaoti = (!canshu.biaoti.trim().is_empty()).then(|| canshu.biaoti.as_str());
+            match gongju_ribaotijiao::tijiao_ribao_bingzidongqidong(&canshu.yonghuid, &canshu.neirong, &canshu.fabushijian, chongshi, biaoti).await {
                 Ok(jieguo) => jiamichenggong("创建成功", serde_json::json!({"id": jieguo.ribaoid}), miyao),
                 Err(_) => jiamishibai(&cuowu::chuangjianshi, miyao),
             }
@@ -340,6 +344,12 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
             let canshu = jiexi_canshu!(qingqiu, Guanjiancifenyecanshu, miyao);
             let liebiao = shujucaozuo_ribao::chaxun_guanjianci_fenye(&canshu.guanjianci, canshu.yeshu, canshu.meiyetiaoshu).await.unwrap_or_default();
             let zongshu = shujucaozuo_ribao::tongji_guanjianci_zongshu(&canshu.guanjianci).await.unwrap_or(0);
+            jiamichenggong("查询成功", serde_json::json!({"liebiao": liebiao, "zongshu": zongshu}), miyao)
+        }
+        "ribao_chaxun_fabushijian_fenye" => {
+            let canshu = jiexi_canshu!(qingqiu, Shijianchaxuncanshu, miyao);
+            let liebiao = shujucaozuo_ribao::chaxun_fabushijian_fenye(&canshu.kaishi, &canshu.jieshu, canshu.yeshu, canshu.meiyetiaoshu).await.unwrap_or_default();
+            let zongshu = shujucaozuo_ribao::tongji_fabushijian_zongshu(&canshu.kaishi, &canshu.jieshu).await.unwrap_or(0);
             jiamichenggong("查询成功", serde_json::json!({"liebiao": liebiao, "zongshu": zongshu}), miyao)
         }
         "guanlian_xinzeng" => {
@@ -465,10 +475,11 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
         }
         "renwu_xinzeng" => {
             let canshu = jiexi_canshu!(qingqiu, Renwuxinzengcanshu, miyao);
-            chuli_xinzeng!(canshu, miyao, shujucaozuo_ribao_biaoqianrenwu::faburenwu(&canshu.ribaoid, &canshu.yonghuid, 3))
+            let chongshi = gongju_ribaotijiao::huoqu_moren_chongshicishu();
+            chuli_xinzeng!(canshu, miyao, shujucaozuo_ribao_biaoqianrenwu::faburenwu(&canshu.ribaoid, &canshu.yonghuid, chongshi))
         }
         "renwu_piliang_xinzeng_quanbu" => {
-            match shujucaozuo_ribao_biaoqianrenwu::piliang_faburenwu_quanbu(3).await {
+            match shujucaozuo_ribao_biaoqianrenwu::piliang_faburenwu_quanbu(gongju_ribaotijiao::huoqu_moren_chongshicishu()).await {
                 Some(shuju) => jiamichenggong("批量创建成功", shuju, miyao),
                 None => jiamishibai(&cuowu::chuangjianshi, miyao),
             }

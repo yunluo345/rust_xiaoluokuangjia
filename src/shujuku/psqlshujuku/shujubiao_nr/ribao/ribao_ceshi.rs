@@ -169,7 +169,7 @@ pub async fn yunxingceshi() {
     // 测试13: 新增日报
     println!("\n[测试13] 新增日报...");
     let shijian = jichugongju::huoqushijianchuo().to_string();
-    let ribao1_id = match shujucaozuo_ribao::xinzeng("1", "今天完成了项目A的开发工作", &shijian).await {
+    let ribao1_id = match shujucaozuo_ribao::xinzeng("1", "今天完成了项目A的开发工作", &shijian, Some("项目A开发")).await {
         Some(id) => {
             println!("✓ 创建成功，ID: {}", id);
             id
@@ -185,7 +185,7 @@ pub async fn yunxingceshi() {
         }
     };
     
-    let ribao2_id = match shujucaozuo_ribao::xinzeng("1", "今天在青岛参加了会议", &shijian).await {
+    let ribao2_id = match shujucaozuo_ribao::xinzeng("1", "今天在青岛参加了会议", &shijian, Some("青岛会议")).await {
         Some(id) => {
             println!("✓ 创建成功，ID: {}", id);
             id
