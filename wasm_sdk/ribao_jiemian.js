@@ -2078,7 +2078,7 @@ export class Ribaojiemian {
         await gj.piliangshanchu(this.luoji, { leibie: 'rb_pl_xz', mingcheng: '日报', shanchufn: id => this.luoji.ribao_piliang_shanchu(id), shuaxinfn: () => this.shuaxinribaoliebiao(), tishi: '此操作不可撤销。' });
     }
     async piliang_xinzengrenwu() {
-        if (!await aqqueren('批量添加任务', '确定为所有尚无任务的日报批量创建标签提取任务吗？')) return;
+        if (!await aqqueren('批量添加任务', '确定为所有尚无任务的日报批量创建标签提取任务吗？', 'queren')) return;
         const jg = await this.luoji.renwu_piliang_xinzeng_quanbu();
         if (jg?.zhuangtaima === 200) {
             const shu = jg.shuju?.xinzengshu ?? 0;

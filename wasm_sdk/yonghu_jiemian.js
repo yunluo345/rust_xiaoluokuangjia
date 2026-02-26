@@ -86,9 +86,9 @@ export class Yonghujiemian {
         const sousuolan = shiyonghu
             ? this._sousuolan('yh_sousuo', '搜索账号/昵称', 'yonghu_sousuo()', 'yonghu_qingkong()', 'yonghu_shuaxin()', 'yonghu_xinzeng_shitu()', '新增用户')
             : this._sousuolan('zu_sousuo', '搜索组名称', 'yonghuzu_sousuo()', 'yonghuzu_qingkong()', 'yonghuzu_shuaxin()', 'yonghuzu_xinzeng_shitu()', '新增用户组');
-        neirong.innerHTML = sousuolan + this._konghtml('点击刷新按钮加载数据');
-        this.rongqi.appendChild(neirong);
-    }
+         neirong.innerHTML = sousuolan + '<div id="' + (shiyonghu ? 'yh_lb' : 'zu_lb') + '"></div>';
+         this.rongqi.appendChild(neirong);
+     }
 
     qiehuanshitu(shitu) {
         this.dangqianshitu = shitu;
