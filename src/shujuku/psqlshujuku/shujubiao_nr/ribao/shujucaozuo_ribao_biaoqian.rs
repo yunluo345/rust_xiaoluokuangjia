@@ -99,6 +99,56 @@ pub async fn chaxun_xiangguanbiaoqian(biaoqianid: &str, leixingmingcheng: &str) 
     ).await
 }
 
+// ========== 跨日报分析聚合查询 ==========
+
+/// 按标签类型聚合：查询某类型下所有标签值 + 关联日报数
+pub async fn juhe_biaoqian_zhi_anleixing(leixingmingcheng: &str) -> Option<Vec<Value>> {
+    psqlcaozuo::chaxun(
+        "SELECT b.zhi, COUNT(DISTINCT rb.ribaoid)::TEXT AS ribao_shu \
+         FROM biaoqian b \
+         INNER JOIN biaoqianleixing l ON b.leixingid = l.id \
+         INNER JOIN ribao_biaoqian rb ON b.id = rb.biaoqianid \
+         WHERE l.mingcheng = $1 \
+         GROUP BY b.zhi \
+         ORDER BY COUNT(DISTINCT rb.ribaoid) DESC",
+        &[leixingmingcheng],
+    ).await
+}
+
+/// 按项目/客户名称聚合交流内容（查找共同关联日报的「交流内容」标签，按时间排序）
+pub async fn juhe_jiaoliuneirong_anshiti(shiti_leixing: &str, shiti_mingcheng: &str) -> Option<Vec<Value>> {
+    psqlcaozuo::chaxun(
+        "SELECT b_jl.zhi AS jiaoliu_neirong, r.fabushijian, r.id AS ribaoid \
+         FROM ribao r \
+         INNER JOIN ribao_biaoqian rb1 ON r.id = rb1.ribaoid \
+         INNER JOIN biaoqian b1 ON rb1.biaoqianid = b1.id \
+         INNER JOIN biaoqianleixing l1 ON b1.leixingid = l1.id \
+         INNER JOIN ribao_biaoqian rb2 ON r.id = rb2.ribaoid \
+         INNER JOIN biaoqian b_jl ON rb2.biaoqianid = b_jl.id \
+         INNER JOIN biaoqianleixing l_jl ON b_jl.leixingid = l_jl.id \
+         WHERE l1.mingcheng = $1 AND b1.zhi = $2 AND l_jl.mingcheng = '交流内容' \
+         ORDER BY r.fabushijian ASC",
+        &[shiti_leixing, shiti_mingcheng],
+    ).await
+}
+
+/// 查询某个项目/客户关联的所有标签（分类聚合）
+pub async fn juhe_shiti_biaoqian(shiti_leixing: &str, shiti_mingcheng: &str) -> Option<Vec<Value>> {
+    psqlcaozuo::chaxun(
+        "SELECT l2.mingcheng AS leixingmingcheng, b2.zhi, COUNT(DISTINCT rb2.ribaoid)::TEXT AS cishu \
+         FROM ribao_biaoqian rb1 \
+         INNER JOIN biaoqian b1 ON rb1.biaoqianid = b1.id \
+         INNER JOIN biaoqianleixing l1 ON b1.leixingid = l1.id \
+         INNER JOIN ribao_biaoqian rb2 ON rb1.ribaoid = rb2.ribaoid \
+         INNER JOIN biaoqian b2 ON rb2.biaoqianid = b2.id \
+         INNER JOIN biaoqianleixing l2 ON b2.leixingid = l2.id \
+         WHERE l1.mingcheng = $1 AND b1.zhi = $2 AND l2.mingcheng != $1 \
+         GROUP BY l2.mingcheng, b2.zhi \
+         ORDER BY l2.mingcheng, COUNT(DISTINCT rb2.ribaoid) DESC",
+        &[shiti_leixing, shiti_mingcheng],
+    ).await
+}
+
 // ========== 图谱核心辅助函数 ==========
 
 /// 查询图谱节点（标签 + 类型名称）

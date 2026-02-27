@@ -49,7 +49,7 @@ pub fn dinyi() -> Tool {
         tool_type: "function".to_string(),
         function: llm::chat::FunctionTool {
             name: "ribao_jiancha".to_string(),
-            description: "审核日报内容，审核通过后自动提交并创建标签任务；审核不通过返回错误".to_string(),
+            description: "审核并提交单条日报，每次调用只处理一条日报内容；多条日报需分别调用；审核通过后自动提交并创建标签任务，审核不通过返回缺失字段".to_string(),
             parameters: json!({
                 "type": "object",
                 "properties": {

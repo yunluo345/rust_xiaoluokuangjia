@@ -55,8 +55,6 @@
 
     <div class="card" id="ribao_mianban"></div>
 
-    <div class="card" id="biaoqian_mianban"></div>
-
     <div class="card" id="aiduihua_mianban"></div>
 
     <script type="module">
@@ -70,11 +68,10 @@
                 import(`./aiduihua_jiemian.js?v=${v}`),
                 import(`./ribao_luoji.js?v=${v}`),
                 import(`./ribao_jiemian.js?v=${v}`),
-                import(`./biaoqian_jiemian.js?v=${v}`),
                 import(`./yonghu_luoji.js?v=${v}`),
                 import(`./yonghu_jiemian.js?v=${v}`)
             ]);
-        }).then(([wasm, aiqudaoluoji, aiqudaojiemian, aiduihualuoji, aiduihuajiemian, ribaoluoji, ribaojiemian, biaoqianjiemian, yonghuluoji, yonghujiemian]) => {
+        }).then(([wasm, aiqudaoluoji, aiqudaojiemian, aiduihualuoji, aiduihuajiemian, ribaoluoji, ribaojiemian, yonghuluoji, yonghujiemian]) => {
             const { default: init, Kehuduanjiami } = wasm;
             const { Aiqudaoluoji } = aiqudaoluoji;
             const { Aiqudaojiemian } = aiqudaojiemian;
@@ -82,7 +79,6 @@
             const { Aiduihuajiemian } = aiduihuajiemian;
             const { Ribaoluoji } = ribaoluoji;
             const { Ribaojiemian } = ribaojiemian;
-            const { Biaoqianjiemian } = biaoqianjiemian;
             const { Yonghuluoji } = yonghuluoji;
             const { Yonghujiemian } = yonghujiemian;
 
@@ -90,7 +86,6 @@
             let kehu = null;
             let aiqudao_jm = null;
             let ribao_jm = null;
-            let biaoqian_jm = null;
             let aiduihua_jm = null;
             let yonghu_jm = null;
 
@@ -123,8 +118,6 @@
                     const ribao_lj = new Ribaoluoji(kehu, rizhi, shifouquanxian || false);
                     ribao_jm = new Ribaojiemian(ribao_lj, 'ribao_mianban');
                     await ribao_jm.xuanran();
-                    biaoqian_jm = new Biaoqianjiemian(ribao_lj, 'biaoqian_mianban');
-                    await biaoqian_jm.chushihua();
                     const aiduihua_lj = new Aiduihualuoji(kehu, rizhi);
                     aiduihua_jm = new Aiduihuajiemian(aiduihua_lj, 'aiduihua_mianban');
                     await aiduihua_jm.xuanran();
@@ -399,6 +392,7 @@
                 ribao_tupu_jiazai: '_tupu_jiazai',
                 ribao_tupu_sousuo_shuru: 'tupu_sousuo_shuru',
                 ribao_tupu_sousuo_xuanze: 'tupu_sousuo_xuanze',
+                ribao_tupu_celan_chakanGuanxi: 'tupu_celan_chakanGuanxi',
                 ribao_tupu_celan_shangyiye: 'tupu_celan_shangyiye',
                 ribao_tupu_celan_xiayiye: 'tupu_celan_xiayiye',
                 ribao_tupu_chakanribao: 'tupu_chakanribao',
@@ -408,29 +402,18 @@
                 ribao_tiaozhuan_tupu: 'tiaozhuan_tupu',
                 ribao_biaoqian_tiaozhuan_tupu: 'biaoqian_tiaozhuan_tupu',
                 ribao_renwu_dange_chuli: 'renwu_dange_chuli',
-            });
-
-            bangding(() => biaoqian_jm, {
-                biaoqian_shuaxin: 'shuaxin',
-                biaoqian_qiehuanshitu: 'qiehuanshitu',
-                biaoqian_xinzengleixing: 'xinzengleixing',
-                biaoqian_bianjileixing: 'bianjileixing',
-                biaoqian_shanchuleixing: 'shanchuleixing',
-                biaoqian_bianjibiaoqian: 'bianjibiaoqian',
-                biaoqian_xinzengbiaoqian: 'xinzengbiaoqian',
-                biaoqian_xinzengbiaoqian_leixing: 'xinzengbiaoqian_leixing',
-                biaoqian_bianjibiaoqian_danxiang: 'bianjibiaoqian_danxiang',
-                biaoqian_shanchubiaoqian: 'shanchubiaoqian',
-                biaoqian_fanhui: 'fanhui',
-                biaoqian_quxiao: 'quxiao',
-                biaoqian_tijiaoxinzengleixing: 'tijiaoxinzengleixing',
-                biaoqian_tijiaobjleixing: 'tijiaobjleixing',
-                biaoqian_tijiaoxinzengbiaoqian: 'tijiaoxinzengbiaoqian',
-                biaoqian_tijiaoxinzengbiaoqian_leixing: 'tijiaoxinzengbiaoqian_leixing',
-                biaoqian_tijiaobjbiaoqian: 'tijiaobjbiaoqian',
-                biaoqian_fanhuileixing: 'fanhuileixing',
-                biaoqian_piliangshanchu_leixing: 'piliangshanchu_leixing',
-                biaoqian_piliangshanchu_biaoqian: 'piliangshanchu_biaoqian',
+                ribao_bianjibiaoqian_leixing: 'bianjibiaoqian_leixing',
+                ribao_xinzengbiaoqian_leixing: 'xinzengbiaoqian_leixing',
+                ribao_tijiaoxinzengbiaoqian_leixing: 'tijiaoxinzengbiaoqian_leixing',
+                ribao_tijiaobjbiaoqian: 'tijiaobjbiaoqian',
+                ribao_tijiaobjleixing: 'tijiaobjleixing',
+                ribao_biaoqian_fanhui: 'biaoqian_fanhui',
+                ribao_fenxi_guolv: 'fenxi_guolv',
+                ribao_fenxi_xiangmu_gouxuan: 'fenxi_xiangmu_gouxuan',
+                ribao_fenxi_jiaoliu: 'fenxi_jiaoliu',
+                ribao_fenxi_kaishi_fenxi: 'fenxi_kaishi_fenxi',
+                ribao_fenxi_tingzhi_fenxi: 'fenxi_tingzhi_fenxi',
+                ribao_fenxi_xiangmu_guanlian: 'fenxi_xiangmu_guanlian',
             });
         }).catch(err => {
             console.error('模块加载失败:', err);

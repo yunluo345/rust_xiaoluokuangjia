@@ -199,6 +199,7 @@ struct GuanxiJuheXiang {
     zhengjulie: Vec<String>,
     juese_ren1: Option<String>,
     juese_ren2: Option<String>,
+    qinggan_qingxiang: Option<String>,
 }
 
 fn hebing_guanxilie(guanxilie: Vec<Value>) -> Vec<Value> {
@@ -223,6 +224,8 @@ fn hebing_guanxilie(guanxilie: Vec<Value>) -> Vec<Value> {
             .filter(|s| !s.is_empty()).map(String::from);
         let juese_r2 = gx.get("juese").and_then(|j| j.get("ren2")).and_then(|v| v.as_str()).map(str::trim)
             .filter(|s| !s.is_empty()).map(String::from);
+        let qinggan = gx.get("qinggan_qingxiang").and_then(|v| v.as_str()).map(str::trim)
+            .filter(|s| !s.is_empty()).map(String::from);
 
         let (a, b, jr1, jr2) = if ren1 <= ren2 {
             (ren1, ren2, juese_r1, juese_r2)
@@ -235,6 +238,7 @@ fn hebing_guanxilie(guanxilie: Vec<Value>) -> Vec<Value> {
             zhengjulie: Vec::new(),
             juese_ren1: None,
             juese_ren2: None,
+            qinggan_qingxiang: None,
         });
         if !miaoshu.is_empty() && !entry.miaoshulie.contains(&miaoshu) {
             entry.miaoshulie.push(miaoshu);
@@ -250,6 +254,14 @@ fn hebing_guanxilie(guanxilie: Vec<Value>) -> Vec<Value> {
         }
         if entry.juese_ren2.is_none() {
             entry.juese_ren2 = jr2;
+        }
+        if entry.qinggan_qingxiang.is_none() {
+            entry.qinggan_qingxiang = qinggan;
+        } else if let Some(ref xin) = qinggan {
+            // 负面情感优先保留
+            if xin == "负面" {
+                entry.qinggan_qingxiang = Some(xin.clone());
+            }
         }
     }
 
@@ -267,6 +279,9 @@ fn hebing_guanxilie(guanxilie: Vec<Value>) -> Vec<Value> {
                 "ren1": xiang.juese_ren1.unwrap_or_default(),
                 "ren2": xiang.juese_ren2.unwrap_or_default(),
             });
+        }
+        if let Some(qg) = xiang.qinggan_qingxiang {
+            jieguo["qinggan_qingxiang"] = Value::String(qg);
         }
         jieguo
     }).collect()
@@ -469,7 +484,8 @@ async fn ai_tiqu_biaoqian(neirong: &str, peizhi: &Ai, yiyou_biaoqian: Option<&st
         1. 标签名必须使用配置中的标准名称（不要使用别名）\n\
         2. 如果日报中没有某个标签的信息，不要返回该标签\n\
         3. 标记了【多值】的标签，每个值必须单独一个数组元素，不要用逗号拼接\n\
-        4. 只返回JSON，不要返回其他内容{}",
+        4. 不要使用代词（如「我」「他」「她」「你」「对方」等）作为人名，必须提取实际姓名；如果日报中未提及真实姓名，则不要返回该标签\n\
+        5. 只返回JSON，不要返回其他内容{}",
         biaoqian_tishi, yiyou_tishi
     );
     
@@ -524,6 +540,7 @@ fn chaifenzhi(zhi: &Value, duozhi: bool) -> Vec<String> {
 }
 
 fn tichubiaoqianxiang(neirong: &str, peizhi: &Ai) -> Vec<(String, String)> {
+    let neirong = jinghua_json_huifu(neirong);
     let mut biezhuan_duoduiyi: HashMap<String, HashSet<String>> = HashMap::new();
     let mut duozhiji: HashSet<String> = HashSet::new();
     let mut zhuce_bieming = |biecheng: &str, biaozhunmingcheng: &str| {
@@ -628,7 +645,7 @@ fn tichubiaoqianxiang(neirong: &str, peizhi: &Ai) -> Vec<(String, String)> {
                 let kaishi = qidian + pianyi;
                 let zhi_kaishi = kaishi + qianzhui.len();
                 qita.push((biaozhun.clone(), biecheng.clone(), zhi_kaishi));
-                qidian = kaishi + 1;
+                qidian = kaishi + qianzhui.len();
             }
         }
     }
@@ -978,4 +995,98 @@ pub async fn zhixing(_canshu: &str, lingpai: &str) -> String {
         Ok(shuju) => json!({"chenggong": true, "shuju": shuju}).to_string(),
         Err(xiaoxi) => json!({"cuowu": xiaoxi}).to_string(),
     }
+}
+
+/// 跨日报交流内容分析：输入交流内容列表，AI 输出结构化分析 JSON
+pub async fn ai_jiaoliu_fenxi(jiaoliuneirong_lie: &[Value]) -> Option<String> {
+    if jiaoliuneirong_lie.is_empty() {
+        return None;
+    }
+    let peizhi = peizhixitongzhuti::duqupeizhi::<Ai>(Ai::wenjianming()).unwrap_or_default();
+    let tishici = &peizhi.jiaoliu_fenxi_tishici;
+    if tishici.is_empty() {
+        println!("[交流分析] jiaoliu_fenxi_tishici 未配置");
+        return None;
+    }
+
+    let mut neirong_duanlie: Vec<String> = Vec::new();
+    for xiang in jiaoliuneirong_lie {
+        let riqi = xiang.get("riqi").and_then(|v| v.as_str()).unwrap_or("未知日期");
+        let neirong = xiang.get("neirong").and_then(|v| v.as_str()).unwrap_or("");
+        if !neirong.is_empty() {
+            neirong_duanlie.push(format!("[{}] {}", riqi, neirong));
+        }
+    }
+    if neirong_duanlie.is_empty() {
+        return None;
+    }
+
+    let yonghuxiaoxi = format!(
+        "以下是按时间排列的交流内容记录（共{}条）：\n\n{}",
+        neirong_duanlie.len(),
+        neirong_duanlie.join("\n")
+    );
+    println!("[交流分析] 发送 {} 条交流记录给 AI", neirong_duanlie.len());
+
+    let huifu = ai_putongqingqiu_wenben(tishici, yonghuxiaoxi, 120).await?;
+    let jinghua = jinghua_json_huifu(&huifu);
+    // 验证是合法 JSON
+    serde_json::from_str::<Value>(jinghua).ok()?;
+    Some(jinghua.to_string())
+}
+
+/// 深度分析：输入完整日报原文 + 分析维度，AI 输出该维度的深度分析 JSON
+pub async fn ai_ribao_shendu_fenxi(ribao_neirong: &str, weidu: &str) -> Option<String> {
+    if ribao_neirong.is_empty() {
+        return None;
+    }
+    let peizhi = peizhixitongzhuti::duqupeizhi::<Ai>(Ai::wenjianming()).unwrap_or_default();
+    let jichuci = &peizhi.jiaoliu_fenxi_tishici;
+    let json_geshi = r#"输出JSON必须严格使用以下结构（只输出一个JSON对象，不要用Report等包裹）：
+{"zhutihuizong":[{"zhuti":"主题名","cishu":数字,"miaoshu":"描述"}],"yanbianguiji":"演变轨迹描述","guanjianwenti":[{"wenti":"问题描述","yanzhongchengdu":"高/中/低"}],"jianyi":"1.建议一 2.建议二"}
+字段说明：zhutihuizong=主题汇总,yanbianguiji=演变轨迹,guanjianwenti=关键问题,jianyi=建议。所有字段名必须用拼音，不要用英文。"#;
+    let xitong_tishici = if jichuci.is_empty() {
+        format!(
+            "你是一名资深项目分析专家。你需要从「{}」这个维度对日报内容进行深度分析。\n\
+            要求：1)输出必须是合法JSON; 2)所有分析必须基于日报原文事实; 3)内容要有实际价值，不要泛泛而谈; 4)使用中文。\n\n{}",
+            weidu, json_geshi
+        )
+    } else {
+        format!(
+            "{}\n\n当前分析维度：{}。请专注于此维度进行深度分析。\n\n{}",
+            jichuci, weidu, json_geshi
+        )
+    };
+
+    let yonghuxiaoxi = format!(
+        "分析维度：{}\n\n以下是相关日报原文，请从此维度进行深度分析：\n\n{}",
+        weidu, ribao_neirong
+    );
+    println!("[深度分析] 维度={} 输入长度={}", weidu, ribao_neirong.len());
+
+    let huifu = ai_putongqingqiu_wenben(&xitong_tishici, yonghuxiaoxi, 180).await?;
+    let jinghua = jinghua_json_huifu(&huifu);
+    serde_json::from_str::<Value>(jinghua).ok()?;
+    Some(jinghua.to_string())
+}
+
+/// 跨日报项目关联分析：输入多项目标签聚合数据，AI 输出项目关联分析 JSON
+pub async fn ai_xiangmu_guanlian_fenxi(xiangmu_shuju: &Value) -> Option<String> {
+    let peizhi = peizhixitongzhuti::duqupeizhi::<Ai>(Ai::wenjianming()).unwrap_or_default();
+    let tishici = &peizhi.xiangmu_guanlian_tishici;
+    if tishici.is_empty() {
+        println!("[项目关联分析] xiangmu_guanlian_tishici 未配置");
+        return None;
+    }
+
+    let yonghuxiaoxi = format!(
+        "以下是多个项目的标签聚合数据，请分析项目之间的关联关系：\n\n{}",
+        serde_json::to_string_pretty(xiangmu_shuju).unwrap_or_default()
+    );
+    println!("[项目关联分析] 发送项目数据给 AI");
+
+    let huifu = ai_putongqingqiu_wenben(tishici, yonghuxiaoxi, 120).await?;
+    let jinghua = jinghua_json_huifu(&huifu);
+    serde_json::from_str::<Value>(jinghua).ok()?;
+    Some(jinghua.to_string())
 }

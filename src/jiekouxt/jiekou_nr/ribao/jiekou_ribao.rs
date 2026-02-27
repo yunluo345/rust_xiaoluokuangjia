@@ -129,6 +129,18 @@ struct TupuBianribaofenyecanshu { yuan_biaoqianid: String, mubiao_biaoqianid: St
 #[derive(Deserialize)]
 struct TupuDuobiaoqianfenyecanshu { biaoqianidlie: Vec<String>, yeshu: i64, meiyetiaoshu: i64 }
 
+#[derive(Deserialize)]
+struct Fenxijiaoliuneirongcanshu { shiti_leixing: String, shiti_mingcheng: String }
+
+#[derive(Deserialize)]
+struct Fenxixiangmuguanliancanshu { xiangmu_liebiao: Vec<String> }
+
+#[derive(Deserialize)]
+struct Fenxishitiribaocanshu { shiti_leixing: String, shiti_mingcheng: String }
+
+#[derive(Deserialize)]
+struct Fenxishendufenxicanshu { shiti_leixing: String, shiti_mingcheng: String, weidu: String }
+
 macro_rules! jiexi_canshu {
     ($qingqiu:expr, $canshu_leixing:ty, $miyao:expr) => {
         match serde_json::from_value::<$canshu_leixing>($qingqiu.canshu) {
@@ -484,6 +496,10 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
                 None => jiamishibai(&cuowu::chuangjianshi, miyao),
             }
         }
+        "huoqu_guanxifenxi_leixing" => {
+            let peizhi = crate::peizhixt::peizhixitongzhuti::duqupeizhi::<crate::peizhixt::peizhi_nr::peizhi_ai::Ai>(crate::peizhixt::peizhi_nr::peizhi_ai::Ai::wenjianming()).unwrap_or_default();
+            jiamichenggong("查询成功", serde_json::json!(peizhi.guanxifenxi_leixing), miyao)
+        }
         "tupu_quanbu" => {
             match shujucaozuo_ribao_biaoqian::chaxun_tupu_quanbu().await {
                 Some(shuju) => jiamichenggong("查询成功", shuju, miyao),
@@ -530,6 +546,112 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
             let liebiao = shujucaozuo_ribao_biaoqian::tupu_ribao_duobiaoqian_fenye(&biaoqianidlie, canshu.yeshu, canshu.meiyetiaoshu).await.unwrap_or_default();
             let zongshu = shujucaozuo_ribao_biaoqian::tongji_tupu_duobiaoqian_zongshu(&biaoqianidlie).await.unwrap_or(0);
             jiamichenggong("查询成功", serde_json::json!({"liebiao": liebiao, "zongshu": zongshu}), miyao)
+        }
+        // ========== 跨日报分析 ==========
+        "fenxi_xiangmu_liebiao" => {
+            chuli_chaxun_liebiao!((), miyao, shujucaozuo_ribao_biaoqian::juhe_biaoqian_zhi_anleixing("项目名称"))
+        }
+        "fenxi_kehu_liebiao" => {
+            chuli_chaxun_liebiao!((), miyao, shujucaozuo_ribao_biaoqian::juhe_biaoqian_zhi_anleixing("客户公司"))
+        }
+        "fenxi_chaxun_jiaoliu" => {
+            let canshu = jiexi_canshu!(qingqiu, Fenxijiaoliuneirongcanshu, miyao);
+            let jiaoliu_lie = shujucaozuo_ribao_biaoqian::juhe_jiaoliuneirong_anshiti(&canshu.shiti_leixing, &canshu.shiti_mingcheng).await.unwrap_or_default();
+            let biaoqianlie = shujucaozuo_ribao_biaoqian::juhe_shiti_biaoqian(&canshu.shiti_leixing, &canshu.shiti_mingcheng).await.unwrap_or_default();
+            jiamichenggong("查询成功", serde_json::json!({
+                "jiaoliu_lie": jiaoliu_lie,
+                "biaoqianlie": biaoqianlie,
+            }), miyao)
+        }
+        "fenxi_jiaoliu_neirong" => {
+            let canshu = jiexi_canshu!(qingqiu, Fenxijiaoliuneirongcanshu, miyao);
+            let jiaoliu_lie = match shujucaozuo_ribao_biaoqian::juhe_jiaoliuneirong_anshiti(&canshu.shiti_leixing, &canshu.shiti_mingcheng).await {
+                Some(lie) if !lie.is_empty() => lie,
+                _ => return jiamishibai_dongtai(404, "未找到相关交流内容", miyao),
+            };
+            let ai_shuru: Vec<Value> = jiaoliu_lie.iter().map(|x| {
+                serde_json::json!({
+                    "riqi": x.get("fabushijian").and_then(|v| v.as_str()).unwrap_or(""),
+                    "neirong": x.get("jiaoliu_neirong").and_then(|v| v.as_str()).unwrap_or(""),
+                })
+            }).collect();
+            match gongju_ribaorenwuchuli::ai_jiaoliu_fenxi(&ai_shuru).await {
+                Some(fenxi_jieguo) => {
+                    let fenxi_json: Value = serde_json::from_str(&fenxi_jieguo).unwrap_or(serde_json::json!(null));
+                    jiamichenggong("分析成功", serde_json::json!({"ai_fenxi": fenxi_json}), miyao)
+                }
+                None => jiamishibai_dongtai(500, "AI 分析失败", miyao),
+            }
+        }
+        "fenxi_shiti_ribao" => {
+            let canshu = jiexi_canshu!(qingqiu, Fenxishitiribaocanshu, miyao);
+            let ribaolie = shujucaozuo_ribao_biaoqian::chaxun_leixingmingcheng_zhi(&canshu.shiti_leixing, &canshu.shiti_mingcheng).await.unwrap_or_default();
+            let biaoqianlie = shujucaozuo_ribao_biaoqian::juhe_shiti_biaoqian(&canshu.shiti_leixing, &canshu.shiti_mingcheng).await.unwrap_or_default();
+            jiamichenggong("查询成功", serde_json::json!({
+                "ribaolie": ribaolie,
+                "biaoqianlie": biaoqianlie,
+            }), miyao)
+        }
+        "fenxi_ai_shendu" => {
+            let canshu = jiexi_canshu!(qingqiu, Fenxishendufenxicanshu, miyao);
+            // 查询关联日报并拼接内容
+            let ribaolie = match shujucaozuo_ribao_biaoqian::chaxun_leixingmingcheng_zhi(&canshu.shiti_leixing, &canshu.shiti_mingcheng).await {
+                Some(lie) if !lie.is_empty() => lie,
+                _ => return jiamishibai_dongtai(404, "未找到相关日报", miyao),
+            };
+            let mut neirong_duanlie: Vec<String> = Vec::new();
+            for rb in &ribaolie {
+                let biaoti = rb.get("biaoti").and_then(|v| v.as_str()).unwrap_or("无标题");
+                let riqi = rb.get("fabushijian").and_then(|v| v.as_str()).unwrap_or("未知日期");
+                let neirong = rb.get("neirong").and_then(|v| v.as_str()).unwrap_or("");
+                let zhaiyao = rb.get("zhaiyao").and_then(|v| v.as_str()).unwrap_or("");
+                let mut duan = format!("---\n[{}] {}\n", riqi, biaoti);
+                if !zhaiyao.is_empty() {
+                    duan.push_str(&format!("摘要：{}\n", zhaiyao));
+                }
+                if !neirong.is_empty() {
+                    duan.push_str(neirong);
+                }
+                duan.push_str("\n");
+                neirong_duanlie.push(duan);
+            }
+            let pingjie = format!("以下是关于「{}」的日报原文（共{}篇）：\n\n{}", canshu.shiti_mingcheng, ribaolie.len(), neirong_duanlie.join("\n"));
+            match gongju_ribaorenwuchuli::ai_ribao_shendu_fenxi(&pingjie, &canshu.weidu).await {
+                Some(fenxi_jieguo) => {
+                    let fenxi_json: Value = serde_json::from_str(&fenxi_jieguo).unwrap_or(serde_json::json!(null));
+                    jiamichenggong("分析成功", serde_json::json!({
+                        "weidu": canshu.weidu,
+                        "ai_fenxi": fenxi_json,
+                    }), miyao)
+                }
+                None => jiamishibai_dongtai(500, "AI 深度分析失败", miyao),
+            }
+        }
+        "fenxi_xiangmu_guanlian" => {
+            let canshu = jiexi_canshu!(qingqiu, Fenxixiangmuguanliancanshu, miyao);
+            if canshu.xiangmu_liebiao.len() < 2 {
+                return jiamishibai_dongtai(400, "至少选择两个项目进行关联分析", miyao);
+            }
+            // 为每个项目聚合标签数据
+            let mut xiangmu_shuju: Vec<Value> = Vec::new();
+            for xm in &canshu.xiangmu_liebiao {
+                let biaoqianlie = shujucaozuo_ribao_biaoqian::juhe_shiti_biaoqian("项目名称", xm).await.unwrap_or_default();
+                xiangmu_shuju.push(serde_json::json!({
+                    "xiangmu_mingcheng": xm,
+                    "biaoqianlie": biaoqianlie,
+                }));
+            }
+            let shuru = serde_json::json!({"xiangmulie": xiangmu_shuju});
+            match gongju_ribaorenwuchuli::ai_xiangmu_guanlian_fenxi(&shuru).await {
+                Some(fenxi_jieguo) => {
+                    let fenxi_json: Value = serde_json::from_str(&fenxi_jieguo).unwrap_or(serde_json::json!(null));
+                    jiamichenggong("分析成功", serde_json::json!({
+                        "xiangmu_shuju": xiangmu_shuju,
+                        "ai_fenxi": fenxi_json,
+                    }), miyao)
+                }
+                None => jiamishibai_dongtai(500, "AI 关联分析失败", miyao),
+            }
         }
         _ => jiamishibai(&cuowu::bucaozuoleixing, miyao),
     }
