@@ -136,6 +136,12 @@ struct Fenxijiaoliuneirongcanshu { shiti_leixing: String, shiti_mingcheng: Strin
 struct Fenxixiangmuguanliancanshu { xiangmu_liebiao: Vec<String> }
 
 #[derive(Deserialize)]
+struct Fenxishitiliebiaoguolvcanshu { leixingmingcheng: String }
+
+#[derive(Deserialize)]
+struct Fenxishitiguanliancanshu { leixingmingcheng: String, zhi_liebiao: Vec<String> }
+
+#[derive(Deserialize)]
 struct Fenxishitiribaocanshu { shiti_leixing: String, shiti_mingcheng: String }
 
 #[derive(Deserialize)]
@@ -548,6 +554,14 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
             jiamichenggong("查询成功", serde_json::json!({"liebiao": liebiao, "zongshu": zongshu}), miyao)
         }
         // ========== 跨日报分析 ==========
+        "fenxi_huoqu_shiti_leixing" => {
+            let peizhi = crate::peizhixt::peizhixitongzhuti::duqupeizhi::<crate::peizhixt::peizhi_nr::peizhi_ai::Ai>(crate::peizhixt::peizhi_nr::peizhi_ai::Ai::wenjianming()).unwrap_or_default();
+            jiamichenggong("查询成功", serde_json::json!(peizhi.fenxi_shiti_leixing), miyao)
+        }
+        "fenxi_shiti_liebiao" => {
+            let canshu = jiexi_canshu!(qingqiu, Fenxishitiliebiaoguolvcanshu, miyao);
+            chuli_chaxun_liebiao!((), miyao, shujucaozuo_ribao_biaoqian::juhe_biaoqian_zhi_anleixing(&canshu.leixingmingcheng))
+        }
         "fenxi_xiangmu_liebiao" => {
             chuli_chaxun_liebiao!((), miyao, shujucaozuo_ribao_biaoqian::juhe_biaoqian_zhi_anleixing("项目名称"))
         }
@@ -627,12 +641,36 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
                 None => jiamishibai_dongtai(500, "AI 深度分析失败", miyao),
             }
         }
+        "fenxi_shiti_guanlian" => {
+            let canshu = jiexi_canshu!(qingqiu, Fenxishitiguanliancanshu, miyao);
+            if canshu.zhi_liebiao.len() < 2 {
+                return jiamishibai_dongtai(400, "至少选择两个进行关联分析", miyao);
+            }
+            let mut shiti_shuju: Vec<Value> = Vec::new();
+            for zhi in &canshu.zhi_liebiao {
+                let biaoqianlie = shujucaozuo_ribao_biaoqian::juhe_shiti_biaoqian(&canshu.leixingmingcheng, zhi).await.unwrap_or_default();
+                shiti_shuju.push(serde_json::json!({
+                    "xiangmu_mingcheng": zhi,
+                    "biaoqianlie": biaoqianlie,
+                }));
+            }
+            let shuru = serde_json::json!({"xiangmulie": shiti_shuju});
+            match gongju_ribaorenwuchuli::ai_xiangmu_guanlian_fenxi(&shuru).await {
+                Some(fenxi_jieguo) => {
+                    let fenxi_json: Value = serde_json::from_str(&fenxi_jieguo).unwrap_or(serde_json::json!(null));
+                    jiamichenggong("分析成功", serde_json::json!({
+                        "xiangmu_shuju": shiti_shuju,
+                        "ai_fenxi": fenxi_json,
+                    }), miyao)
+                }
+                None => jiamishibai_dongtai(500, "AI 关联分析失败", miyao),
+            }
+        }
         "fenxi_xiangmu_guanlian" => {
             let canshu = jiexi_canshu!(qingqiu, Fenxixiangmuguanliancanshu, miyao);
             if canshu.xiangmu_liebiao.len() < 2 {
                 return jiamishibai_dongtai(400, "至少选择两个项目进行关联分析", miyao);
             }
-            // 为每个项目聚合标签数据
             let mut xiangmu_shuju: Vec<Value> = Vec::new();
             for xm in &canshu.xiangmu_liebiao {
                 let biaoqianlie = shujucaozuo_ribao_biaoqian::juhe_shiti_biaoqian("项目名称", xm).await.unwrap_or_default();

@@ -462,6 +462,17 @@ export class Ribaoluoji {
 
     // ========== 跨日报分析 ==========
 
+    async fenxi_huoqu_shiti_leixing() {
+        const jg = await this.zhixing('fenxi_huoqu_shiti_leixing');
+        return jg;
+    }
+
+    async fenxi_shiti_liebiao(leixingmingcheng) {
+        const jg = await this.zhixing('fenxi_shiti_liebiao', { leixingmingcheng });
+        if (jg) this.rizhi('查询[' + leixingmingcheng + ']列表: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
     async fenxi_xiangmu_liebiao() {
         const jg = await this.zhixing('fenxi_xiangmu_liebiao');
         if (jg) this.rizhi('查询项目列表: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
@@ -495,6 +506,12 @@ export class Ribaoluoji {
     async fenxi_ai_shendu(shiti_leixing, shiti_mingcheng, weidu) {
         const jg = await this.zhixing('fenxi_ai_shendu', { shiti_leixing, shiti_mingcheng, weidu });
         if (jg) this.rizhi('AI深度分析[' + weidu + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async fenxi_shiti_guanlian(leixingmingcheng, zhi_liebiao) {
+        const jg = await this.zhixing('fenxi_shiti_guanlian', { leixingmingcheng, zhi_liebiao });
+        if (jg) this.rizhi('实体关联分析[' + leixingmingcheng + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
         return jg;
     }
 

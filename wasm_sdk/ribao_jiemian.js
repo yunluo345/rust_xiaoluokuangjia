@@ -42,7 +42,7 @@ export class Ribaojiemian {
                <button class="aq-btn aq-btn-zhu" onclick="ribao_qiehuanshitu('leixing')">类型</button>
                <button class="aq-btn aq-btn-zhu" onclick="ribao_qiehuanshitu('renwu')">任务</button>
                <button class="aq-btn aq-btn-zhu" onclick="ribao_qiehuanshitu('tupu')">图谱</button>
-               <button class="aq-btn aq-btn-zhu" onclick="ribao_qiehuanshitu('fenxi')" style="background:#F5F3FF;color:#7C3AED;border-color:#DDD6FE">分析</button>
+               <button class="aq-btn aq-btn-zhu" onclick="ribao_qiehuanshitu('fenxi')">分析</button>
                <button class="aq-btn aq-btn-lv" onclick="ribao_shuaxin()">刷新数据</button>`
             : `<button class="aq-btn ${this.dangqianshitu === 'ribao' ? 'aq-btn-lv' : 'aq-btn-zhu'}" onclick="ribao_qiehuanshitu('ribao')">我的日报</button>
                <button class="aq-btn ${this.dangqianshitu === 'quanburibao' ? 'aq-btn-lv' : 'aq-btn-zhu'}" onclick="ribao_qiehuanshitu('quanburibao')">全部日报</button>
@@ -2533,36 +2533,60 @@ export class Ribaojiemian {
 
     async shuaxinfenxishitu() {
         const nr = document.getElementById('ribao_neirong');
-        nr.innerHTML = '<p style="color:#94A3B8;font-size:14px">加载项目和客户数据...</p>';
-        const [xmjg, khjg] = await Promise.all([
-            this.luoji.fenxi_xiangmu_liebiao(),
-            this.luoji.fenxi_kehu_liebiao()
-        ]);
-        const xiangmulie = xmjg?.zhuangtaima === 200 ? xmjg.shuju || [] : [];
-        const kehulie = khjg?.zhuangtaima === 200 ? khjg.shuju || [] : [];
-        this._fenxi_xiangmulie = xiangmulie;
-        this._fenxi_kehulie = kehulie;
-        this._fenxi_xuanzhong_xiangmu = new Set();
+        nr.innerHTML = '<p style="color:#94A3B8;font-size:14px">加载分析配置...</p>';
+
+        // 获取配置
+        const pzjg = await this.luoji.fenxi_huoqu_shiti_leixing();
+        const shiti_leixinglie = pzjg?.zhuangtaima === 200 ? pzjg.shuju || [] : [
+            { mingcheng: '项目名称', biaoti: '项目', guanlianfenxi: true },
+            { mingcheng: '客户公司', biaoti: '客户', guanlianfenxi: false },
+        ];
+        this._fenxi_shiti_leixinglie = shiti_leixinglie;
+
+        nr.innerHTML = '<p style="color:#94A3B8;font-size:14px">加载实体数据...</p>';
+
+        // 并行请求所有类型的列表
+        const jieguolie = await Promise.all(
+            shiti_leixinglie.map(lx => this.luoji.fenxi_shiti_liebiao(lx.mingcheng))
+        );
+
+        // 存储每个类型的数据
+        this._fenxi_shiti_shujumap = {};
+        this._fenxi_xuanzhong_map = {};
+        for (let i = 0; i < shiti_leixinglie.length; i++) {
+            const lx = shiti_leixinglie[i];
+            const jg = jieguolie[i];
+            this._fenxi_shiti_shujumap[lx.mingcheng] = jg?.zhuangtaima === 200 ? jg.shuju || [] : [];
+            if (lx.guanlianfenxi) {
+                this._fenxi_xuanzhong_map[lx.mingcheng] = new Set();
+            }
+        }
+        // 兼容旧字段
+        this._fenxi_xuanzhong_xiangmu = this._fenxi_xuanzhong_map['项目名称'] || new Set();
+
+        // 生成 placeholder
+        const sousuotishi = shiti_leixinglie.map(lx => lx.biaoti).join('/') || '搜索';
 
         let html = `
 <style>
     .fenxi-layout{display:flex;gap:16px;height:calc(100vh - 160px);min-height:560px}
     .fenxi-panel{background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px;box-shadow:0 6px 22px rgba(15,23,42,0.06)}
     .fenxi-sidebar{width:340px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;overflow:hidden}
-    .fenxi-sidebar .fenxi-panel{overflow:hidden}
-    .fenxi-search{padding:12px;display:flex;gap:8px;align-items:center}
+    .fenxi-sidebar .fenxi-panel{overflow:hidden;display:flex;flex-direction:column;max-height:100%}
+    .fenxi-search{padding:12px;display:flex;gap:8px;align-items:center;flex-shrink:0}
     .fenxi-search input{flex:1;height:36px;padding:0 12px;border:1px solid #E2E8F0;border-radius:10px;font-size:13px;outline:none;background:#FFFFFF}
     .fenxi-search input:focus{border-color:#93C5FD;box-shadow:0 0 0 3px rgba(59,130,246,0.12)}
-    .fenxi-panel-title{padding:10px 12px;border-top:1px solid #F1F5F9;font-size:12px;font-weight:700;color:#475569;letter-spacing:0.2px}
-    .fenxi-list{padding:10px;display:flex;flex-direction:column;gap:8px;max-height:280px;overflow:auto}
+    .fenxi-panel-title{padding:10px 12px;border-top:1px solid #F1F5F9;font-size:12px;font-weight:700;color:#475569;letter-spacing:0.2px;flex-shrink:0}
+    .fenxi-list{padding:10px;display:flex;flex-direction:column;gap:8px;max-height:220px;overflow:auto;flex-shrink:1}
     .fenxi-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;cursor:pointer;transition:all 150ms ease}
     .fenxi-item:hover{border-color:#93C5FD;box-shadow:0 10px 18px rgba(15,23,42,0.06);transform:translateY(-1px)}
     .fenxi-item-main{flex:1;min-width:0}
     .fenxi-item-title{font-size:14px;font-weight:600;color:#0F172A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .fenxi-item-sub{font-size:12px;color:#94A3B8;margin-top:2px}
     .fenxi-checkbox{width:16px;height:16px;cursor:pointer;flex-shrink:0;accent-color:#3B82F6}
-    .fenxi-sidebar-footer{padding:12px;border-top:1px solid #F1F5F9}
+    .fenxi-sidebar-footer{padding:12px;border-top:1px solid #F1F5F9;flex-shrink:0}
     .fenxi-btn-block{width:100%}
+    .fenxi-sidebar-scroll{flex:1;overflow:auto;min-height:0}
 
     .fenxi-main{flex:1;overflow:hidden;display:flex;flex-direction:column}
     .fenxi-main-inner{height:100%;overflow:auto;padding:16px;background:linear-gradient(180deg,#FFFFFF 0%,#F8FAFC 100%);border-radius:12px}
@@ -2620,37 +2644,53 @@ export class Ribaojiemian {
     <div class="fenxi-sidebar">
         <div class="fenxi-panel">
             <div class="fenxi-search">
-                <input id="fenxi_guolv" type="text" placeholder="搜索项目/客户..." oninput="ribao_fenxi_guolv()">
+                <input id="fenxi_guolv" type="text" placeholder="搜索${sousuotishi}..." oninput="ribao_fenxi_guolv()">
             </div>
-            <div class="fenxi-panel-title">项目列表（${xiangmulie.length}）</div>
-            <div id="fenxi_xiangmu_liebiao" class="fenxi-list">${this._xuanran_fenxi_liebiao(xiangmulie, '项目名称')}</div>
-            <div class="fenxi-panel-title">客户列表（${kehulie.length}）</div>
-            <div id="fenxi_kehu_liebiao" class="fenxi-list">${this._xuanran_fenxi_liebiao(kehulie, '客户公司')}</div>
-            <div class="fenxi-sidebar-footer">
-                <button class="aq-btn aq-btn-zhu fenxi-btn-block" onclick="ribao_fenxi_xiangmu_guanlian()">项目关联分析（勾选至少2个项目）</button>
-            </div>
+            <div class="fenxi-sidebar-scroll">`;
+
+        // 动态生成每个类型的列表区域
+        for (const lx of shiti_leixinglie) {
+            const liebiao = this._fenxi_shiti_shujumap[lx.mingcheng] || [];
+            html += `<div class="fenxi-panel-title">${lx.biaoti}列表（${liebiao.length}）</div>`;
+            html += `<div class="fenxi-list">${this._xuanran_fenxi_liebiao(liebiao, lx.mingcheng, !!lx.guanlianfenxi)}</div>`;
+        }
+
+        html += `</div>`; // fenxi-sidebar-scroll
+
+        // 动态生成关联分析按钮（为每个 guanlianfenxi=true 的类型生成）
+        const guanlianLeixinglie = shiti_leixinglie.filter(lx => lx.guanlianfenxi);
+        if (guanlianLeixinglie.length > 0) {
+            html += `<div class="fenxi-sidebar-footer">`;
+            for (const lx of guanlianLeixinglie) {
+                const mc_escaped = lx.mingcheng.replace(/'/g, "\\'");
+                html += `<button class="aq-btn aq-btn-zhu fenxi-btn-block" style="margin-bottom:6px" onclick="ribao_fenxi_shiti_guanlian('${mc_escaped}')">${lx.biaoti}关联分析（勾选至少2个）</button>`;
+            }
+            html += `</div>`;
+        }
+
+        html += `
         </div>
     </div>
     <div class="fenxi-panel fenxi-main">
         <div id="fenxi_jieguo_qu" class="fenxi-main-inner">
             <div class="fenxi-title">分析</div>
-            <div class="fenxi-sub">点击左侧项目或客户，查看关联日报，并按维度持续生成分析结果。</div>
+            <div class="fenxi-sub">点击左侧实体，查看关联日报，并按维度持续生成分析结果。</div>
         </div>
     </div>
 </div>`;
         nr.innerHTML = html;
     }
 
-    _xuanran_fenxi_liebiao(liebiao, leixing) {
+    _xuanran_fenxi_liebiao(liebiao, leixing, guanlianfenxi = false) {
         if (!liebiao || liebiao.length === 0) return '<div style="padding:10px;color:#94A3B8;font-size:13px">暂无数据</div>';
         let html = '';
         for (const xiang of liebiao) {
             const mingcheng = xiang.zhi || '';
             const shu = xiang.ribao_shu || 0;
-            const shifouxiangmu = leixing === '项目名称';
             html += `<div class="fenxi-item fenxi_liebiao_xiang" data-leixing="${leixing}" data-mingcheng="${mingcheng}">`;
-            if (shifouxiangmu) {
-                html += `<input type="checkbox" class="fenxi-checkbox fenxi_xm_xz" data-mingcheng="${mingcheng}" onchange="ribao_fenxi_xiangmu_gouxuan(this)" onclick="event.stopPropagation()">`;
+            if (guanlianfenxi) {
+                const lx_escaped = leixing.replace(/'/g, "\\'");
+                html += `<input type="checkbox" class="fenxi-checkbox fenxi_shiti_xz" data-leixing="${leixing}" data-mingcheng="${mingcheng}" onchange="ribao_fenxi_shiti_gouxuan(this)" onclick="event.stopPropagation()">`;
             }
             const mc_escaped = mingcheng.replace(/'/g, "\\'");
             html += `<div class="fenxi-item-main" onclick="ribao_fenxi_jiaoliu('${leixing}','${mc_escaped}')">`;
@@ -2677,6 +2717,23 @@ export class Ribaojiemian {
             this._fenxi_xuanzhong_xiangmu.add(mc);
         } else {
             this._fenxi_xuanzhong_xiangmu.delete(mc);
+        }
+    }
+
+    fenxi_shiti_gouxuan(cb) {
+        const leixing = cb.dataset.leixing;
+        const mc = cb.dataset.mingcheng;
+        if (!this._fenxi_xuanzhong_map[leixing]) {
+            this._fenxi_xuanzhong_map[leixing] = new Set();
+        }
+        if (cb.checked) {
+            this._fenxi_xuanzhong_map[leixing].add(mc);
+        } else {
+            this._fenxi_xuanzhong_map[leixing].delete(mc);
+        }
+        // 兼容旧字段
+        if (leixing === '项目名称') {
+            this._fenxi_xuanzhong_xiangmu = this._fenxi_xuanzhong_map[leixing];
         }
     }
 
@@ -3037,16 +3094,19 @@ export class Ribaojiemian {
         return html;
     }
 
-    async fenxi_xiangmu_guanlian() {
-        const xuanzhong = Array.from(this._fenxi_xuanzhong_xiangmu || []);
+    async fenxi_shiti_guanlian(leixingmingcheng) {
+        const xuanzhong_set = this._fenxi_xuanzhong_map?.[leixingmingcheng];
+        const xuanzhong = Array.from(xuanzhong_set || []);
         if (xuanzhong.length < 2) {
-            this.luoji.rizhi('请至少勾选2个项目进行关联分析', 'warn');
+            this.luoji.rizhi('请至少勾选2个进行关联分析', 'warn');
             return;
         }
         const jieguo_qu = document.getElementById('fenxi_jieguo_qu');
         if (!jieguo_qu) return;
-        jieguo_qu.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><div class="aq-xuanzhuan"></div><span style="color:#64748B;font-size:14px">正在分析 ${xuanzhong.length} 个项目的关联关系，请稍候...</span></div>`;
-        const jg = await this.luoji.fenxi_xiangmu_guanlian(xuanzhong);
+        const lx_peizhi = (this._fenxi_shiti_leixinglie || []).find(l => l.mingcheng === leixingmingcheng);
+        const biaoti = lx_peizhi?.biaoti || leixingmingcheng;
+        jieguo_qu.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><div class="aq-xuanzhuan"></div><span style="color:#64748B;font-size:14px">正在分析 ${xuanzhong.length} 个${biaoti}的关联关系，请稍候...</span></div>`;
+        const jg = await this.luoji.fenxi_shiti_guanlian(leixingmingcheng, xuanzhong);
         if (!jg || jg.zhuangtaima !== 200) {
             jieguo_qu.innerHTML = `<p style="color:#EF4444">关联分析失败: ${jg?.xiaoxi || '请求错误'}</p>`;
             return;
@@ -3055,8 +3115,8 @@ export class Ribaojiemian {
         const xiangmu_shuju = shuju?.xiangmu_shuju || [];
         const ai_fenxi = shuju?.ai_fenxi;
 
-        let html = `<div class="fenxi-title">项目关联分析</div>`;
-        html += `<div class="fenxi-sub">项目：${xuanzhong.join(' / ')}</div>`;
+        let html = `<div class="fenxi-title">${biaoti}关联分析</div>`;
+        html += `<div class="fenxi-sub">${biaoti}：${xuanzhong.join(' / ')}</div>`;
         // 各项目标签概览
         for (const xm of xiangmu_shuju) {
             html += `<div style="margin-bottom:12px;padding:10px 12px;background:#FFF;border:1px solid #E2E8F0;border-radius:6px">`;

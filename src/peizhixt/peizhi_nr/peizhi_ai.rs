@@ -49,6 +49,14 @@ pub struct GuanxifenxiLeixing {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Fenxishitileixing {
+    pub mingcheng: String,
+    pub biaoti: String,
+    #[serde(default)]
+    pub guanlianfenxi: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Ai {
     pub zuida_xunhuancishu: u32,
     #[serde(default = "moren_ribao_biaoqianrenwu_chongshi_cishu")]
@@ -76,6 +84,8 @@ pub struct Ai {
     pub jiaoliu_fenxi_tishici: String,
     #[serde(default = "moren_xiangmu_guanlian_tishici")]
     pub xiangmu_guanlian_tishici: String,
+    #[serde(default = "moren_fenxi_shiti_leixing")]
+    pub fenxi_shiti_leixing: Vec<Fenxishitileixing>,
 }
 
 fn moren_ribao_biaoqianrenwu_chongshi_cishu() -> u32 {
@@ -156,6 +166,16 @@ fn moren_xiangmu_guanlian_tishici() -> String {
     2. fengxiantishi 识别跨项目的资源冲突、进度风险等\n\
     3. ziyuanfenbu.gaofuzairenyuan 找出参与多个项目的高负载人员\n\
     4. 只返回JSON，不要返回其他内容".to_string()
+}
+
+fn moren_fenxi_shiti_leixing() -> Vec<Fenxishitileixing> {
+    vec![
+        Fenxishitileixing { mingcheng: "项目名称".to_string(), biaoti: "项目".to_string(), guanlianfenxi: true },
+        Fenxishitileixing { mingcheng: "客户公司".to_string(), biaoti: "客户".to_string(), guanlianfenxi: false },
+        Fenxishitileixing { mingcheng: "客户名字".to_string(), biaoti: "客户人员".to_string(), guanlianfenxi: false },
+        Fenxishitileixing { mingcheng: "我方人员".to_string(), biaoti: "我方人员".to_string(), guanlianfenxi: false },
+        Fenxishitileixing { mingcheng: "地点".to_string(), biaoti: "地点".to_string(), guanlianfenxi: false },
+    ]
 }
 
 fn moren_guanxifenxi_leixing() -> Vec<GuanxifenxiLeixing> {
@@ -246,6 +266,7 @@ impl Default for Ai {
             guanxifenxi_leixing: moren_guanxifenxi_leixing(),
             jiaoliu_fenxi_tishici: moren_jiaoliu_fenxi_tishici(),
             xiangmu_guanlian_tishici: moren_xiangmu_guanlian_tishici(),
+            fenxi_shiti_leixing: moren_fenxi_shiti_leixing(),
         }
     }
 }

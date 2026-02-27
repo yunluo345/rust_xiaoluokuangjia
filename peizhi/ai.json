@@ -1,5 +1,32 @@
 {
   "bingxingrenwushu": 1,
+  "fenxi_shiti_leixing": [
+    {
+      "biaoti": "项目",
+      "guanlianfenxi": true,
+      "mingcheng": "项目名称"
+    },
+    {
+      "biaoti": "客户",
+      "guanlianfenxi": false,
+      "mingcheng": "客户公司"
+    },
+    {
+      "biaoti": "客户人员",
+      "guanlianfenxi": false,
+      "mingcheng": "客户名字"
+    },
+    {
+      "biaoti": "我方人员",
+      "guanlianfenxi": false,
+      "mingcheng": "我方人员"
+    },
+    {
+      "biaoti": "地点",
+      "guanlianfenxi": false,
+      "mingcheng": "地点"
+    }
+  ],
   "guanxifenxi_danpian_zifushangxian": 4000,
   "guanxifenxi_fenduan_daxiao": 2500,
   "guanxifenxi_fenduan_zhongdie": 300,
