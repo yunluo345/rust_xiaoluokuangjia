@@ -176,3 +176,106 @@ pub async fn ai_shengcheng_guanxifenxi(neirong: &str, peizhi: &Ai) -> Option<Str
     println!("[关系分析] 分段模式成功 长度={}", jieguo.len());
     Some(jieguo)
 }
+
+#[cfg(test)]
+mod ceshi {
+    use super::*;
+
+    // ==================== tiqu_guanxilie ====================
+
+    #[test]
+    fn ceshi_tiqu_zhengchang_json() {
+        let huifu = r#"{"guanxi":[{"ren1":"张三","ren2":"李四","guanxi":"同事"}]}"#;
+        let jieguo = tiqu_guanxilie(huifu);
+        assert_eq!(jieguo.len(), 1);
+        assert_eq!(jieguo[0]["ren1"], "张三");
+    }
+
+    #[test]
+    fn ceshi_tiqu_dai_markdown() {
+        let huifu = "```json\n{\"guanxi\":[{\"ren1\":\"张三\",\"ren2\":\"李四\",\"guanxi\":\"客户\"}]}\n```";
+        let jieguo = tiqu_guanxilie(huifu);
+        assert_eq!(jieguo.len(), 1);
+    }
+
+    #[test]
+    fn ceshi_tiqu_wuxiao_json() {
+        let jieguo = tiqu_guanxilie("这不是JSON");
+        assert!(jieguo.is_empty());
+    }
+
+    #[test]
+    fn ceshi_tiqu_kong_guanxi() {
+        let huifu = r#"{"guanxi":[]}"#;
+        let jieguo = tiqu_guanxilie(huifu);
+        assert!(jieguo.is_empty());
+    }
+
+    #[test]
+    fn ceshi_tiqu_wuguanxi_jian() {
+        let huifu = r#"{"data":"other"}"#;
+        let jieguo = tiqu_guanxilie(huifu);
+        assert!(jieguo.is_empty());
+    }
+
+    // ==================== hebing_guanxilie ====================
+
+    #[test]
+    fn ceshi_hebing_quchong() {
+        let guanxilie = vec![
+            json!({"ren1": "张三", "ren2": "李四", "guanxi": "同事", "miaoshu": "描述1", "xindu": 0.8}),
+            json!({"ren1": "张三", "ren2": "李四", "guanxi": "同事", "miaoshu": "描述2", "xindu": 0.9}),
+        ];
+        let jieguo = hebing_guanxilie(guanxilie);
+        assert_eq!(jieguo.len(), 1);
+        // 取最高置信度
+        assert_eq!(jieguo[0]["xindu"], 0.9);
+        // 描述应合并
+        let miaoshu = jieguo[0]["miaoshu"].as_str().unwrap();
+        assert!(miaoshu.contains("描述1"));
+        assert!(miaoshu.contains("描述2"));
+    }
+
+    #[test]
+    fn ceshi_hebing_fangxiang_yizhixing() {
+        // 张三-李四 和 李四-张三 应合并为同一条
+        let guanxilie = vec![
+            json!({"ren1": "张三", "ren2": "李四", "guanxi": "同事", "xindu": 0.7}),
+            json!({"ren1": "李四", "ren2": "张三", "guanxi": "同事", "xindu": 0.8}),
+        ];
+        let jieguo = hebing_guanxilie(guanxilie);
+        assert_eq!(jieguo.len(), 1);
+    }
+
+    #[test]
+    fn ceshi_hebing_fumian_qinggan_youxian() {
+        let guanxilie = vec![
+            json!({"ren1": "张三", "ren2": "李四", "guanxi": "竞争者", "xindu": 0.8, "qinggan_qingxiang": "中性"}),
+            json!({"ren1": "张三", "ren2": "李四", "guanxi": "竞争者", "xindu": 0.9, "qinggan_qingxiang": "负面"}),
+        ];
+        let jieguo = hebing_guanxilie(guanxilie);
+        assert_eq!(jieguo.len(), 1);
+        assert_eq!(jieguo[0]["qinggan_qingxiang"], "负面");
+    }
+
+    #[test]
+    fn ceshi_hebing_tiaoguo_kongzhi() {
+        let guanxilie = vec![
+            json!({"ren1": "", "ren2": "李四", "guanxi": "同事"}),
+            json!({"ren1": "张三", "ren2": "", "guanxi": "同事"}),
+            json!({"ren1": "张三", "ren2": "李四", "guanxi": ""}),
+        ];
+        let jieguo = hebing_guanxilie(guanxilie);
+        assert!(jieguo.is_empty());
+    }
+
+    #[test]
+    fn ceshi_hebing_butong_guanxileixing_fenkai() {
+        let guanxilie = vec![
+            json!({"ren1": "张三", "ren2": "李四", "guanxi": "同事", "xindu": 0.8}),
+            json!({"ren1": "张三", "ren2": "李四", "guanxi": "上下级", "xindu": 0.9}),
+        ];
+        let jieguo = hebing_guanxilie(guanxilie);
+        assert_eq!(jieguo.len(), 2);
+    }
+}

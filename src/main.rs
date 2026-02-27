@@ -4,6 +4,7 @@ mod gongju;
 mod jiekouxt;
 mod peizhixt;
 mod shujuku;
+mod yewu;
 
 use peizhixt::peizhi_nr::peizhi_zongpeizhi::Zongpeizhi;
 use peizhixt::peizhi_nr::peizhi_shujuku::Shujuku;

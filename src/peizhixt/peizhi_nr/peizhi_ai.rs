@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::tishici_moban;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Ribaobiaoqian {
     pub mingcheng: String,
@@ -101,26 +103,7 @@ fn moren_bingxingrenwushu() -> u32 {
 }
 
 fn moren_guanxifenxi_tishici() -> String {
-    "你是日报关系分析助手。根据日报内容，分析其中提到的人物之间、公司之间的关系，包括正面和负面关系。\n\
-    返回纯JSON，格式：{\"guanxi\":[{\"ren1\":\"名称1\",\"ren2\":\"名称2\",\"guanxi\":\"关系类型\",\"miaoshu\":\"关系描述\",\"xindu\":0.9,\"zhengjupianduan\":\"原文证据片段\",\"juese\":{\"ren1\":\"角色\",\"ren2\":\"角色\"},\"qinggan_qingxiang\":\"正面|负面|中性\"}]}\n\
-    人物关系类型：同事、上下级、客户、合作伙伴、同学、对立方、竞争者等。\n\
-    公司关系类型：合作方、竞争对手、上下游、客户供应商、子母公司、对立方等。\n\
-    上下级判定规则：出现\"汇报\"\"审批\"\"负责人\"\"直属\"\"经理安排\"\"向X汇报\"\"X负责\"\"X安排\"\"X分配任务\"\"管理\"\"带领\"时优先判定为上下级关系，ren1为上级。\n\
-    竞争/敌对判定规则：出现\"竞争\"\"抢单\"\"竞标\"\"对手\"\"争夺\"\"比稿\"\"PK\"\"挖客户\"\"压价\"\"低价竞争\"\"流失\"\"被抢\"\"冲突\"\"纠纷\"\"投诉\"\"不满\"\"拒绝\"\"终止合作\"\"撤单\"\"违约\"\"威胁\"\"施压\"\"敌意\"\"针对\"\"排挤\"\"打压\"\"刁难\"\"推诿\"\"甩锅\"\"吵架\"\"争执\"\"翻脸\"\"闹僵\"时应判定为竞争对手或对立方关系。\n\
-    情绪/心情判定规则：关注日报中流露的情绪信号，如\"不开心\"\"郁闷\"\"烦躁\"\"焦虑\"\"压力大\"\"受挫\"\"委屈\"\"失望\"\"愤怒\"\"沮丧\"\"无奈\"\"抱怨\"\"不满\"\"难受\"\"崩溃\"\"心累\"\"很烦\"\"不爽\"\"生气\"\"窝火\"表示负面情绪，\"顺利\"\"高兴\"\"开心\"\"满意\"\"有成就感\"\"进展良好\"\"配合默契\"表示正面情绪。将情绪信号融入关系的 miaoshu 和 qinggan_qingxiang 中。\n\
-    注意：\n\
-    1. 同时分析人物关系和公司关系，放在同一个 guanxi 数组中\n\
-    2. ren1/ren2 可以是人名也可以是公司名\n\
-    3. 只分析日报中明确提及的实体\n\
-    4. 必须同时识别正面关系（合作、客户等）和负面关系（竞争、对立、冲突等），不要回避负面关系\n\
-    5. miaoshu 简要描述关系背景，如有情绪信号需纳入描述\n\
-    6. xindu 为0到1之间的置信度数值，表示对该关系判断的确定程度\n\
-    7. zhengjupianduan 摘录日报原文中支撑该关系的关键语句（不超过50字）\n\
-    8. juese 为两个实体在该关系中的角色（如项目经理、技术负责人、客户联系人等，无明确角色可省略）\n\
-    9. qinggan_qingxiang 为该关系的情感倾向，取值：正面、负面、中性。根据日报中对该关系的描述语气和用词判断\n\
-    10. 只返回JSON，不要返回其他内容\n\
-    11. 如果两个实体之间没有关系，不要返回该条目，禁止使用\"无关联\"\"无关系\"\"无\"等作为关系类型\n\
-    12. 无法确定具体关系时用\"相关\"".to_string()
+    tishici_moban::guanxifenxi()
 }
 
 fn moren_guanxifenxi_danpian_zifushangxian() -> usize {
@@ -140,41 +123,20 @@ fn moren_guanxifenxi_zuida_fenduanshu() -> usize {
 }
 
 fn moren_jiaoliu_fenxi_tishici() -> String {
-    "你是跨日报交流内容分析助手。你将收到某个客户或项目下多篇日报的交流内容摘要（按时间排序）。\n\
-    请分析沟通的整体脉络、演变趋势和关键议题。\n\
-    返回纯JSON，格式：{\"zhutihuizong\":[{\"zhuti\":\"主题名\",\"miaoshu\":\"该主题的概述\",\"cishu\":3}],\
-    \"yanbianguiji\":\"沟通从...逐步演变为...\",\
-    \"guanjianwenti\":[{\"wenti\":\"问题描述\",\"yanzhongchengdu\":\"高|中|低\"}],\
-    \"jianyi\":\"后续跟进建议\"}\n\
-    注意：\n\
-    1. zhutihuizong 按出现频率从高到低排列\n\
-    2. yanbianguiji 描述沟通内容随时间的变化趋势\n\
-    3. guanjianwenti 提取沟通中暴露的关键问题或风险\n\
-    4. jianyi 给出具体可操作的后续跟进建议\n\
-    5. 只返回JSON，不要返回其他内容".to_string()
+    tishici_moban::jiaoliu_fenxi()
 }
 
 fn moren_xiangmu_guanlian_tishici() -> String {
-    "你是跨项目关联分析助手。你将收到多个项目的标签汇总数据（包含各项目的人员、客户、工作内容等）。\n\
-    请分析这些项目之间的关联关系、共享资源和潜在风险。\n\
-    返回纯JSON，格式：{\"xiangmuguanxi\":[{\"xm1\":\"项目A\",\"xm2\":\"项目B\",\"guanxi\":\"关联类型\",\
-    \"gongxiangziyuan\":[\"共享人员/客户/资源\"],\"miaoshu\":\"关联描述\"}],\
-    \"fengxiantishi\":[{\"neirong\":\"风险描述\",\"yanzhongchengdu\":\"高|中|低\",\"shejiXiangmu\":[\"项目名\"]}],\
-    \"ziyuanfenbu\":{\"gaofuzairenyuan\":[{\"xingming\":\"人名\",\"canyu_xiangmu\":[\"项目名\"],\"shuoming\":\"说明\"}]}}\n\
-    注意：\n\
-    1. xiangmuguanxi 分析每对项目之间的关联\n\
-    2. fengxiantishi 识别跨项目的资源冲突、进度风险等\n\
-    3. ziyuanfenbu.gaofuzairenyuan 找出参与多个项目的高负载人员\n\
-    4. 只返回JSON，不要返回其他内容".to_string()
+    tishici_moban::xiangmu_guanlian()
 }
 
 fn moren_fenxi_shiti_leixing() -> Vec<Fenxishitileixing> {
     vec![
         Fenxishitileixing { mingcheng: "项目名称".to_string(), biaoti: "项目".to_string(), guanlianfenxi: true },
-        Fenxishitileixing { mingcheng: "客户公司".to_string(), biaoti: "客户".to_string(), guanlianfenxi: false },
-        Fenxishitileixing { mingcheng: "客户名字".to_string(), biaoti: "客户人员".to_string(), guanlianfenxi: false },
-        Fenxishitileixing { mingcheng: "我方人员".to_string(), biaoti: "我方人员".to_string(), guanlianfenxi: false },
-        Fenxishitileixing { mingcheng: "地点".to_string(), biaoti: "地点".to_string(), guanlianfenxi: false },
+        Fenxishitileixing { mingcheng: "客户公司".to_string(), biaoti: "客户".to_string(), guanlianfenxi: true },
+        Fenxishitileixing { mingcheng: "客户名字".to_string(), biaoti: "客户人员".to_string(), guanlianfenxi: true },
+        Fenxishitileixing { mingcheng: "我方人员".to_string(), biaoti: "我方人员".to_string(), guanlianfenxi: true },
+        Fenxishitileixing { mingcheng: "地点".to_string(), biaoti: "地点".to_string(), guanlianfenxi: true },
     ]
 }
 

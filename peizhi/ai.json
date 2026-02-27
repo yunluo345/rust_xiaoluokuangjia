@@ -8,22 +8,22 @@
     },
     {
       "biaoti": "客户",
-      "guanlianfenxi": false,
+      "guanlianfenxi": true,
       "mingcheng": "客户公司"
     },
     {
       "biaoti": "客户人员",
-      "guanlianfenxi": false,
+      "guanlianfenxi": true,
       "mingcheng": "客户名字"
     },
     {
       "biaoti": "我方人员",
-      "guanlianfenxi": false,
+      "guanlianfenxi": true,
       "mingcheng": "我方人员"
     },
     {
       "biaoti": "地点",
-      "guanlianfenxi": false,
+      "guanlianfenxi": true,
       "mingcheng": "地点"
     }
   ],

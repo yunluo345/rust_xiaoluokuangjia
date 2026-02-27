@@ -142,3 +142,143 @@ pub fn jiexi_kuozhan(kuozhan_str: Option<&str>) -> Value {
         _ => json!({}),
     }
 }
+
+#[cfg(test)]
+mod ceshi {
+    use super::*;
+
+    // ==================== jinghua_json_huifu ====================
+
+    #[test]
+    fn ceshi_jinghua_biaozhun_json() {
+        assert_eq!(jinghua_json_huifu("{\"a\":1}"), "{\"a\":1}");
+    }
+
+    #[test]
+    fn ceshi_jinghua_dai_markdown_biaoji() {
+        assert_eq!(jinghua_json_huifu("```json\n{\"a\":1}\n```"), "{\"a\":1}");
+    }
+
+    #[test]
+    fn ceshi_jinghua_zhiyou_fanhao() {
+        assert_eq!(jinghua_json_huifu("```\n{\"a\":1}\n```"), "{\"a\":1}");
+    }
+
+    #[test]
+    fn ceshi_jinghua_kongzifuchuan() {
+        assert_eq!(jinghua_json_huifu(""), "");
+    }
+
+    #[test]
+    fn ceshi_jinghua_dai_kongge() {
+        assert_eq!(jinghua_json_huifu("  ```json  {\"a\":1}  ```  "), "{\"a\":1}");
+    }
+
+    // ==================== anzi_fenduan ====================
+
+    #[test]
+    fn ceshi_fenduan_duanwenben() {
+        let jieguo = anzi_fenduan("短文本", 100, 10, 5);
+        assert_eq!(jieguo.len(), 1);
+        assert_eq!(jieguo[0], "短文本");
+    }
+
+    #[test]
+    fn ceshi_fenduan_changwenben() {
+        let wenben: String = "甲".repeat(100);
+        let jieguo = anzi_fenduan(&wenben, 30, 5, 10);
+        assert!(jieguo.len() > 1);
+        assert!(jieguo.len() <= 10);
+        // 每段不超过30字符
+        for duan in &jieguo {
+            assert!(duan.chars().count() <= 30);
+        }
+    }
+
+    #[test]
+    fn ceshi_fenduan_zuidaduanshu_xianzhi() {
+        let wenben: String = "甲".repeat(200);
+        let jieguo = anzi_fenduan(&wenben, 10, 2, 3);
+        assert_eq!(jieguo.len(), 3);
+    }
+
+    #[test]
+    fn ceshi_fenduan_lingcanshu() {
+        let jieguo = anzi_fenduan("测试", 0, 0, 0);
+        assert_eq!(jieguo.len(), 1);
+    }
+
+    // ==================== huoquzifuchuan ====================
+
+    #[test]
+    fn ceshi_huoquzifuchuan_wenben() {
+        let v = json!({"id": "123"});
+        assert_eq!(huoquzifuchuan(&v, "id"), Some("123".to_string()));
+    }
+
+    #[test]
+    fn ceshi_huoquzifuchuan_shuzi() {
+        let v = json!({"id": 456});
+        assert_eq!(huoquzifuchuan(&v, "id"), Some("456".to_string()));
+    }
+
+    #[test]
+    fn ceshi_huoquzifuchuan_bucunzai() {
+        let v = json!({"a": 1});
+        assert_eq!(huoquzifuchuan(&v, "id"), None);
+    }
+
+    // ==================== jiexi_kuozhan ====================
+
+    #[test]
+    fn ceshi_jiexi_kuozhan_kong() {
+        let jieguo = jiexi_kuozhan(None);
+        assert_eq!(jieguo, json!({}));
+    }
+
+    #[test]
+    fn ceshi_jiexi_kuozhan_kongzifuchuan() {
+        let jieguo = jiexi_kuozhan(Some(""));
+        assert_eq!(jieguo, json!({}));
+    }
+
+    #[test]
+    fn ceshi_jiexi_kuozhan_xingeishi() {
+        let jieguo = jiexi_kuozhan(Some("{\"siweidaotu\":{\"a\":1},\"guanxifenxi\":{\"b\":2}}"));
+        assert!(jieguo.get("siweidaotu").is_some());
+        assert!(jieguo.get("guanxifenxi").is_some());
+    }
+
+    #[test]
+    fn ceshi_jiexi_kuozhan_jiugeishi_baoguozhuanhua() {
+        // 旧格式：对象但没有 siweidaotu key → 整体作为 siweidaotu
+        let jieguo = jiexi_kuozhan(Some("{\"a\":1}"));
+        assert!(jieguo.get("siweidaotu").is_some());
+    }
+
+    #[test]
+    fn ceshi_jiexi_kuozhan_wuxiao_json() {
+        let jieguo = jiexi_kuozhan(Some("not json"));
+        assert_eq!(jieguo, json!({}));
+    }
+
+    // ==================== yanzheng_bitian_biaoqian ====================
+
+    #[test]
+    fn ceshi_yanzheng_bitian_quanbu_cunzai() {
+        let peizhi = Ai::default();
+        let bitian: Vec<(String, String)> = peizhi.ribao_biaoqian.iter()
+            .filter(|bq| bq.bitian)
+            .map(|bq| (bq.mingcheng.clone(), "值".to_string()))
+            .collect();
+        assert!(yanzheng_bitian_biaoqian(&bitian, &peizhi).is_none());
+    }
+
+    #[test]
+    fn ceshi_yanzheng_bitian_queshi() {
+        let peizhi = Ai::default();
+        let queshi = yanzheng_bitian_biaoqian(&[], &peizhi);
+        assert!(queshi.is_some());
+        assert!(!queshi.unwrap().is_empty());
+    }
+}

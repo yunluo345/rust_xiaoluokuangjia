@@ -1,76 +1,12 @@
 use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::{yonghuyanzheng, shujucaozuo_yonghuzu};
 use crate::peizhixt::peizhi_nr::peizhi_ai::Ai;
 use crate::peizhixt::peizhixitongzhuti;
-use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::{
-    shujucaozuo_biaoqian,
-    shujucaozuo_biaoqianleixing,
-    shujucaozuo_ribao,
-    shujucaozuo_ribao_biaoqian,
-    shujucaozuo_ribao_biaoqianrenwu,
-};
+use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::shujucaozuo_ribao_biaoqianrenwu;
 use serde_json::{json, Value};
-use std::collections::{HashMap, HashSet};
 
-use super::gongyong::{
-    huoquzifuchuan, yanzheng_bitian_biaoqian,
-    chuli_wenben_aijieguo, chuli_kuozhan_aijieguo,
-    jiexi_kuozhan, jisuan_sha256,
-};
-use super::biaoqiantiqu;
-use super::aishengcheng;
-use super::guanxifenxi;
+use super::renwubuzhou::{self, BuzhouCuowu};
 
-async fn huoquhuochuangjian_leixingid(
-    mingcheng: &str,
-    leixinghuancun: &mut HashMap<String, String>,
-) -> Option<String> {
-    if let Some(id) = leixinghuancun.get(mingcheng) {
-        return Some(id.clone());
-    }
-
-    if let Some(cunzai) = shujucaozuo_biaoqianleixing::chaxun_mingcheng(mingcheng).await {
-        if let Some(id) = huoquzifuchuan(&cunzai, "id") {
-            leixinghuancun.insert(mingcheng.to_string(), id.clone());
-            return Some(id);
-        }
-    }
-
-    let id = shujucaozuo_biaoqianleixing::xinzeng(mingcheng).await?;
-    leixinghuancun.insert(mingcheng.to_string(), id.clone());
-    Some(id)
-}
-
-async fn huoquhuochuangjian_biaoqianid(
-    leixingid: &str,
-    zhi: &str,
-    biaoqianhuancun: &mut HashMap<String, String>,
-) -> Option<String> {
-    let jian = format!("{}|{}", leixingid, zhi);
-    if let Some(id) = biaoqianhuancun.get(&jian) {
-        return Some(id.clone());
-    }
-
-    if let Some(cunzai) = shujucaozuo_biaoqian::chaxun_leixingid_zhi(leixingid, zhi).await {
-        if let Some(id) = huoquzifuchuan(&cunzai, "id") {
-            biaoqianhuancun.insert(jian, id.clone());
-            return Some(id);
-        }
-    }
-
-    let id = shujucaozuo_biaoqian::xinzeng(leixingid, zhi).await?;
-    biaoqianhuancun.insert(jian, id.clone());
-    Some(id)
-}
-
-async fn bangdingbiaoqian(ribaoid: &str, biaoqianid: &str) -> Option<bool> {
-    if shujucaozuo_ribao_biaoqian::guanliancunzai(ribaoid, biaoqianid).await {
-        return Some(false);
-    }
-    shujucaozuo_ribao_biaoqian::xinzeng(ribaoid, biaoqianid)
-        .await
-        .map(|n| n > 0)
-}
-
+/// 失败时统一标记并返回错误 JSON
 async fn chuli_shibai(renwuid: &str, ribaoid: &str, xiaoxi: &str) -> Value {
     println!("[任务处理] ✗ 任务{}失败 日报={} 原因={}", renwuid, ribaoid, xiaoxi);
     let _ = shujucaozuo_ribao_biaoqianrenwu::biaojishibai(renwuid).await;
@@ -82,191 +18,67 @@ async fn chuli_shibai(renwuid: &str, ribaoid: &str, xiaoxi: &str) -> Value {
     })
 }
 
+/// 任务处理核心流程（步骤组合）
 async fn chuli_dange_renwu(renwu: Value, peizhi: &Ai) -> Value {
-    let renwuid = match huoquzifuchuan(&renwu, "id") {
-        Some(v) => v,
-        None => return json!({"chenggong": false, "xiaoxi": "任务缺少ID"}),
-    };
-
-    let ribaoid = match huoquzifuchuan(&renwu, "ribaoid") {
-        Some(v) => v,
-        None => return chuli_shibai(&renwuid, "", "任务缺少日报ID").await,
-    };
-    println!("[任务处理] 开始处理 任务={} 日报={}", renwuid, ribaoid);
-
-    let ribao = match shujucaozuo_ribao::chaxun_id(&ribaoid).await {
-        Some(v) => v,
-        None => return chuli_shibai(&renwuid, &ribaoid, "日报不存在").await,
-    };
-
-    let neirong = match ribao.get("neirong").and_then(|v| v.as_str()).map(str::trim) {
-        Some(v) if !v.is_empty() => v,
-        _ => return chuli_shibai(&renwuid, &ribaoid, "日报内容为空").await,
-    };
-
-    let yiyou_shuju = shujucaozuo_ribao_biaoqian::chaxun_ribaoid_daixinxi(&ribaoid).await
-        .filter(|lie| !lie.is_empty());
-
-    let yiyou = yiyou_shuju.as_ref().map(|lie| lie.iter()
-        .filter_map(|b| {
-            let lx = b["leixingmingcheng"].as_str()?;
-            let zhi = b["zhi"].as_str()?;
-            Some(format!("- {}：{}", lx, zhi))
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
-    );
-    if yiyou.is_some() {
-        println!("[任务处理] 任务={} 已有 {} 个标签", renwuid, yiyou.as_ref().unwrap().lines().count());
-    }
-
-    let yiyou_biaoqianmingcheng: HashSet<String> = yiyou_shuju.as_ref()
-        .map(|lie| lie.iter()
-            .filter_map(|b| b["leixingmingcheng"].as_str().map(String::from))
-            .collect())
-        .unwrap_or_default();
-
-    let biaoqianxiang = match biaoqiantiqu::ai_tiqu_biaoqian(neirong, peizhi, yiyou.as_deref()).await {
-        Some(xiang) => {
-            println!("[任务处理] 任务={} AI提取到 {} 个标签", renwuid, xiang.len());
-            xiang
-        }
-        None => {
-            println!("[任务处理] 任务={} AI提取失败，尝试字符串匹配", renwuid);
-            let xiang = biaoqiantiqu::tichubiaoqianxiang(neirong, peizhi);
-            if xiang.is_empty() {
-                return chuli_shibai(&renwuid, &ribaoid, "AI和字符串匹配均未提取到标签").await;
-            }
-            println!("[任务处理] 任务={} 字符串匹配到 {} 个标签", renwuid, xiang.len());
-            xiang
+    // 步骤1：校验任务与加载日报
+    let shanxiawen = match renwubuzhou::yanzheng_renwu(&renwu).await {
+        Ok(s) => s,
+        Err(BuzhouCuowu { xiaoxi }) => {
+            // 无法解析 renwuid 时的特殊处理
+            let renwuid = renwu.get("id").and_then(|v| v.as_str()).unwrap_or("");
+            let ribaoid = renwu.get("ribaoid").and_then(|v| v.as_str()).unwrap_or("");
+            return chuli_shibai(renwuid, ribaoid, &xiaoxi).await;
         }
     };
+    let renwuid = &shanxiawen.renwuid;
+    let ribaoid = &shanxiawen.ribaoid;
 
-    let mut yanzheng_xiang: Vec<(String, String)> = biaoqianxiang.clone();
-    for ming in &yiyou_biaoqianmingcheng {
-        if !yanzheng_xiang.iter().any(|(m, _)| m == ming) {
-            yanzheng_xiang.push((ming.clone(), String::new()));
-        }
+    // 步骤2：标签提取
+    let biaoqianxiang = match renwubuzhou::tiqu_biaoqian(
+        &shanxiawen.neirong, peizhi,
+        shanxiawen.yiyou_biaoqian_wenben.as_deref(), renwuid,
+    ).await {
+        Ok(x) => x,
+        Err(e) => return chuli_shibai(renwuid, ribaoid, &e.xiaoxi).await,
+    };
+
+    // 步骤3：必填标签校验
+    if let Err(e) = renwubuzhou::yanzheng_bitian(&biaoqianxiang, &shanxiawen.yiyou_biaoqianmingcheng, peizhi) {
+        return chuli_shibai(renwuid, ribaoid, &e.xiaoxi).await;
     }
 
-    if let Some(queshi) = yanzheng_bitian_biaoqian(&yanzheng_xiang, peizhi) {
-        let xiaoxi = format!("缺少必填标签: {}", queshi.join("、"));
-        return chuli_shibai(&renwuid, &ribaoid, &xiaoxi).await;
-    }
-
-    let mut leixinghuancun: HashMap<String, String> = HashMap::new();
-    let mut biaoqianhuancun: HashMap<String, String> = HashMap::new();
-    let mut bangdingshu: u64 = 0;
-    let mut jieguolie: Vec<Value> = Vec::new();
-
-    let tiqujieguo: HashMap<String, String> = biaoqianxiang.iter()
-        .map(|(k, v)| (k.clone(), v.clone()))
-        .collect();
-
-    for (leixingmingcheng, zhi) in biaoqianxiang {
-        let leixingid = match huoquhuochuangjian_leixingid(&leixingmingcheng, &mut leixinghuancun).await {
-            Some(v) => v,
-            None => return chuli_shibai(&renwuid, &ribaoid, "标签类型创建失败").await,
-        };
-
-        let biaoqianid = match huoquhuochuangjian_biaoqianid(&leixingid, &zhi, &mut biaoqianhuancun).await {
-            Some(v) => v,
-            None => return chuli_shibai(&renwuid, &ribaoid, "标签创建失败").await,
-        };
-
-        let xinbangding = match bangdingbiaoqian(&ribaoid, &biaoqianid).await {
-            Some(v) => v,
-            None => return chuli_shibai(&renwuid, &ribaoid, "标签绑定失败").await,
-        };
-
-        if xinbangding {
-            bangdingshu += 1;
-        }
-
-        jieguolie.push(json!({
-            "leixingmingcheng": leixingmingcheng,
-            "zhi": zhi,
-            "leixingid": leixingid,
-            "biaoqianid": biaoqianid,
-            "xinbangding": xinbangding,
-        }));
-    }
-
+    // 步骤4：标签绑定
+    let bangding = match renwubuzhou::bangding_biaoqian(ribaoid, biaoqianxiang, renwuid).await {
+        Ok(b) => b,
+        Err(e) => return chuli_shibai(renwuid, ribaoid, &e.xiaoxi).await,
+    };
     let biaoqianjieguo = json!({
-        "bangdingshu": bangdingshu,
-        "biaoqianlie": jieguolie,
-    })
-    .to_string();
+        "bangdingshu": bangding.bangdingshu,
+        "biaoqianlie": bangding.jieguolie,
+    }).to_string();
 
-    let xuyao_biaoti = ribao.get("biaoti").and_then(|v| v.as_str()).map_or(true, |s| s.trim().is_empty());
-    let xuyao_zhaiyao = ribao.get("zhaiyao").and_then(|v| v.as_str()).map_or(true, |s| s.trim().is_empty());
-    let kuozhan_yuanshi = ribao.get("kuozhan").and_then(|v| v.as_str());
-    let mut kuozhan_jiegou = jiexi_kuozhan(kuozhan_yuanshi);
-    let neirong_hash = jisuan_sha256(neirong);
-    let xuyao_siweidaotu = kuozhan_jiegou.get("siweidaotu").is_none();
-    let guanxifenxi_hash_yiyou = kuozhan_jiegou.get("guanxifenxi_neirong_hash").and_then(|v| v.as_str());
-    let xuyao_guanxifenxi = kuozhan_jiegou.get("guanxifenxi").is_none()
-        || guanxifenxi_hash_yiyou != Some(neirong_hash.as_str());
-    let mut kuozhan_yigengxin = false;
-
-    let biaoti_fut = async {
-        if xuyao_biaoti { aishengcheng::ai_shengcheng_biaoti(neirong).await } else { None }
+    // 步骤5：AI 内容丰富（标题/摘要/思维导图/关系分析）
+    let fengfu = match renwubuzhou::ai_fengfu(&shanxiawen, peizhi).await {
+        Ok(f) => f,
+        Err(e) => return chuli_shibai(renwuid, ribaoid, &e.xiaoxi).await,
     };
-    let zhaiyao_fut = async {
-        if xuyao_zhaiyao { aishengcheng::ai_shengcheng_zhaiyao(neirong).await } else { None }
-    };
-    let daotu_fut = async {
-        if xuyao_siweidaotu { aishengcheng::ai_shengcheng_siweidaotu(neirong, peizhi).await } else { None }
-    };
-    let guanxi_fut = async {
-        if xuyao_guanxifenxi { guanxifenxi::ai_shengcheng_guanxifenxi(neirong, peizhi).await } else { None }
-    };
-    let (biaoti_yuanshi, zhaiyao_yuanshi, daotu_yuanshi, guanxi_yuanshi) = futures::join!(biaoti_fut, zhaiyao_fut, daotu_fut, guanxi_fut);
 
-    let biaoti_jieguo = chuli_wenben_aijieguo(xuyao_biaoti, biaoti_yuanshi, "biaoti", "标题", &renwuid, &ribaoid).await;
-    let zhaiyao_jieguo = chuli_wenben_aijieguo(xuyao_zhaiyao, zhaiyao_yuanshi, "zhaiyao", "摘要", &renwuid, &ribaoid).await;
-
-    let daotu_jieguo = chuli_kuozhan_aijieguo(
-        xuyao_siweidaotu, daotu_yuanshi, "siweidaotu", "思维导图",
-        &renwuid, &ribaoid, &mut kuozhan_jiegou, &mut kuozhan_yigengxin, None,
-    );
-    let guanxi_jieguo = chuli_kuozhan_aijieguo(
-        xuyao_guanxifenxi, guanxi_yuanshi, "guanxifenxi", "关系分析",
-        &renwuid, &ribaoid, &mut kuozhan_jiegou, &mut kuozhan_yigengxin, Some(("guanxifenxi_neirong_hash", &neirong_hash)),
-    );
-
-    if kuozhan_yigengxin {
-        let kuozhan_wenben = kuozhan_jiegou.to_string();
-        let _ = shujucaozuo_ribao::gengxin(&ribaoid, &[("kuozhan", &kuozhan_wenben)]).await;
+    // 步骤6：标记任务成功
+    if let Err(e) = renwubuzhou::wanjie_renwu(renwuid, &biaoqianjieguo).await {
+        return chuli_shibai(renwuid, ribaoid, &e.xiaoxi).await;
     }
 
-    let ai_shibai = (xuyao_biaoti && biaoti_jieguo.is_none())
-        || (xuyao_zhaiyao && zhaiyao_jieguo.is_none())
-        || (xuyao_siweidaotu && !daotu_jieguo)
-        || (xuyao_guanxifenxi && !guanxi_jieguo);
-    if ai_shibai {
-        return chuli_shibai(&renwuid, &ribaoid, "AI生成步骤部分失败").await;
-    }
-
-    // 全部 AI 处理完成后才标记任务成功
-    if shujucaozuo_ribao_biaoqianrenwu::biaojichenggong(&renwuid, &biaoqianjieguo)
-        .await
-        .is_none()
-    {
-        return chuli_shibai(&renwuid, &ribaoid, "任务完成状态更新失败").await;
-    }
-
-    println!("[任务处理] ✓ 任务={} 日报={} 绑定标签数={}", renwuid, ribaoid, bangdingshu);
+    println!("[任务处理] ✓ 任务={} 日报={} 绑定标签数={}", renwuid, ribaoid, bangding.bangdingshu);
     json!({
         "chenggong": true,
         "renwuid": renwuid,
         "ribaoid": ribaoid,
-        "bangdingshu": bangdingshu,
-        "tiqujieguo": tiqujieguo,
-        "biaoti": biaoti_jieguo,
-        "zhaiyao": zhaiyao_jieguo,
-        "siweidaotu": daotu_jieguo,
-        "guanxifenxi": guanxi_jieguo,
+        "bangdingshu": bangding.bangdingshu,
+        "tiqujieguo": bangding.tiqujieguo,
+        "biaoti": fengfu.biaoti,
+        "zhaiyao": fengfu.zhaiyao,
+        "siweidaotu": fengfu.siweidaotu,
+        "guanxifenxi": fengfu.guanxifenxi,
     })
 }
 

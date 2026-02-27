@@ -520,4 +520,119 @@ export class Ribaoluoji {
         if (jg) this.rizhi('项目关联分析: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
         return jg;
     }
+
+    async fenxi_zonghe_guanlian(shiti_liebiao) {
+        const jg = await this.zhixing('fenxi_zonghe_guanlian', { shiti_liebiao });
+        if (jg) this.rizhi('综合关联分析: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+}
+
+// ========== 分析 API 统一适配器 ==========
+export class FenxiApiClient {
+    constructor(luoji) {
+        this._luoji = luoji;
+    }
+
+    // 统一请求包装：错误捕获 + 日志
+    async _qingqiu(caozuo, canshu, rizhimingcheng) {
+        try {
+            const jg = await this._luoji.zhixing(caozuo, canshu);
+            if (jg && rizhimingcheng) {
+                this._luoji.rizhi(`${rizhimingcheng}: ${jg.xiaoxi}`, jg.zhuangtaima === 200 ? 'ok' : 'err');
+            }
+            return jg;
+        } catch (e) {
+            this._luoji.rizhi(`${rizhimingcheng || caozuo} 失败: ${e}`, 'err');
+            return null;
+        }
+    }
+
+    // 响应规范化：统一返回 { chenggong, xiaoxi, shuju }
+    _guifanhua(jg, morenShuju = null) {
+        if (!jg || jg.zhuangtaima !== 200) {
+            return { chenggong: false, xiaoxi: jg?.xiaoxi || '请求错误', shuju: morenShuju };
+        }
+        return { chenggong: true, xiaoxi: jg.xiaoxi || '', shuju: jg.shuju ?? morenShuju };
+    }
+
+    // 获取实体类型配置，确保每项含必要字段
+    async huoqu_shiti_leixing() {
+        const jg = await this._qingqiu('fenxi_huoqu_shiti_leixing');
+        const gui = this._guifanhua(jg, []);
+        if (gui.chenggong && Array.isArray(gui.shuju)) {
+            gui.shuju = gui.shuju.map(lx => ({
+                mingcheng: lx.mingcheng || '',
+                biaoti: lx.biaoti || lx.mingcheng || '',
+                guanlianfenxi: !!lx.guanlianfenxi,
+            }));
+        }
+        return gui;
+    }
+
+    // 获取某类型的实体列表
+    async shiti_liebiao(leixingmingcheng) {
+        const jg = await this._qingqiu('fenxi_shiti_liebiao', { leixingmingcheng }, `查询[${leixingmingcheng}]列表`);
+        const gui = this._guifanhua(jg, []);
+        if (gui.chenggong && Array.isArray(gui.shuju)) {
+            gui.shuju = gui.shuju.map(x => ({
+                zhi: x.zhi || '',
+                ribao_shu: parseInt(x.ribao_shu, 10) || 0,
+            }));
+        }
+        return gui;
+    }
+
+    // 获取实体关联日报与标签
+    async shiti_ribao(shiti_leixing, shiti_mingcheng) {
+        const jg = await this._qingqiu('fenxi_shiti_ribao', { shiti_leixing, shiti_mingcheng }, `查询实体日报[${shiti_mingcheng}]`);
+        const gui = this._guifanhua(jg, { ribaolie: [], biaoqianlie: [] });
+        if (gui.chenggong && gui.shuju) {
+            gui.shuju.ribaolie = Array.isArray(gui.shuju.ribaolie) ? gui.shuju.ribaolie : [];
+            gui.shuju.biaoqianlie = Array.isArray(gui.shuju.biaoqianlie) ? gui.shuju.biaoqianlie : [];
+        }
+        return gui;
+    }
+
+    // AI 深度分析
+    async ai_shendu(shiti_leixing, shiti_mingcheng, weidu) {
+        const jg = await this._qingqiu('fenxi_ai_shendu', { shiti_leixing, shiti_mingcheng, weidu }, `AI深度分析[${weidu}]`);
+        const gui = this._guifanhua(jg);
+        if (gui.chenggong && gui.shuju) {
+            gui.shuju.ai_fenxi = gui.shuju.ai_fenxi ?? null;
+        }
+        return gui;
+    }
+
+    // 实体关联分析（通用）
+    async shiti_guanlian(leixingmingcheng, zhi_liebiao, yonghu_tishi = '') {
+        const canshu = { leixingmingcheng, zhi_liebiao };
+        if (yonghu_tishi) canshu.yonghu_tishi = yonghu_tishi;
+        const jg = await this._qingqiu('fenxi_shiti_guanlian', canshu, `实体关联分析[${leixingmingcheng}]`);
+        const gui = this._guifanhua(jg);
+        if (gui.chenggong && gui.shuju) {
+            gui.shuju.xiangmu_shuju = Array.isArray(gui.shuju.xiangmu_shuju) ? gui.shuju.xiangmu_shuju : [];
+            gui.shuju.ai_fenxi = gui.shuju.ai_fenxi ?? null;
+        }
+        return gui;
+    }
+
+    // 项目关联分析（兼容旧接口）
+    async xiangmu_guanlian(xiangmu_liebiao) {
+        const jg = await this._qingqiu('fenxi_xiangmu_guanlian', { xiangmu_liebiao }, '项目关联分析');
+        return this._guifanhua(jg);
+    }
+
+    // 综合关联分析（跨类型）
+    async zonghe_guanlian(shiti_liebiao, yonghu_tishi = '') {
+        const canshu = { shiti_liebiao };
+        if (yonghu_tishi) canshu.yonghu_tishi = yonghu_tishi;
+        const jg = await this._qingqiu('fenxi_zonghe_guanlian', canshu, '综合关联分析');
+        const gui = this._guifanhua(jg);
+        if (gui.chenggong && gui.shuju) {
+            gui.shuju.xiangmu_shuju = Array.isArray(gui.shuju.xiangmu_shuju) ? gui.shuju.xiangmu_shuju : [];
+            gui.shuju.ai_fenxi = gui.shuju.ai_fenxi ?? null;
+        }
+        return gui;
+    }
 }
