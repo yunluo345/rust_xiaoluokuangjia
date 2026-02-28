@@ -1,2 +1,9 @@
 /target
 /wasm_sdk/target
+
+# Claude AI 技能目录
+.claude/
+
+# Python 缓存
+__pycache__/
+*.pyc

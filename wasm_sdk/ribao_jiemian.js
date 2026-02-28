@@ -1,5 +1,6 @@
 // 日报管理 - 界面层
 import * as gj from './jiemian_gongju.js';
+import { tiqushuju, tiqufenyeshuju, zhuangtai_html, chuli_api_jieguo, tongjigaopin, huoqushitibiaoqian } from './jiemian_gongju.js';
 import { FenxiZhuangtai } from './fenxi_zhuangtai.js';
 import { FenxiApiClient } from './ribao_luoji.js';
 import * as fxr from './fenxi_xuanran.js';
@@ -148,28 +149,24 @@ export class Ribaojiemian {
         let jg, liebiao, zongshu;
         if (this.sousuobiaoqianid) {
             jg = await this.luoji.guanlian_chaxun_biaoqianid(this.sousuobiaoqianid);
-            liebiao = jg?.zhuangtaima === 200 ? jg.shuju || [] : [];
+            liebiao = tiqushuju(jg, []);
             zongshu = liebiao.length;
         } else if (this.sousuoleixing) {
             jg = await this.luoji.guanlian_chaxun_leixingmingcheng_zhi(this.sousuoleixing.mc, this.sousuoleixing.z);
-            liebiao = jg?.zhuangtaima === 200 ? jg.shuju || [] : [];
+            liebiao = tiqushuju(jg, []);
             zongshu = liebiao.length;
         } else if (this.sousuoguanjiancizhi) {
             jg = await this.luoji.guanjiancichaxunfenye_shipei(this.sousuoguanjiancizhi, this.dangqianyeshu, this.meiyetiaoshu);
-            liebiao = jg?.zhuangtaima === 200 ? jg.shuju?.liebiao || [] : [];
-            zongshu = jg?.zhuangtaima === 200 ? jg.shuju?.zongshu || 0 : 0;
+            ({ liebiao, zongshu } = tiqufenyeshuju(jg));
         } else if (this.sousuoyonghuid) {
             jg = await this.luoji.ribao_chaxun_yonghuid_fenye(this.sousuoyonghuid, this.dangqianyeshu, this.meiyetiaoshu);
-            liebiao = jg?.zhuangtaima === 200 ? jg.shuju?.liebiao || [] : [];
-            zongshu = jg?.zhuangtaima === 200 ? jg.shuju?.zongshu || 0 : 0;
+            ({ liebiao, zongshu } = tiqufenyeshuju(jg));
         } else if (this.sousuoshijian) {
             jg = await this.luoji.fabushijianchaxunfenye_shipei(this.sousuoshijian.kaishi, this.sousuoshijian.jieshu, this.dangqianyeshu, this.meiyetiaoshu);
-            liebiao = jg?.zhuangtaima === 200 ? jg.shuju?.liebiao || [] : [];
-            zongshu = jg?.zhuangtaima === 200 ? jg.shuju?.zongshu || 0 : 0;
+            ({ liebiao, zongshu } = tiqufenyeshuju(jg));
         } else {
             jg = await this.luoji.chaxunfenye_shipei(this.dangqianyeshu, this.meiyetiaoshu, this.chakanquanbu);
-            liebiao = jg?.zhuangtaima === 200 ? jg.shuju?.liebiao || [] : [];
-            zongshu = jg?.zhuangtaima === 200 ? jg.shuju?.zongshu || 0 : 0;
+            ({ liebiao, zongshu } = tiqufenyeshuju(jg));
         }
         if (!jg || jg.zhuangtaima !== 200) {
             nr.innerHTML = `<p style="color:#EF4444">加载失败: ${jg ? jg.xiaoxi : '请求错误'}</p>`;
@@ -270,19 +267,19 @@ export class Ribaojiemian {
         this._bq_xuanzhong_leixingid = null;
         this._bq_bianji_id = null;
         const nr = document.getElementById('ribao_neirong');
-        nr.innerHTML = '<p style="color:#64748B">加载中...</p>';
+        nr.innerHTML = zhuangtai_html('jiazai', '加载中...');
         const leixingjg = await this.luoji.leixing_chaxun_quanbu();
         if (!leixingjg || leixingjg.zhuangtaima !== 200) {
-            nr.innerHTML = '<p style="color:#EF4444">类型加载失败</p>';
+            nr.innerHTML = zhuangtai_html('cuowu', '类型加载失败');
             return;
         }
         const biaoqianjg = await this.luoji.biaoqian_chaxun_quanbu();
         if (!biaoqianjg || biaoqianjg.zhuangtaima !== 200) {
-            nr.innerHTML = '<p style="color:#EF4444">标签加载失败</p>';
+            nr.innerHTML = zhuangtai_html('cuowu', '标签加载失败');
             return;
         }
-        const leixinglie = leixingjg.shuju || [];
-        const biaoqianlie = biaoqianjg.shuju || [];
+        const leixinglie = tiqushuju(leixingjg, []);
+        const biaoqianlie = tiqushuju(biaoqianjg, []);
         const leixingmap = Object.fromEntries(leixinglie.map(x => [x.id, x.mingcheng]));
         let html = '<div style="margin-bottom:12px;display:flex;gap:8px;align-items:center"><button class="aq-btn aq-btn-lv" onclick="ribao_xinzengbiaoqian()">新增标签</button><button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="ribao_biaoqian_piliangshanchu()">批量删除</button><label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:13px;color:#64748B;height:36px"><input type="checkbox" onchange="ribao_biaoqian_quanxuan(this)" style="width:16px;height:16px;cursor:pointer">全选</label></div>';
         if (biaoqianlie.length === 0) {
@@ -309,13 +306,13 @@ export class Ribaojiemian {
         this._bq_xuanzhong_leixingid = null;
         this._bq_bianji_id = null;
         const nr = document.getElementById('ribao_neirong');
-        nr.innerHTML = '<p style="color:#64748B">加载中...</p>';
+        nr.innerHTML = zhuangtai_html('jiazai', '加载中...');
         const jg = await this.luoji.leixing_chaxun_quanbu();
         if (!jg || jg.zhuangtaima !== 200) {
-            nr.innerHTML = `<p style="color:#EF4444">加载失败: ${jg ? jg.xiaoxi : '请求错误'}</p>`;
+            nr.innerHTML = zhuangtai_html('cuowu', `加载失败: ${jg ? jg.xiaoxi : '请求错误'}`);
             return;
         }
-        const liebiao = jg.shuju || [];
+        const liebiao = tiqushuju(jg, []);
         let html = '<div style="margin-bottom:12px;display:flex;gap:8px;align-items:center"><button class="aq-btn aq-btn-lv" onclick="ribao_xinzengleixing()">新增类型</button><button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="ribao_leixing_piliangshanchu()">批量删除</button><label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:13px;color:#64748B;height:36px"><input type="checkbox" onchange="ribao_leixing_quanxuan(this)" style="width:16px;height:16px;cursor:pointer">全选</label></div>';
         if (liebiao.length === 0) {
             nr.innerHTML = html + '<p style="color:#64748B">暂无类型数据</p>';
@@ -372,11 +369,7 @@ export class Ribaojiemian {
     async shanchuribao(id) {
         if (!await aqqueren('删除日报', '确认删除此日报？')) return;
         const jg = await this.luoji.ribao_shanchu(id);
-        if (jg && jg.zhuangtaima === 200) {
-            this.shuaxinribaoliebiao();
-        } else if (jg && jg.zhuangtaima === 403) {
-            this.luoji.rizhi('权限不足：' + jg.xiaoxi, 'warn');
-        }
+        if (chuli_api_jieguo(this.luoji, jg)) this.shuaxinribaoliebiao();
     }
 
     async xuanranxinzengbiaoqian() {
@@ -410,20 +403,16 @@ export class Ribaojiemian {
             return;
         }
         const jg = await this.luoji.biaoqian_xinzeng(leixingid, zhi);
-        if (jg && jg.zhuangtaima === 200) {
+        if (chuli_api_jieguo(this.luoji, jg)) {
             this._bq_xuanzhong_leixingid ? this.bianjibiaoqian_leixing(this._bq_xuanzhong_leixingid) : this.shuaxinbiaoqianliebiao();
-        } else if (jg && jg.zhuangtaima === 403) {
-            this.luoji.rizhi('权限不足：' + jg.xiaoxi, 'warn');
         }
     }
 
     async shanchubiaoqian(id) {
         if (!await aqqueren('删除标签', '确认删除此标签？')) return;
         const jg = await this.luoji.biaoqian_shanchu(id);
-        if (jg && jg.zhuangtaima === 200) {
+        if (chuli_api_jieguo(this.luoji, jg)) {
             this._bq_xuanzhong_leixingid ? this.bianjibiaoqian_leixing(this._bq_xuanzhong_leixingid) : this.shuaxinbiaoqianliebiao();
-        } else if (jg && jg.zhuangtaima === 403) {
-            this.luoji.rizhi('权限不足：' + jg.xiaoxi, 'warn');
         }
     }
 
@@ -444,21 +433,13 @@ export class Ribaojiemian {
             return;
         }
         const jg = await this.luoji.leixing_xinzeng(mingcheng);
-        if (jg && jg.zhuangtaima === 200) {
-            this.shuaxinleixingliebiao();
-        } else if (jg && jg.zhuangtaima === 403) {
-            this.luoji.rizhi('权限不足：' + jg.xiaoxi, 'warn');
-        }
+        if (chuli_api_jieguo(this.luoji, jg)) this.shuaxinleixingliebiao();
     }
 
     async shanchuleixing(id) {
         if (!await aqqueren('删除类型', '确认删除此类型？')) return;
         const jg = await this.luoji.leixing_shanchu(id);
-        if (jg && jg.zhuangtaima === 200) {
-            this.shuaxinleixingliebiao();
-        } else if (jg && jg.zhuangtaima === 403) {
-            this.luoji.rizhi('权限不足：' + jg.xiaoxi, 'warn');
-        }
+        if (chuli_api_jieguo(this.luoji, jg)) this.shuaxinleixingliebiao();
     }
     async _ribao_huoqu_xiangqing(id) {
         const [ribaojg, biaoqianjg] = await Promise.all([
@@ -476,7 +457,6 @@ export class Ribaojiemian {
     }
 
     _ribao_xuanran_tupu_wenzi(rb, biaoqianlie) {
-        const huizong = new Map();
         const anleixing = new Map();
         for (const bq of (biaoqianlie || [])) {
             const lx = String(bq.leixingmingcheng || '').trim() || '未分类';
@@ -484,10 +464,6 @@ export class Ribaojiemian {
             if (!zhi) continue;
             if (!anleixing.has(lx)) anleixing.set(lx, new Set());
             anleixing.get(lx).add(zhi);
-            const key = `${lx}::${zhi}`;
-            const cishu = parseInt(bq.cishu, 10);
-            const zengliang = (!isNaN(cishu) && cishu > 0) ? cishu : 1;
-            huizong.set(key, (huizong.get(key) || 0) + zengliang);
         }
         const gongsi = Array.from(anleixing.get('客户公司') || []);
         const lianxiren = Array.from(anleixing.get('客户名字') || []);
@@ -518,13 +494,7 @@ export class Ribaojiemian {
             }
         }
 
-        const gaopin = Array.from(huizong.entries())
-            .map(([k, cishu]) => {
-                const idx = k.indexOf('::');
-                return { leixing: k.slice(0, idx), zhi: k.slice(idx + 2), cishu };
-            })
-            .sort((a, b) => b.cishu - a.cishu)
-            .slice(0, 8);
+        const gaopin = tongjigaopin(biaoqianlie, null, 8);
 
         let html = `<div style="margin:10px 0 12px 0;padding:12px;border:1px dashed #CBD5E1;border-radius:8px;background:#F8FAFC">`;
         html += `<div style="font-size:13px;font-weight:600;color:#334155;margin-bottom:8px">文字图谱</div>`;
@@ -628,11 +598,9 @@ export class Ribaojiemian {
         }
         const ziduanlie = [['neirong', neirong], ['fabushijian', fabushijian]];
         const jg = await this.luoji.ribao_gengxin(this.xuanzhongid, ziduanlie);
-        if (jg && jg.zhuangtaima === 200) {
+        if (chuli_api_jieguo(this.luoji, jg)) {
             this.xuanzhongid = null;
             this.shuaxinribaoliebiao();
-        } else if (jg && jg.zhuangtaima === 403) {
-            this.luoji.rizhi('权限不足：' + jg.xiaoxi, 'warn');
         }
     }
 
@@ -686,7 +654,7 @@ export class Ribaojiemian {
         this._bq_xuanzhong_leixingid = leixingid;
         this._bq_bianji_id = null;
         const nr = document.getElementById('ribao_neirong');
-        nr.innerHTML = '<p style="color:#64748B">加载中...</p>';
+        nr.innerHTML = zhuangtai_html('jiazai', '加载中...');
         const jg = await this.luoji.biaoqian_chaxun_leixingid(leixingid);
         if (!jg || jg.zhuangtaima !== 200) {
             nr.innerHTML = `<p style="color:#EF4444">${jg?.xiaoxi || '加载失败'}</p><button class="aq-btn" onclick="ribao_biaoqian_fanhui()">返回</button>`;
@@ -752,7 +720,7 @@ export class Ribaojiemian {
 
     async xuanranbiaoqianguanlian(ribaoid) {
         const nr = document.getElementById('ribao_neirong');
-        nr.innerHTML = '<p style="color:#64748B">加载中...</p>';
+        nr.innerHTML = zhuangtai_html('jiazai', '加载中...');
         const guanlianjg = await this.luoji.guanlian_chaxun_ribaoid_daixinxi(ribaoid);
         if (!guanlianjg || guanlianjg.zhuangtaima !== 200) {
             const cuowu = !guanlianjg ? '关联查询失败' : `关联查询错误: ${guanlianjg.xiaoxi}`;
@@ -832,7 +800,7 @@ export class Ribaojiemian {
 
     async chakanguanlian(biaoqianid, leixing) {
         const nr = document.getElementById('ribao_neirong');
-        nr.innerHTML = '<p style="color:#64748B">加载中...</p>';
+        nr.innerHTML = zhuangtai_html('jiazai', '加载中...');
         const jg = await this.luoji.guanlian_chaxun_xiangguanbiaoqian(biaoqianid, leixing);
         if (!jg || jg.zhuangtaima !== 200) {
             nr.innerHTML = `<p style="color:#EF4444">查询失败</p><button class="aq-btn" onclick="ribao_guanlianguanlian('${this.xuanzhongid}')">返回</button>`;
@@ -844,7 +812,7 @@ export class Ribaojiemian {
             <button class="aq-btn" onclick="ribao_guanlianguanlian('${this.xuanzhongid}')">返回</button>
         </div>`;
         if (liebiao.length === 0) {
-            html += '<p style="color:#94A3B8">暂无相关标签</p>';
+            html += zhuangtai_html('kong', '暂无相关标签');
         } else {
             html += '<div style="display:flex;flex-wrap:wrap;gap:8px">';
             for (const bq of liebiao) {
@@ -1549,24 +1517,7 @@ export class Ribaojiemian {
         const zuizaoriqi = shijianlie.length ? jiexishijian(Math.min(...shijianlie)) : '';
         const zuixinriqi = shijianlie.length ? jiexishijian(Math.max(...shijianlie)) : '';
 
-        const paihangMap = new Map();
-        for (const bq of (biaoqianlie || [])) {
-            const lx = String(bq.leixingmingcheng || '').trim();
-            const zhi = String(bq.zhi || '').trim();
-            if (!lx || !zhi) continue;
-            if (lx === leixingmingcheng && zhi === mingcheng) continue;
-            const key = `${lx}::${zhi}`;
-            const cishu = parseInt(bq.cishu, 10);
-            const zengliang = (!isNaN(cishu) && cishu > 0) ? cishu : 1;
-            paihangMap.set(key, (paihangMap.get(key) || 0) + zengliang);
-        }
-        const gaopin = Array.from(paihangMap.entries())
-            .map(([k, cishu]) => {
-                const idx = k.indexOf('::');
-                return { leixing: k.slice(0, idx), zhi: k.slice(idx + 2), cishu };
-            })
-            .sort((a, b) => b.cishu - a.cishu)
-            .slice(0, 6);
+        const gaopin = tongjigaopin(biaoqianlie, (lx, zhi) => lx === leixingmingcheng && zhi === mingcheng, 6);
 
         const miaoshuHang = [];
         if (xiangguanGongsi.length > 0) {
@@ -1606,24 +1557,7 @@ export class Ribaojiemian {
     }
 
     _jiandang_xuanran_tupu_zitu(leixingmingcheng, mingcheng, biaoqianlie) {
-        const map = new Map();
-        for (const bq of (biaoqianlie || [])) {
-            const lx = String(bq.leixingmingcheng || '').trim();
-            const zhi = String(bq.zhi || '').trim();
-            if (!lx || !zhi) continue;
-            if (lx === leixingmingcheng && zhi === mingcheng) continue;
-            const key = `${lx}::${zhi}`;
-            const cishu = parseInt(bq.cishu, 10);
-            const zengliang = (!isNaN(cishu) && cishu > 0) ? cishu : 1;
-            map.set(key, (map.get(key) || 0) + zengliang);
-        }
-        const jiedianlie = Array.from(map.entries())
-            .map(([key, cishu]) => {
-                const idx = key.indexOf('::');
-                return { leixing: key.slice(0, idx), zhi: key.slice(idx + 2), cishu };
-            })
-            .sort((a, b) => b.cishu - a.cishu)
-            .slice(0, 12);
+        const jiedianlie = tongjigaopin(biaoqianlie, (lx, zhi) => lx === leixingmingcheng && zhi === mingcheng, 12);
 
         let html = `<div style="margin:10px 0 12px 0;padding:12px;border:1px solid #E2E8F0;border-radius:8px;background:#FFFFFF">`;
         html += `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">`;
@@ -1815,7 +1749,7 @@ export class Ribaojiemian {
             this.luoji.rizhi('仅管理员可新建', 'warn');
             return;
         }
-        const biaoqian = leixingmingcheng === '客户公司' ? '公司' : leixingmingcheng === '客户名字' ? '联系人' : leixingmingcheng === '项目名称' ? '项目' : '标签';
+        const biaoqian = huoqushitibiaoqian(leixingmingcheng);
         const zhi = await aqshuru(`新建${biaoqian}`, `将通过「标签新建」创建${biaoqian}`, '', `请输入${biaoqian}名称`);
         if (zhi === null || zhi === undefined) return;
         const zhiTrim = String(zhi).trim();
@@ -1855,10 +1789,10 @@ export class Ribaojiemian {
             this.luoji.rizhi('仅管理员可编辑', 'warn');
             return;
         }
-        const biaoqian = leixingmingcheng === '客户公司' ? '公司' : leixingmingcheng === '客户名字' ? '联系人' : leixingmingcheng === '项目名称' ? '项目' : '标签';
+        const biaoqian = huoqushitibiaoqian(leixingmingcheng);
         const xinmingcheng = await aqshuru(`编辑${biaoqian}`, `修改${biaoqian}名称`, mingcheng, `请输入新的${biaoqian}名称`);
         if (xinmingcheng === null || xinmingcheng === undefined) return;
-        const xinTrim = String(xinmingcheng).trim();
+        const xinTrim = String(xinmingcheng || '').trim();
         const jiuTrim = String(mingcheng || '').trim();
         if (!xinTrim) {
             this.luoji.rizhi('名称不能为空', 'warn');
@@ -1900,7 +1834,7 @@ export class Ribaojiemian {
             this.luoji.rizhi('仅管理员可删除', 'warn');
             return;
         }
-        const biaoqian = leixingmingcheng === '客户公司' ? '公司' : leixingmingcheng === '客户名字' ? '联系人' : leixingmingcheng === '项目名称' ? '项目' : '标签';
+        const biaoqian = huoqushitibiaoqian(leixingmingcheng);
         const queren = await aqqueren(`删除${biaoqian}`, `确认删除${biaoqian}「${this._bq_zhuanyi(mingcheng)}」？`);
         if (!queren) return;
 
@@ -1991,7 +1925,7 @@ export class Ribaojiemian {
 
     async shuaxinrenwuliebiao() {
         const nr = document.getElementById('ribao_neirong');
-        nr.innerHTML = '<p style="color:#64748B">加载中...</p>';
+        nr.innerHTML = zhuangtai_html('jiazai', '加载中...');
         const [liebiaoqj, yichuli, kechuli, chulizhong, shibaishu_jg, zhuangtaijg] = await Promise.all([
             this.luoji.renwu_chaxun_fenye(this.renwushaixuan, this.renwuyeshu, this.renwumeiyetiaoshu),
             this.luoji.renwu_tongji_zhuangtai('true'),
@@ -2144,7 +2078,7 @@ export class Ribaojiemian {
 
     async shuaxintupushitu() {
         const nr = document.getElementById('ribao_neirong');
-        nr.innerHTML = '<p style="color:#64748B">加载图谱数据...</p>';
+        nr.innerHTML = zhuangtai_html('jiazai', '加载图谱数据...');
         const leixingjg = await this.luoji.leixing_chaxun_quanbu();
         const leixinglie = leixingjg?.zhuangtaima === 200 ? leixingjg.shuju || [] : [];
         let html = '<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">';
@@ -2252,6 +2186,17 @@ export class Ribaojiemian {
         </div>`;
     }
 
+    _tupu_celan_chongzhizhuangtai(huoqufn, fugai = {}) {
+        this._tupu_celan_yeshu = 1;
+        this._tupu_celan_huoqufn = huoqufn || null;
+        this._tupu_celan_biaoqianid = fugai.biaoqianid ?? null;
+        this._tupu_celan_shitimingcheng = fugai.shitimingcheng ?? null;
+        this._tupu_celan_yuan_id = fugai.yuan_id ?? null;
+        this._tupu_celan_mubiao_id = fugai.mubiao_id ?? null;
+        this._tupu_celan_guanxi_ren1 = fugai.guanxi_ren1 ?? null;
+        this._tupu_celan_guanxi_ren2 = fugai.guanxi_ren2 ?? null;
+    }
+
     _tupu_xianshi_celan_jiedian(j, gx_lie) {
         const celan = document.getElementById('tupu_celan');
         if (!celan) return;
@@ -2305,18 +2250,14 @@ export class Ribaojiemian {
                     <div id="tupu_celan_ribaolie"><p style="color:#94A3B8;font-size:13px">\u52a0\u8f7d\u4e2d...</p></div>
                 </div>
             </div>`;
-        this._tupu_celan_yeshu = 1;
-        this._tupu_celan_biaoqianid = shifou_xuni ? null : j.id;
-        this._tupu_celan_shitimingcheng = shifou_xuni ? j.zhi : null;
-        this._tupu_celan_yuan_id = null;
-        this._tupu_celan_mubiao_id = null;
-        this._tupu_celan_guanxi_ren1 = null;
-        this._tupu_celan_guanxi_ren2 = null;
-        if (shifou_xuni) {
-            this._tupu_celan_jiazai_shiti_ribao(j.zhi, 1);
-        } else {
-            this._tupu_celan_jiazai_jiedian_ribao(j.id, 1);
-        }
+        const huoqufn = shifou_xuni
+            ? (y, m) => this.luoji.tupu_guanxi_shiti_ribao_fenye(j.zhi, y, m)
+            : (y, m) => this.luoji.tupu_ribao_fenye(j.id, y, m);
+        this._tupu_celan_chongzhizhuangtai(huoqufn, {
+            biaoqianid: shifou_xuni ? null : j.id,
+            shitimingcheng: shifou_xuni ? j.zhi : null,
+        });
+        this._tupu_celan_jiazai_ribao(1);
     }
 
     _tupu_xianshi_celan_guanxibian(yuan, mubiao, gb) {
@@ -2348,14 +2289,11 @@ export class Ribaojiemian {
                     <div id="tupu_celan_ribaolie"><p style="color:#94A3B8;font-size:13px">\u52a0\u8f7d\u4e2d...</p></div>
                 </div>
             </div>`;
-        this._tupu_celan_yeshu = 1;
-        this._tupu_celan_biaoqianid = null;
-        this._tupu_celan_shitimingcheng = null;
-        this._tupu_celan_yuan_id = null;
-        this._tupu_celan_mubiao_id = null;
-        this._tupu_celan_guanxi_ren1 = yuan.zhi;
-        this._tupu_celan_guanxi_ren2 = mubiao.zhi;
-        this._tupu_celan_jiazai_guanxi_bian_ribao(yuan.zhi, mubiao.zhi, 1);
+        this._tupu_celan_chongzhizhuangtai(
+            (y, m) => this.luoji.tupu_guanxi_bian_ribao_fenye(yuan.zhi, mubiao.zhi, y, m),
+            { guanxi_ren1: yuan.zhi, guanxi_ren2: mubiao.zhi }
+        );
+        this._tupu_celan_jiazai_ribao(1);
     }
 
     _tupu_xianshi_celan_bian(yuan, mubiao, quanzhong) {
@@ -2388,14 +2326,11 @@ export class Ribaojiemian {
                     <div id="tupu_celan_ribaolie"><p style="color:#94A3B8;font-size:13px">\u52a0\u8f7d\u4e2d...</p></div>
                 </div>
             </div>`;
-        this._tupu_celan_yeshu = 1;
-        this._tupu_celan_biaoqianid = null;
-        this._tupu_celan_shitimingcheng = null;
-        this._tupu_celan_yuan_id = yuan.id;
-        this._tupu_celan_mubiao_id = mubiao.id;
-        this._tupu_celan_guanxi_ren1 = null;
-        this._tupu_celan_guanxi_ren2 = null;
-        this._tupu_celan_jiazai_bian_ribao(yuan.id, mubiao.id, 1);
+        this._tupu_celan_chongzhizhuangtai(
+            (y, m) => this.luoji.tupu_bian_ribao_fenye(yuan.id, mubiao.id, y, m),
+            { yuan_id: yuan.id, mubiao_id: mubiao.id }
+        );
+        this._tupu_celan_jiazai_ribao(1);
     }
 
     _tupu_celan_xuanran_ribaolie(liebiao, zongshu, yeshu, meiyetiaoshu) {
@@ -2434,45 +2369,10 @@ export class Ribaojiemian {
         this._tupu_celan_yeshu = yeshu;
     }
 
-    async _tupu_celan_jiazai_jiedian_ribao(biaoqianid, yeshu) {
+    async _tupu_celan_jiazai_ribao(yeshu) {
+        if (!this._tupu_celan_huoqufn) return;
         const meiyetiaoshu = 5;
-        const jg = await this.luoji.tupu_ribao_fenye(biaoqianid, yeshu, meiyetiaoshu);
-        if (!jg || jg.zhuangtaima !== 200) {
-            const rongqi = document.getElementById('tupu_celan_ribaolie');
-            if (rongqi) rongqi.innerHTML = '<p style="color:#EF4444;font-size:13px">加载失败</p>';
-            return;
-        }
-        const { liebiao = [], zongshu = 0 } = jg.shuju || {};
-        this._tupu_celan_xuanran_ribaolie(liebiao, zongshu, yeshu, meiyetiaoshu);
-    }
-
-    async _tupu_celan_jiazai_shiti_ribao(shitimingcheng, yeshu) {
-        const meiyetiaoshu = 5;
-        const jg = await this.luoji.tupu_guanxi_shiti_ribao_fenye(shitimingcheng, yeshu, meiyetiaoshu);
-        if (!jg || jg.zhuangtaima !== 200) {
-            const rongqi = document.getElementById('tupu_celan_ribaolie');
-            if (rongqi) rongqi.innerHTML = '<p style="color:#EF4444;font-size:13px">加载失败</p>';
-            return;
-        }
-        const { liebiao = [], zongshu = 0 } = jg.shuju || {};
-        this._tupu_celan_xuanran_ribaolie(liebiao, zongshu, yeshu, meiyetiaoshu);
-    }
-
-    async _tupu_celan_jiazai_bian_ribao(yuan_biaoqianid, mubiao_biaoqianid, yeshu) {
-        const meiyetiaoshu = 5;
-        const jg = await this.luoji.tupu_bian_ribao_fenye(yuan_biaoqianid, mubiao_biaoqianid, yeshu, meiyetiaoshu);
-        if (!jg || jg.zhuangtaima !== 200) {
-            const rongqi = document.getElementById('tupu_celan_ribaolie');
-            if (rongqi) rongqi.innerHTML = '<p style="color:#EF4444;font-size:13px">加载失败</p>';
-            return;
-        }
-        const { liebiao = [], zongshu = 0 } = jg.shuju || {};
-        this._tupu_celan_xuanran_ribaolie(liebiao, zongshu, yeshu, meiyetiaoshu);
-    }
-
-    async _tupu_celan_jiazai_guanxi_bian_ribao(ren1, ren2, yeshu) {
-        const meiyetiaoshu = 5;
-        const jg = await this.luoji.tupu_guanxi_bian_ribao_fenye(ren1, ren2, yeshu, meiyetiaoshu);
+        const jg = await this._tupu_celan_huoqufn(yeshu, meiyetiaoshu);
         if (!jg || jg.zhuangtaima !== 200) {
             const rongqi = document.getElementById('tupu_celan_ribaolie');
             if (rongqi) rongqi.innerHTML = '<p style="color:#EF4444;font-size:13px">加载失败</p>';
@@ -2483,13 +2383,10 @@ export class Ribaojiemian {
     }
 
     tupu_celan_chakanGuanxi(ren1, ren2) {
-        this._tupu_celan_yeshu = 1;
-        this._tupu_celan_biaoqianid = null;
-        this._tupu_celan_shitimingcheng = null;
-        this._tupu_celan_yuan_id = null;
-        this._tupu_celan_mubiao_id = null;
-        this._tupu_celan_guanxi_ren1 = ren1;
-        this._tupu_celan_guanxi_ren2 = ren2;
+        this._tupu_celan_chongzhizhuangtai(
+            (y, m) => this.luoji.tupu_guanxi_bian_ribao_fenye(ren1, ren2, y, m),
+            { guanxi_ren1: ren1, guanxi_ren2: ren2 }
+        );
         const celan = document.getElementById('tupu_celan');
         if (!celan) return;
         celan.style.display = 'block';
@@ -2501,35 +2398,16 @@ export class Ribaojiemian {
                     <div id="tupu_celan_ribaolie"><p style="color:#94A3B8;font-size:13px">\u52a0\u8f7d\u4e2d...</p></div>
                 </div>
             </div>`;
-        this._tupu_celan_jiazai_guanxi_bian_ribao(ren1, ren2, 1);
+        this._tupu_celan_jiazai_ribao(1);
     }
 
-    tupu_celan_shangyiye() {
-        if (this._tupu_celan_yeshu <= 1) return;
-        const yeshu = this._tupu_celan_yeshu - 1;
-        if (this._tupu_celan_guanxi_ren1 && this._tupu_celan_guanxi_ren2) {
-            this._tupu_celan_jiazai_guanxi_bian_ribao(this._tupu_celan_guanxi_ren1, this._tupu_celan_guanxi_ren2, yeshu);
-        } else if (this._tupu_celan_yuan_id && this._tupu_celan_mubiao_id) {
-            this._tupu_celan_jiazai_bian_ribao(this._tupu_celan_yuan_id, this._tupu_celan_mubiao_id, yeshu);
-        } else if (this._tupu_celan_shitimingcheng) {
-            this._tupu_celan_jiazai_shiti_ribao(this._tupu_celan_shitimingcheng, yeshu);
-        } else if (this._tupu_celan_biaoqianid) {
-            this._tupu_celan_jiazai_jiedian_ribao(this._tupu_celan_biaoqianid, yeshu);
-        }
+    _tupu_celan_fanyue(fangxiang) {
+        const yeshu = this._tupu_celan_yeshu + fangxiang;
+        if (yeshu < 1 || !this._tupu_celan_huoqufn) return;
+        this._tupu_celan_jiazai_ribao(yeshu);
     }
-
-    tupu_celan_xiayiye() {
-        const yeshu = this._tupu_celan_yeshu + 1;
-        if (this._tupu_celan_guanxi_ren1 && this._tupu_celan_guanxi_ren2) {
-            this._tupu_celan_jiazai_guanxi_bian_ribao(this._tupu_celan_guanxi_ren1, this._tupu_celan_guanxi_ren2, yeshu);
-        } else if (this._tupu_celan_yuan_id && this._tupu_celan_mubiao_id) {
-            this._tupu_celan_jiazai_bian_ribao(this._tupu_celan_yuan_id, this._tupu_celan_mubiao_id, yeshu);
-        } else if (this._tupu_celan_shitimingcheng) {
-            this._tupu_celan_jiazai_shiti_ribao(this._tupu_celan_shitimingcheng, yeshu);
-        } else if (this._tupu_celan_biaoqianid) {
-            this._tupu_celan_jiazai_jiedian_ribao(this._tupu_celan_biaoqianid, yeshu);
-        }
-    }
+    tupu_celan_shangyiye() { this._tupu_celan_fanyue(-1); }
+    tupu_celan_xiayiye() { this._tupu_celan_fanyue(1); }
 
     async tupu_chakanribao(ribaoid) {
         await this.qiehuanshitu('ribao');
@@ -2904,47 +2782,35 @@ export class Ribaojiemian {
         return fxr.xuanran_jiaoliu_fenxi_jieguo(fenxi);
     }
 
-    fenxi_shiti_guanlian(leixingmingcheng) {
-        const xuanzhong = this._fenxi_zt.huoquXuanzhonglie(leixingmingcheng);
-        if (xuanzhong.length < 2) {
-            this.luoji.rizhi('请至少勾选2个进行关联分析', 'warn');
-            return;
-        }
-        const lx_peizhi = this._fenxi_zt.chazhaoLeixingPeizhi(leixingmingcheng);
-        const biaoti = lx_peizhi?.biaoti || leixingmingcheng;
-        this._guanlian_huancun = { leixing: 'shiti', leixingmingcheng, xuanzhong, biaoti };
+    _fenxi_xianshi_guanlian_jiemian(biaoti, fubiaoti, tishiwen) {
         const jieguo_qu = document.getElementById('fenxi_jieguo_qu');
         if (!jieguo_qu) return;
-        let html = `<div class="fenxi-title">${biaoti}关联分析</div>`;
-        html += `<div class="fenxi-sub">已选：${xuanzhong.join(' / ')}</div>`;
+        let html = `<div class="fenxi-title">${biaoti}</div>`;
+        html += `<div class="fenxi-sub">${fubiaoti}</div>`;
         html += `<div style="margin:16px 0">`;
         html += `<div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:8px">你想让 AI 重点分析什么？（可选）</div>`;
-        html += `<textarea id="fenxi_guanlian_tishi" rows="3" placeholder="例如：分析这些${biaoti}之间的关联关系、资源冲突、协作问题...\n留空则使用默认全面分析" style="width:100%;padding:10px 12px;border:1px solid #E2E8F0;border-radius:10px;font-size:13px;outline:none;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>`;
+        html += `<textarea id="fenxi_guanlian_tishi" rows="3" placeholder="例如：${tishiwen}\n留空则使用默认全面分析" style="width:100%;padding:10px 12px;border:1px solid #E2E8F0;border-radius:10px;font-size:13px;outline:none;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>`;
         html += `</div>`;
         html += `<button class="aq-btn aq-btn-zhu" onclick="ribao_fenxi_guanlian_kaishi()" style="margin-right:8px">开始深度分析</button>`;
         html += `<span style="font-size:12px;color:#94A3B8">将基于日报原文进行深度关联分析</span>`;
         jieguo_qu.innerHTML = html;
     }
 
+    fenxi_shiti_guanlian(leixingmingcheng) {
+        const xuanzhong = this._fenxi_zt.huoquXuanzhonglie(leixingmingcheng);
+        if (xuanzhong.length < 2) { this.luoji.rizhi('请至少勾选2个进行关联分析', 'warn'); return; }
+        const lx_peizhi = this._fenxi_zt.chazhaoLeixingPeizhi(leixingmingcheng);
+        const biaoti = lx_peizhi?.biaoti || leixingmingcheng;
+        this._guanlian_huancun = { leixing: 'shiti', leixingmingcheng, xuanzhong, biaoti };
+        this._fenxi_xianshi_guanlian_jiemian(`${biaoti}关联分析`, `已选：${xuanzhong.join(' / ')}`, `分析这些${biaoti}之间的关联关系、资源冲突、协作问题...`);
+    }
+
     fenxi_zonghe_guanlian() {
         const suoyou = this._fenxi_zt.huoquSuoyouXuanzhong();
-        if (suoyou.length < 2) {
-            this.luoji.rizhi('请跨类型勾选至少2个实体进行关联分析', 'warn');
-            return;
-        }
+        if (suoyou.length < 2) { this.luoji.rizhi('请跨类型勾选至少2个实体进行关联分析', 'warn'); return; }
         this._guanlian_huancun = { leixing: 'zonghe', suoyou };
-        const jieguo_qu = document.getElementById('fenxi_jieguo_qu');
-        if (!jieguo_qu) return;
         const miaoshu = suoyou.map(s => `${s.leixing}:${s.zhi}`).join(' / ');
-        let html = `<div class="fenxi-title">综合关联分析</div>`;
-        html += `<div class="fenxi-sub">已选实体：${miaoshu}</div>`;
-        html += `<div style="margin:16px 0">`;
-        html += `<div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:8px">你想让 AI 重点分析什么？（可选）</div>`;
-        html += `<textarea id="fenxi_guanlian_tishi" rows="3" placeholder="例如：分析这些人员和项目之间的协作问题、风险点、资源冲突...\n留空则使用默认全面分析" style="width:100%;padding:10px 12px;border:1px solid #E2E8F0;border-radius:10px;font-size:13px;outline:none;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>`;
-        html += `</div>`;
-        html += `<button class="aq-btn aq-btn-zhu" onclick="ribao_fenxi_guanlian_kaishi()" style="margin-right:8px">开始深度分析</button>`;
-        html += `<span style="font-size:12px;color:#94A3B8">将基于日报原文进行深度关联分析</span>`;
-        jieguo_qu.innerHTML = html;
+        this._fenxi_xianshi_guanlian_jiemian('综合关联分析', `已选实体：${miaoshu}`, '分析这些人员和项目之间的协作问题、风险点、资源冲突...');
     }
 
     async fenxi_guanlian_kaishi() {
