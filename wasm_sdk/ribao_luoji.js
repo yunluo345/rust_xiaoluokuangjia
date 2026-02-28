@@ -455,8 +455,25 @@ export class Ribaoluoji {
         return jg;
     }
 
+    async guanxi_chaxun_ribaoid(ribaoid) {
+        const jg = await this.zhixing('guanxi_chaxun_ribaoid', { ribaoid });
+        if (jg) this.rizhi('查询日报关系边[' + ribaoid + ']: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async guanxi_piliang_shanchu_ribaoidlie(idlie) {
+        const jg = await this.zhixing('guanxi_piliang_shanchu_ribaoidlie', { idlie });
+        if (jg) this.rizhi('批量删除关系边: ' + jg.xiaoxi, jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
     async tupu_guanxi_shiti_ribao_fenye(shitimingcheng, yeshu, meiyetiaoshu) {
         const jg = await this.zhixing('tupu_guanxi_shiti_ribao_fenye', { shitimingcheng, yeshu, meiyetiaoshu });
+        return jg;
+    }
+
+    async tupu_guanxi_bian_ribao_fenye(ren1, ren2, yeshu, meiyetiaoshu) {
+        const jg = await this.zhixing('tupu_guanxi_bian_ribao_fenye', { ren1, ren2, yeshu, meiyetiaoshu });
         return jg;
     }
 

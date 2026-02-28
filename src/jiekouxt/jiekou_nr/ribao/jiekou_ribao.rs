@@ -134,6 +134,9 @@ struct TupuDuobiaoqianfenyecanshu { biaoqianidlie: Vec<String>, yeshu: i64, meiy
 struct Tupuguanxishitiribaofenyecanshu { shitimingcheng: String, yeshu: i64, meiyetiaoshu: i64 }
 
 #[derive(Deserialize)]
+struct Tupuguanxibianribaofenyecanshu { ren1: String, ren2: String, yeshu: i64, meiyetiaoshu: i64 }
+
+#[derive(Deserialize)]
 struct Fenxijiaoliuneirongcanshu { shiti_leixing: String, shiti_mingcheng: String }
 
 #[derive(Deserialize)]
@@ -556,10 +559,25 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
             let zongshu = shujucaozuo_ribao_biaoqian::tongji_tupu_bian_ribao_zongshu(&canshu.yuan_biaoqianid, &canshu.mubiao_biaoqianid).await.unwrap_or(0);
             jiamichenggong("查询成功", serde_json::json!({"liebiao": liebiao, "zongshu": zongshu}), miyao)
         }
+        "guanxi_chaxun_ribaoid" => {
+            let canshu = jiexi_canshu!(qingqiu, Ribaoidcanshu, miyao);
+            chuli_chaxun_liebiao!(canshu, miyao, shujucaozuo_ribao_guanxi::chaxun_ribaoid(&canshu.ribaoid))
+        }
+        "guanxi_piliang_shanchu_ribaoidlie" => {
+            let canshu = jiexi_canshu!(qingqiu, Idliecanshu, miyao);
+            let idlie: Vec<&str> = canshu.idlie.iter().map(String::as_str).collect();
+            chuli_shanchu_gengxin!(canshu, miyao, shujucaozuo_ribao_guanxi::piliang_shanchu_ribaoidlie(&idlie), "批量删除成功", &cuowu::shanchushibai)
+        }
         "tupu_guanxi_shiti_ribao_fenye" => {
             let canshu = jiexi_canshu!(qingqiu, Tupuguanxishitiribaofenyecanshu, miyao);
             let liebiao = shujucaozuo_ribao_guanxi::chaxun_ribao_an_shitimingcheng(&canshu.shitimingcheng, canshu.yeshu, canshu.meiyetiaoshu).await.unwrap_or_default();
             let zongshu = shujucaozuo_ribao_guanxi::tongji_ribao_an_shitimingcheng(&canshu.shitimingcheng).await.unwrap_or(0);
+            jiamichenggong("查询成功", serde_json::json!({"liebiao": liebiao, "zongshu": zongshu}), miyao)
+        }
+        "tupu_guanxi_bian_ribao_fenye" => {
+            let canshu = jiexi_canshu!(qingqiu, Tupuguanxibianribaofenyecanshu, miyao);
+            let liebiao = shujucaozuo_ribao_guanxi::chaxun_ribao_an_guanxidui(&canshu.ren1, &canshu.ren2, canshu.yeshu, canshu.meiyetiaoshu).await.unwrap_or_default();
+            let zongshu = shujucaozuo_ribao_guanxi::tongji_ribao_an_guanxidui(&canshu.ren1, &canshu.ren2).await.unwrap_or(0);
             jiamichenggong("查询成功", serde_json::json!({"liebiao": liebiao, "zongshu": zongshu}), miyao)
         }
         "tupu_ribao_duobiaoqian_fenye" => {

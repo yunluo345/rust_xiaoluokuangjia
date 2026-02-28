@@ -11,6 +11,9 @@ pub async fn xinzeng(
     miaoshu: &str, xindu: &str, zhengjupianduan: &str,
     juese_ren1: &str, juese_ren2: &str, qinggan_qingxiang: &str,
 ) -> Option<u64> {
+    if ren1.is_empty() || ren2.is_empty() || guanxi.is_empty() {
+        return None;
+    }
     let shijian = jichugongju::huoqushijianchuo().to_string();
     psqlcaozuo::zhixing(
         &format!(
@@ -22,12 +25,25 @@ pub async fn xinzeng(
     ).await
 }
 
+/// 查询某日报的所有关系边
+pub async fn chaxun_ribaoid(ribaoid: &str) -> Option<Vec<Value>> {
+    psqlcaozuo::chaxun(
+        &format!("SELECT * FROM {} WHERE ribaoid = $1::BIGINT ORDER BY chuangjianshijian ASC", biaoming),
+        &[ribaoid],
+    ).await
+}
+
 /// 删除某日报的所有关系边（用于重新分析前清理）
 pub async fn shanchu_ribaoid(ribaoid: &str) -> Option<u64> {
     psqlcaozuo::zhixing(
         &format!("DELETE FROM {} WHERE ribaoid = $1::BIGINT", biaoming),
         &[ribaoid],
     ).await
+}
+
+/// 批量删除日报关系边（按日报ID列表）
+pub async fn piliang_shanchu_ribaoidlie(ribaoidlie: &[&str]) -> Option<u64> {
+    jichugongju::piliang_shanchu_ziduan(biaoming, "ribaoid", ribaoidlie).await
 }
 
 /// 批量写入日报关系边（先删旧再插新）
@@ -175,6 +191,38 @@ pub async fn tongji_ribao_an_shitimingcheng(mingcheng: &str) -> Option<i64> {
             biaoming
         ),
         &[mingcheng],
+    ).await?;
+    jieguo.first()?.get("count")?.as_str()?.parse().ok()
+}
+
+/// 按双方实体名称分页查询关联日报（关系边→日报）
+pub async fn chaxun_ribao_an_guanxidui(ren1: &str, ren2: &str, yeshu: i64, meiyetiaoshu: i64) -> Option<Vec<Value>> {
+    let (tiaoshu, pianyi) = jichugongju::jisuanfenye(yeshu, meiyetiaoshu);
+    psqlcaozuo::chaxun(
+        &format!(
+            "SELECT DISTINCT r.*, y.nicheng AS fabuzhemingcheng, y.zhanghao AS fabuzhezhanghao \
+             FROM ribao r \
+             INNER JOIN {} g ON r.id = g.ribaoid \
+             LEFT JOIN yonghu y ON r.yonghuid = y.id \
+             WHERE (g.ren1 = $1 AND g.ren2 = $2) OR (g.ren1 = $2 AND g.ren2 = $1) \
+             ORDER BY r.fabushijian DESC \
+             LIMIT $3::BIGINT OFFSET $4::BIGINT",
+            biaoming
+        ),
+        &[ren1, ren2, &tiaoshu, &pianyi],
+    ).await
+}
+
+/// 统计双方实体名称关联的日报总数
+pub async fn tongji_ribao_an_guanxidui(ren1: &str, ren2: &str) -> Option<i64> {
+    let jieguo = psqlcaozuo::chaxun(
+        &format!(
+            "SELECT COUNT(DISTINCT g.ribaoid)::TEXT AS count \
+             FROM {} g \
+             WHERE (g.ren1 = $1 AND g.ren2 = $2) OR (g.ren1 = $2 AND g.ren2 = $1)",
+            biaoming
+        ),
+        &[ren1, ren2],
     ).await?;
     jieguo.first()?.get("count")?.as_str()?.parse().ok()
 }

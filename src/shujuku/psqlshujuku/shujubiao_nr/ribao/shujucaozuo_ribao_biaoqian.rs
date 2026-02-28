@@ -209,7 +209,7 @@ pub async fn chaxun_tupu_quanbu() -> Option<Value> {
     let mut jiedian = chaxun_tupu_jiedian("", &[], "l.mingcheng, b.zhi").await?;
     let bian = chaxun_tupu_bian("", "", &[]).await;
     let juhe = shujucaozuo_ribao_guanxi::chaxun_juhe_quanbu().await;
-    let (guanxi_bian, ewai_jiedian) = chaxun_tupu_guanxi_bian(&jiedian, juhe).await;
+    let (guanxi_bian, ewai_jiedian) = chaxun_tupu_guanxi_bian(&jiedian, juhe, false, true).await;
     jiedian.extend(ewai_jiedian);
     Some(serde_json::json!({"jiedian": jiedian, "bian": bian, "guanxi_bian": guanxi_bian}))
 }
@@ -230,7 +230,7 @@ pub async fn chaxun_tupu_biaoqianid(biaoqianid: &str) -> Option<Value> {
     jiedian.extend(guanlian);
     let bian = chaxun_tupu_bian_anzifanwei(&jiedian).await;
     let juhe = shujucaozuo_ribao_guanxi::chaxun_juhe_an_biaoqianid(biaoqianid).await;
-    let (guanxi_bian, ewai_jiedian) = chaxun_tupu_guanxi_bian(&jiedian, juhe).await;
+    let (guanxi_bian, ewai_jiedian) = chaxun_tupu_guanxi_bian(&jiedian, juhe, false, true).await;
     jiedian.extend(ewai_jiedian);
     Some(serde_json::json!({"jiedian": jiedian, "bian": bian, "guanxi_bian": guanxi_bian}))
 }
@@ -238,14 +238,11 @@ pub async fn chaxun_tupu_biaoqianid(biaoqianid: &str) -> Option<Value> {
 /// 按标签类型筛选图谱
 pub async fn chaxun_tupu_leixingmingcheng(leixingmingcheng: &str) -> Option<Value> {
     let mut jiedian = chaxun_tupu_jiedian("l.mingcheng = $1", &[leixingmingcheng], "b.zhi").await?;
-    let bian = chaxun_tupu_bian(
-        " JOIN biaoqianleixing l1 ON b1.leixingid = l1.id \
-         JOIN biaoqianleixing l2 ON b2.leixingid = l2.id",
-        "l1.mingcheng = $1 OR l2.mingcheng = $1",
-        &[leixingmingcheng],
-    ).await;
+    // 类型视图下，共现边严格限制为当前节点集合内部，避免连到集合外实体
+    let bian = chaxun_tupu_bian_anzifanwei(&jiedian).await;
     let juhe = shujucaozuo_ribao_guanxi::chaxun_juhe_an_leixingmingcheng(leixingmingcheng).await;
-    let (guanxi_bian, ewai_jiedian) = chaxun_tupu_guanxi_bian(&jiedian, juhe).await;
+    // 类型视图下，关系边仅保留两端都在当前节点集合内的关系，且不补虚拟节点
+    let (guanxi_bian, ewai_jiedian) = chaxun_tupu_guanxi_bian(&jiedian, juhe, true, false).await;
     jiedian.extend(ewai_jiedian);
     Some(serde_json::json!({"jiedian": jiedian, "bian": bian, "guanxi_bian": guanxi_bian}))
 }
@@ -412,8 +409,15 @@ fn fancheng_tihuan_mingcheng(mingcheng: &str, leixing_dao_mingchenglie: &HashMap
 
 /// 将关系聚合数据转换为图谱边 + 虚拟节点
 /// juhe_jieguo: 由调用方按作用域预查询的聚合关系数据
+/// strict_scope: true=两端都必须在当前节点集；false=至少一端命中即可
+/// allow_virtual_nodes: true=允许补充虚拟节点；false=禁止补虚拟节点
 /// 返回 (关系边列表, 额外虚拟节点列表)
-async fn chaxun_tupu_guanxi_bian(jiedianlie: &[Value], juhe_jieguo: Vec<Value>) -> (Vec<Value>, Vec<Value>) {
+async fn chaxun_tupu_guanxi_bian(
+    jiedianlie: &[Value],
+    juhe_jieguo: Vec<Value>,
+    strict_scope: bool,
+    allow_virtual_nodes: bool,
+) -> (Vec<Value>, Vec<Value>) {
     // 构建 name→(id, leixing, youxianji) 映射，同名多节点按优先级选主节点
     let mut mingcheng_dao_hourenlie: HashMap<String, Vec<(String, String, u8)>> = HashMap::new();
     for j in jiedianlie {
@@ -472,9 +476,12 @@ async fn chaxun_tupu_guanxi_bian(jiedianlie: &[Value], juhe_jieguo: Vec<Value>) 
     let mut ewai_jiedian: Vec<Value> = Vec::new();
 
     // 辅助：获取或创建虚拟节点ID
-    let huoqu_id = |mingcheng: &str, juese: Option<&str>, mingcheng_dao_id: &mut HashMap<String, String>, ewai: &mut Vec<Value>, jishu: &mut i64| -> String {
+    let huoqu_id = |mingcheng: &str, juese: Option<&str>, mingcheng_dao_id: &mut HashMap<String, String>, ewai: &mut Vec<Value>, jishu: &mut i64| -> Option<String> {
         if let Some(id) = mingcheng_dao_id.get(mingcheng) {
-            return id.clone();
+            return Some(id.clone());
+        }
+        if !allow_virtual_nodes {
+            return None;
         }
         let xuni_id = jishu.to_string();
         *jishu -= 1;
@@ -487,7 +494,7 @@ async fn chaxun_tupu_guanxi_bian(jiedianlie: &[Value], juhe_jieguo: Vec<Value>) 
         }));
         mingcheng_dao_id.insert(mingcheng.to_string(), xuni_id.clone());
         println!("[图谱关系边] 补充虚拟节点 \"{}\"({}), ID={}", mingcheng, leixing, xuni_id);
-        xuni_id
+        Some(xuni_id)
     };
 
     // 转换为图谱格式（泛称→真名替换 + 实体名称→节点ID映射）
@@ -518,12 +525,22 @@ async fn chaxun_tupu_guanxi_bian(jiedianlie: &[Value], juhe_jieguo: Vec<Value>) 
         for ren1 in &ren1_lie {
             for ren2 in &ren2_lie {
                 if ren1 == ren2 { continue; }
-                if !zhenshi_mingcheng.contains(ren1.as_str()) && !zhenshi_mingcheng.contains(ren2.as_str()) {
+                if strict_scope {
+                    if !zhenshi_mingcheng.contains(ren1.as_str()) || !zhenshi_mingcheng.contains(ren2.as_str()) {
+                        continue;
+                    }
+                } else if !zhenshi_mingcheng.contains(ren1.as_str()) && !zhenshi_mingcheng.contains(ren2.as_str()) {
                     continue;
                 }
 
-                let yuan_id = huoqu_id(ren1, juese_r1, &mut mingcheng_dao_id, &mut ewai_jiedian, &mut xuni_jishu);
-                let mubiao_id = huoqu_id(ren2, juese_r2, &mut mingcheng_dao_id, &mut ewai_jiedian, &mut xuni_jishu);
+                let yuan_id = match huoqu_id(ren1, juese_r1, &mut mingcheng_dao_id, &mut ewai_jiedian, &mut xuni_jishu) {
+                    Some(v) => v,
+                    None => continue,
+                };
+                let mubiao_id = match huoqu_id(ren2, juese_r2, &mut mingcheng_dao_id, &mut ewai_jiedian, &mut xuni_jishu) {
+                    Some(v) => v,
+                    None => continue,
+                };
                 if yuan_id == mubiao_id { continue; }
 
                 let (k_yuan, k_mubiao) = if yuan_id < mubiao_id {
