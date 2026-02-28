@@ -55,7 +55,7 @@ export class Yonghujiemian {
     }
 
     _fanhuianniu(fn) {
-        return `<button onclick="${fn}" style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;background:white;color:#475569;border:1px solid #E2E8F0;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;transition:all 200ms;box-shadow:0 1px 2px rgba(0,0,0,0.05)" onmouseover="this.style.borderColor='#3B82F6';this.style.color='#3B82F6'" onmouseout="this.style.borderColor='#E2E8F0';this.style.color='#475569'"><svg style="width:16px;height:16px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>返回列表</button>`;
+        return `<button onclick="${fn}" style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;background:white;color:#475569;border:1px solid #E2E8F0;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;transition:all 200ms;box-shadow:0 1px 2px rgba(0,0,0,0.05)" onmouseenter="this.style.borderColor='#3B82F6';this.style.color='#3B82F6'" onmouseleave="this.style.borderColor='#E2E8F0';this.style.color='#475569'"><svg style="width:16px;height:16px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>返回列表</button>`;
     }
 
     _xuanranfenye(zongshu, liang, ye, shangyifn, xiayifn) {
@@ -63,7 +63,7 @@ export class Yonghujiemian {
         if (zongyeshu <= 1) return '';
         const syjy = ye <= 1, xyjy = ye >= zongyeshu;
         const yang = (jy) => `display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:${jy ? '#F1F5F9' : 'white'};color:${jy ? '#94A3B8' : '#475569'};border:1px solid #E2E8F0;border-radius:8px;font-size:14px;font-weight:500;cursor:${jy ? 'not-allowed' : 'pointer'};transition:all 200ms;box-shadow:0 1px 2px rgba(0,0,0,0.05)`;
-        const hv = `onmouseover="this.style.borderColor='#3B82F6';this.style.color='#3B82F6'" onmouseout="this.style.borderColor='#E2E8F0';this.style.color='#475569'"`;
+        const hv = `onmouseenter="this.style.borderColor='#3B82F6';this.style.color='#3B82F6'" onmouseleave="this.style.borderColor='#E2E8F0';this.style.color='#475569'"`;
         return `<div style="display:flex;justify-content:center;align-items:center;gap:12px;margin-top:20px;padding:16px;background:#F8FAFC;border-radius:12px"><button onclick="${shangyifn}" ${syjy ? 'disabled' : ''} style="${yang(syjy)}" ${syjy ? '' : hv}><svg style="width:16px;height:16px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>上一页</button><div style="display:flex;align-items:center;gap:8px"><span style="color:#64748B;font-size:14px">第</span><span style="display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:32px;padding:0 8px;background:white;color:#3B82F6;border:1px solid #3B82F6;border-radius:8px;font-size:14px;font-weight:600">${ye}</span><span style="color:#64748B;font-size:14px">/ ${zongyeshu} 页</span><span style="color:#94A3B8;font-size:13px;margin-left:4px">(共 ${zongshu} 条)</span></div><button onclick="${xiayifn}" ${xyjy ? 'disabled' : ''} style="${yang(xyjy)}" ${xyjy ? '' : hv}>下一页<svg style="width:16px;height:16px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button></div>`;
     }
 
@@ -115,7 +115,7 @@ export class Yonghujiemian {
             const zthtml = yifj
                 ? '<span style="display:inline-flex;align-items:center;padding:4px 10px;background:#FEE2E2;color:#991B1B;border-radius:6px;font-size:13px;font-weight:500">已封禁</span>'
                 : '<span style="display:inline-flex;align-items:center;padding:4px 10px;background:#D1FAE5;color:#065F46;border-radius:6px;font-size:13px;font-weight:500">正常</span>';
-            html += `<tr style="border-bottom:1px solid #F1F5F9;transition:background-color 150ms" onmouseover="this.style.backgroundColor='#F8FAFC'" onmouseout="this.style.backgroundColor='transparent'">
+            html += `<tr style="border-bottom:1px solid #F1F5F9;transition:background-color 150ms" onmouseenter="this.style.backgroundColor='#F8FAFC'" onmouseleave="this.style.backgroundColor='transparent'">
                 <td style="padding:12px 16px"><input type="checkbox" class="yh_pl_xz" data-id="${yh.id}" style="width:16px;height:16px;cursor:pointer"></td>
                 <td style="padding:12px 16px;font-size:14px;color:#64748B">${yh.id}</td>
                 <td style="padding:12px 16px;font-size:14px;color:#0F172A;font-weight:500">${yh.zhanghao}</td>
@@ -272,7 +272,7 @@ export class Yonghujiemian {
             const morenzhu = zu.morenzhu === '1'
                 ? '<span style="padding:4px 10px;background:#DBEAFE;color:#1E40AF;border-radius:6px;font-size:13px;font-weight:500">是</span>'
                 : '<span style="padding:4px 10px;background:#F1F5F9;color:#64748B;border-radius:6px;font-size:13px">否</span>';
-            html += `<tr style="border-bottom:1px solid #F1F5F9;transition:background-color 150ms" onmouseover="this.style.backgroundColor='#F8FAFC'" onmouseout="this.style.backgroundColor='transparent'">
+            html += `<tr style="border-bottom:1px solid #F1F5F9;transition:background-color 150ms" onmouseenter="this.style.backgroundColor='#F8FAFC'" onmouseleave="this.style.backgroundColor='transparent'">
                 <td style="padding:12px 16px"><input type="checkbox" class="zu_pl_xz" data-id="${zu.id}" style="width:16px;height:16px;cursor:pointer"></td>
                 <td style="padding:12px 16px;font-size:14px;color:#64748B">${zu.id}</td>
                 <td style="padding:12px 16px;font-size:14px;color:#0F172A;font-weight:500">${this._zhuanyi(zu.mingcheng)}</td>
@@ -358,7 +358,7 @@ export class Yonghujiemian {
                 if (!xudenglu) continue;
                 const yijin = jinjiekouji.has(lujing);
                 const cbid = 'zu_qx_' + lujing.replace(/\//g, '_');
-                html += `<label for="${cbid}" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:${yijin ? '#FEF2F2' : '#F8FAFC'};border:1px solid ${yijin ? '#FCA5A5' : '#E2E8F0'};border-radius:8px;cursor:pointer;transition:all 200ms" onmouseover="this.style.borderColor='#3B82F6'" onmouseout="this.style.borderColor='${yijin ? '#FCA5A5' : '#E2E8F0'}'">`;
+                html += `<label for="${cbid}" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:${yijin ? '#FEF2F2' : '#F8FAFC'};border:1px solid ${yijin ? '#FCA5A5' : '#E2E8F0'};border-radius:8px;cursor:pointer;transition:all 200ms" onmouseenter="this.style.borderColor='#3B82F6'" onmouseleave="this.style.borderColor='${yijin ? '#FCA5A5' : '#E2E8F0'}'">`;
                 html += `<input type="checkbox" id="${cbid}" data-lujing="${this._zhuanyi(lujing)}" ${yijin ? 'checked' : ''} style="width:18px;height:18px;accent-color:#EF4444;cursor:pointer">`;
                 html += `<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:500;color:#0F172A">${this._zhuanyi(nicheng)}</span><span style="padding:2px 8px;background:#E0E7FF;color:#3730A3;border-radius:4px;font-size:12px;font-weight:500">${fangshi}</span></div>`;
                 html += `<div style="font-size:12px;color:#64748B;margin-top:2px;font-family:monospace">${this._zhuanyi(lujing)}</div></div></label>`;

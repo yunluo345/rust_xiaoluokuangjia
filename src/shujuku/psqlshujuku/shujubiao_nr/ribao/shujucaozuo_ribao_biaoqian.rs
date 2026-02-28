@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use serde_json::Value;
 use crate::gongju::jichugongju;
 use crate::shujuku::psqlshujuku::psqlcaozuo;
@@ -206,9 +206,11 @@ async fn chaxun_tupu_bian_anzifanwei(jiedianlie: &[Value]) -> Vec<Value> {
 
 /// 查询全量图谱数据：所有标签节点及共现边
 pub async fn chaxun_tupu_quanbu() -> Option<Value> {
-    let jiedian = chaxun_tupu_jiedian("", &[], "l.mingcheng, b.zhi").await?;
+    let mut jiedian = chaxun_tupu_jiedian("", &[], "l.mingcheng, b.zhi").await?;
     let bian = chaxun_tupu_bian("", "", &[]).await;
-    let guanxi_bian = chaxun_tupu_guanxi_bian(&jiedian).await;
+    let juhe = shujucaozuo_ribao_guanxi::chaxun_juhe_quanbu().await;
+    let (guanxi_bian, ewai_jiedian) = chaxun_tupu_guanxi_bian(&jiedian, juhe).await;
+    jiedian.extend(ewai_jiedian);
     Some(serde_json::json!({"jiedian": jiedian, "bian": bian, "guanxi_bian": guanxi_bian}))
 }
 
@@ -227,20 +229,24 @@ pub async fn chaxun_tupu_biaoqianid(biaoqianid: &str) -> Option<Value> {
     let mut jiedian = zhongxin;
     jiedian.extend(guanlian);
     let bian = chaxun_tupu_bian_anzifanwei(&jiedian).await;
-    let guanxi_bian = chaxun_tupu_guanxi_bian(&jiedian).await;
+    let juhe = shujucaozuo_ribao_guanxi::chaxun_juhe_an_biaoqianid(biaoqianid).await;
+    let (guanxi_bian, ewai_jiedian) = chaxun_tupu_guanxi_bian(&jiedian, juhe).await;
+    jiedian.extend(ewai_jiedian);
     Some(serde_json::json!({"jiedian": jiedian, "bian": bian, "guanxi_bian": guanxi_bian}))
 }
 
 /// 按标签类型筛选图谱
 pub async fn chaxun_tupu_leixingmingcheng(leixingmingcheng: &str) -> Option<Value> {
-    let jiedian = chaxun_tupu_jiedian("l.mingcheng = $1", &[leixingmingcheng], "b.zhi").await?;
+    let mut jiedian = chaxun_tupu_jiedian("l.mingcheng = $1", &[leixingmingcheng], "b.zhi").await?;
     let bian = chaxun_tupu_bian(
         " JOIN biaoqianleixing l1 ON b1.leixingid = l1.id \
          JOIN biaoqianleixing l2 ON b2.leixingid = l2.id",
         "l1.mingcheng = $1 OR l2.mingcheng = $1",
         &[leixingmingcheng],
     ).await;
-    let guanxi_bian = chaxun_tupu_guanxi_bian(&jiedian).await;
+    let juhe = shujucaozuo_ribao_guanxi::chaxun_juhe_an_leixingmingcheng(leixingmingcheng).await;
+    let (guanxi_bian, ewai_jiedian) = chaxun_tupu_guanxi_bian(&jiedian, juhe).await;
+    jiedian.extend(ewai_jiedian);
     Some(serde_json::json!({"jiedian": jiedian, "bian": bian, "guanxi_bian": guanxi_bian}))
 }
 
@@ -380,8 +386,34 @@ fn leixing_youxianji(leixing: &str) -> u8 {
     }
 }
 
-/// 从节点列表中提取关系边（查询 ribao_guanxi_bian 预计算表）
-async fn chaxun_tupu_guanxi_bian(jiedianlie: &[Value]) -> Vec<Value> {
+/// 泛称→真名替换：将"我方""对方"等泛称映射为对应标签类型的真实节点名称
+/// 非泛称直接返回原名称；泛称返回对应类型的所有真实节点名称；无法映射返回空
+fn fancheng_tihuan_mingcheng(mingcheng: &str, leixing_dao_mingchenglie: &HashMap<String, Vec<String>>) -> Vec<String> {
+    let duiying_leixing: &[&str] = match mingcheng {
+        "我" | "我们" | "我方" | "本人" | "自己" | "我司" | "本公司" | "本部门" | "乙方" => &["我方人员"],
+        "他" | "她" | "对方" | "对方公司" => &["对方人员", "客户名字", "客户公司"],
+        "客户" | "客户方" | "甲方" => &["客户名字", "客户公司"],
+        "领导" | "老板" | "上级" | "同事" | "下属" | "负责人" | "经理" => &["我方人员", "对方人员"],
+        "你" | "老师" | "朋友" => return Vec::new(),
+        _ => return vec![mingcheng.to_string()],
+    };
+    let mut jieguo = Vec::new();
+    for leixing in duiying_leixing {
+        if let Some(mingchenglie) = leixing_dao_mingchenglie.get(*leixing) {
+            for mc in mingchenglie {
+                if !jieguo.contains(mc) {
+                    jieguo.push(mc.clone());
+                }
+            }
+        }
+    }
+    jieguo
+}
+
+/// 将关系聚合数据转换为图谱边 + 虚拟节点
+/// juhe_jieguo: 由调用方按作用域预查询的聚合关系数据
+/// 返回 (关系边列表, 额外虚拟节点列表)
+async fn chaxun_tupu_guanxi_bian(jiedianlie: &[Value], juhe_jieguo: Vec<Value>) -> (Vec<Value>, Vec<Value>) {
     // 构建 name→(id, leixing, youxianji) 映射，同名多节点按优先级选主节点
     let mut mingcheng_dao_hourenlie: HashMap<String, Vec<(String, String, u8)>> = HashMap::new();
     for j in jiedianlie {
@@ -417,61 +449,112 @@ async fn chaxun_tupu_guanxi_bian(jiedianlie: &[Value]) -> Vec<Value> {
         hebing_mingcheng.sort();
         println!("[图谱关系边] 已按优先级合并 {} 个同名实体: {}", hebing_mingcheng.len(), hebing_mingcheng.join("、"));
     }
-    if mingcheng_dao_id.is_empty() {
-        return Vec::new();
+
+    let zhenshi_mingcheng: HashSet<String> = mingcheng_dao_id.keys().cloned().collect();
+
+    // 按类型分组真实节点名称（用于泛称→真名替换）
+    let mut leixing_dao_mingchenglie: HashMap<String, Vec<String>> = HashMap::new();
+    for j in jiedianlie {
+        if let (Some(zhi), Some(leixing)) = (
+            j.get("zhi").and_then(|v| v.as_str()),
+            j.get("leixingmingcheng").and_then(|v| v.as_str()),
+        ) {
+            let lie = leixing_dao_mingchenglie.entry(leixing.to_string()).or_default();
+            let zhi_str = zhi.to_string();
+            if !lie.contains(&zhi_str) {
+                lie.push(zhi_str);
+            }
+        }
     }
 
-    // 从 ribao_guanxi_bian 预计算表查询聚合关系
-    let shitimingchenglie: Vec<&str> = mingcheng_dao_id.keys().map(String::as_str).collect();
-    let juhe_jieguo = shujucaozuo_ribao_guanxi::chaxun_juhe_guanxi(&shitimingchenglie).await;
+    // 虚拟节点计数器（使用负数ID避免与真实标签ID冲突）
+    let mut xuni_jishu: i64 = -1;
+    let mut ewai_jiedian: Vec<Value> = Vec::new();
 
-    // 转换为图谱格式（实体名称→节点ID映射）
+    // 辅助：获取或创建虚拟节点ID
+    let huoqu_id = |mingcheng: &str, juese: Option<&str>, mingcheng_dao_id: &mut HashMap<String, String>, ewai: &mut Vec<Value>, jishu: &mut i64| -> String {
+        if let Some(id) = mingcheng_dao_id.get(mingcheng) {
+            return id.clone();
+        }
+        let xuni_id = jishu.to_string();
+        *jishu -= 1;
+        let leixing = juese.unwrap_or("关系实体");
+        ewai.push(serde_json::json!({
+            "id": xuni_id,
+            "zhi": mingcheng,
+            "leixingid": null,
+            "leixingmingcheng": leixing,
+        }));
+        mingcheng_dao_id.insert(mingcheng.to_string(), xuni_id.clone());
+        println!("[图谱关系边] 补充虚拟节点 \"{}\"({}), ID={}", mingcheng, leixing, xuni_id);
+        xuni_id
+    };
+
+    // 转换为图谱格式（泛称→真名替换 + 实体名称→节点ID映射）
     let mut jieguo: Vec<Value> = Vec::new();
     for gx in &juhe_jieguo {
-        let ren1 = match gx.get("ren1").and_then(|v| v.as_str()) { Some(s) => s, None => continue };
-        let ren2 = match gx.get("ren2").and_then(|v| v.as_str()) { Some(s) => s, None => continue };
+        let ren1_yuan = match gx.get("ren1").and_then(|v| v.as_str()) { Some(s) => s, None => continue };
+        let ren2_yuan = match gx.get("ren2").and_then(|v| v.as_str()) { Some(s) => s, None => continue };
         let guanxi_str = gx.get("guanxi").and_then(|v| v.as_str()).unwrap_or("");
         if guanxi_str.is_empty() || guanxi_str.contains("无关") || guanxi_str == "无" {
             continue;
         }
 
-        let yuan_id = match mingcheng_dao_id.get(ren1) { Some(id) => id.clone(), None => continue };
-        let mubiao_id = match mingcheng_dao_id.get(ren2) { Some(id) => id.clone(), None => continue };
-        if yuan_id == mubiao_id { continue; }
+        // 泛称替换：将"我方""对方"等替换为对应类型的真实节点名称
+        let ren1_lie = fancheng_tihuan_mingcheng(ren1_yuan, &leixing_dao_mingchenglie);
+        let ren2_lie = fancheng_tihuan_mingcheng(ren2_yuan, &leixing_dao_mingchenglie);
+        if ren1_lie.is_empty() || ren2_lie.is_empty() {
+            continue;
+        }
 
-        // 保证方向一致（小ID在前）
-        let (k_yuan, k_mubiao) = if yuan_id < mubiao_id {
-            (yuan_id, mubiao_id)
-        } else {
-            (mubiao_id, yuan_id)
-        };
-
+        let juese_r1 = gx.get("juese_ren1").and_then(|v| v.as_str()).filter(|s| !s.is_empty());
+        let juese_r2 = gx.get("juese_ren2").and_then(|v| v.as_str()).filter(|s| !s.is_empty());
         let miaoshu = gx.get("miaoshu").and_then(|v| v.as_str()).unwrap_or("");
         let cishu = gx.get("cishu").and_then(|v| v.as_str()).unwrap_or("1");
         let xindu_str = gx.get("xindu").and_then(|v| v.as_str()).unwrap_or("0");
         let xindu: f64 = xindu_str.parse().unwrap_or(0.0);
         let zhengju = gx.get("zhengjupianduan").and_then(|v| v.as_str()).unwrap_or("");
-        let juese_r1 = gx.get("juese_ren1").and_then(|v| v.as_str()).filter(|s| !s.is_empty());
-        let juese_r2 = gx.get("juese_ren2").and_then(|v| v.as_str()).filter(|s| !s.is_empty());
 
-        let mut bian = serde_json::json!({
-            "yuan": k_yuan,
-            "mubiao": k_mubiao,
-            "guanxi": guanxi_str,
-            "miaoshu": miaoshu,
-            "cishu": cishu,
-            "xindu": xindu,
-            "zhengjupianduan": zhengju,
-        });
-        if juese_r1.is_some() || juese_r2.is_some() {
-            bian["juese"] = serde_json::json!({
-                "ren1": juese_r1.unwrap_or_default(),
-                "ren2": juese_r2.unwrap_or_default(),
-            });
+        for ren1 in &ren1_lie {
+            for ren2 in &ren2_lie {
+                if ren1 == ren2 { continue; }
+                if !zhenshi_mingcheng.contains(ren1.as_str()) && !zhenshi_mingcheng.contains(ren2.as_str()) {
+                    continue;
+                }
+
+                let yuan_id = huoqu_id(ren1, juese_r1, &mut mingcheng_dao_id, &mut ewai_jiedian, &mut xuni_jishu);
+                let mubiao_id = huoqu_id(ren2, juese_r2, &mut mingcheng_dao_id, &mut ewai_jiedian, &mut xuni_jishu);
+                if yuan_id == mubiao_id { continue; }
+
+                let (k_yuan, k_mubiao) = if yuan_id < mubiao_id {
+                    (yuan_id, mubiao_id)
+                } else {
+                    (mubiao_id, yuan_id)
+                };
+
+                let mut bian = serde_json::json!({
+                    "yuan": k_yuan,
+                    "mubiao": k_mubiao,
+                    "guanxi": guanxi_str,
+                    "miaoshu": miaoshu,
+                    "cishu": cishu,
+                    "xindu": xindu,
+                    "zhengjupianduan": zhengju,
+                });
+                if juese_r1.is_some() || juese_r2.is_some() {
+                    bian["juese"] = serde_json::json!({
+                        "ren1": juese_r1.unwrap_or_default(),
+                        "ren2": juese_r2.unwrap_or_default(),
+                    });
+                }
+                jieguo.push(bian);
+            }
         }
-        jieguo.push(bian);
     }
-    jieguo
+    if !ewai_jiedian.is_empty() {
+        println!("[图谱关系边] 共补充 {} 个虚拟节点", ewai_jiedian.len());
+    }
+    (jieguo, ewai_jiedian)
 }
 
 /// 统计多标签交集的日报总数

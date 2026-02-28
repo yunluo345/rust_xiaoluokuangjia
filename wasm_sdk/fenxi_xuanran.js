@@ -42,8 +42,8 @@ export function xuanran_shiti_xiangqing(shiti_mingcheng, shiti_leixing, ribaolie
     for (const wd of MOREN_WEIDU_LIEBIAO) {
         const se = WEIDU_YANSE[wd] || { dot: '#475569' };
         const wd_esc = wd.replace(/'/g, "\\'");
-        html += `<label style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:999px;cursor:pointer;font-size:12px;color:#334155;transition:all 150ms;user-select:none" onmouseenter="this.style.borderColor='#93C5FD'" onmouseleave="this.style.borderColor=this.querySelector('input').checked?'#3B82F6':'#E2E8F0'">`;
-        html += `<input type="checkbox" class="fenxi_weidu_xz" value="${wd}" checked style="width:14px;height:14px;accent-color:${se.dot};cursor:pointer">`;
+        html += `<label style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:999px;cursor:pointer;font-size:12px;color:#334155;transition:all 150ms;user-select:none;outline:none;-webkit-tap-highlight-color:transparent" onmouseenter="this.style.borderColor='#3B82F6'" onmouseleave="this.style.borderColor='#E2E8F0'">`;
+        html += `<input type="checkbox" class="fenxi_weidu_xz" value="${wd}" checked onclick="this.blur()" style="width:14px;height:14px;accent-color:${se.dot};cursor:pointer;outline:none">`;
         html += `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${se.dot};flex-shrink:0"></span>`;
         html += `${wd}`;
         html += `</label>`;
@@ -79,7 +79,6 @@ export function xuanran_shiti_xiangqing(shiti_mingcheng, shiti_leixing, ribaolie
     if (ribaolie.length > 0) {
         html += '<div class="fenxi-section">';
         html += `<div class="fenxi-section-h">关联日报（${ribaolie.length}篇）</div>`;
-        html += '<div class="fenxi-ribao-list">';
         for (const rb of ribaolie) {
             const riqi = jiexishijian(rb.fabushijian);
             const biaoti = rb.biaoti || '无标题';
@@ -87,15 +86,13 @@ export function xuanran_shiti_xiangqing(shiti_mingcheng, shiti_leixing, ribaolie
             const neirong = rb.neirong || '';
             html += `<details class="fenxi-ribao">`;
             html += `<summary>`;
-            html += `<div class="fenxi-ribao-head">`;
             html += `<div class="fenxi-ribao-title">${biaoti}${zhaiyao ? `<span class="fenxi-ribao-zhaiyao">${zhaiyao}</span>` : ''}</div>`;
             html += `<div class="fenxi-ribao-meta">${riqi}</div>`;
-            html += `</div>`;
             html += `</summary>`;
             html += `<div class="fenxi-ribao-body">${neirong}</div>`;
             html += `</details>`;
         }
-        html += '</div></div>';
+        html += '</div>';
     }
     if (ribaolie.length === 0 && biaoqianlie.length === 0) {
         html += '<div style="color:#94A3B8;font-size:13px">暂无关联日报</div>';

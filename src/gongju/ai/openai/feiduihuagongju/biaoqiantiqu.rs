@@ -32,7 +32,7 @@ pub async fn ai_tiqu_biaoqian(neirong: &str, peizhi: &Ai, yiyou_biaoqian: Option
         1. 标签名必须使用配置中的标准名称（不要使用别名）\n\
         2. 如果日报中没有某个标签的信息，不要返回该标签\n\
         3. 标记了【多值】的标签，每个值必须单独一个数组元素，不要用逗号拼接\n\
-        4. 不要使用代词（如「我」「他」「她」「你」「对方」等）作为人名，必须提取实际姓名；如果日报中未提及真实姓名，则不要返回该标签\n\
+        4. 不要使用代词或泛称作为人名/公司名，禁止的值包括但不限于：「我」「他」「她」「你」「对方」「我方」「我们」「本人」「自己」「我司」「本公司」「对方公司」「客户」「客户方」「甲方」「乙方」「领导」「老板」「同事」等，必须提取实际姓名或公司全称；如果日报中未提及真实姓名/公司名，则不要返回该标签\n\
         5. 即使标签标注了【必填】，如果日报中确实没有相关信息，也绝对不要编造或使用占位值（如Report 1、项目1、客户A等），直接不返回该标签\n\
         6. 只返回JSON，不要返回其他内容{}",
         biaoqian_tishi, yiyou_tishi
@@ -66,6 +66,12 @@ pub async fn ai_tiqu_biaoqian(neirong: &str, peizhi: &Ai, yiyou_biaoqian: Option
     println!("[标签提取] 解析结果: {} 个标签", tiquxiang.len());
     (!tiquxiang.is_empty()).then_some(tiquxiang)
 }
+
+/// 需要过滤泛称的标签类型
+#[allow(non_upper_case_globals)]
+const renyuan_leixing: &[&str] = &[
+    "我方人员", "对方人员", "客户名字", "客户公司",
+];
 
 /// 将 JSON 值拆分为多条文本（数组展开、分隔符拆分、数字转字符串）
 fn chaifenzhi(zhi: &Value, duozhi: bool) -> Vec<String> {
@@ -136,8 +142,13 @@ pub fn tichubiaoqianxiang(neirong: &str, peizhi: &Ai) -> Vec<(String, String)> {
     let mut quchong: HashSet<String> = HashSet::new();
 
     let charu = |biaozhun: &str, wenzi: String, quchong: &mut HashSet<String>, jieguo: &mut Vec<(String, String)>| {
+        if wenzi.is_empty() { return; }
+        if renyuan_leixing.contains(&biaozhun) && super::gongyong::jinzhi_fancheng.contains(&wenzi.as_str()) {
+            println!("[标签提取] 过滤泛称值: {}={}", biaozhun, wenzi);
+            return;
+        }
         let jian = format!("{}|{}", biaozhun, wenzi);
-        if !wenzi.is_empty() && quchong.insert(jian) {
+        if quchong.insert(jian) {
             jieguo.push((biaozhun.to_string(), wenzi));
         }
     };

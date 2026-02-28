@@ -86,6 +86,99 @@ pub async fn chaxun_juhe_guanxi(shitimingchenglie: &[&str]) -> Vec<Value> {
     psqlcaozuo::chaxun(&sql, shitimingchenglie).await.unwrap_or_default()
 }
 
+/// 聚合查询全部关系边
+pub async fn chaxun_juhe_quanbu() -> Vec<Value> {
+    let sql = format!(
+        "SELECT ren1, ren2, guanxi, \
+         STRING_AGG(DISTINCT miaoshu, '；') FILTER (WHERE miaoshu != '') AS miaoshu, \
+         COUNT(*)::TEXT AS cishu, \
+         MAX(xindu::DOUBLE PRECISION)::TEXT AS xindu, \
+         STRING_AGG(DISTINCT zhengjupianduan, '；') FILTER (WHERE zhengjupianduan != '') AS zhengjupianduan, \
+         MAX(juese_ren1) FILTER (WHERE juese_ren1 != '') AS juese_ren1, \
+         MAX(juese_ren2) FILTER (WHERE juese_ren2 != '') AS juese_ren2, \
+         MAX(qinggan_qingxiang) FILTER (WHERE qinggan_qingxiang != '') AS qinggan_qingxiang \
+         FROM {} \
+         GROUP BY ren1, ren2, guanxi",
+        biaoming
+    );
+    psqlcaozuo::chaxun(&sql, &[]).await.unwrap_or_default()
+}
+
+/// 聚合查询某标签关联日报中的关系边
+pub async fn chaxun_juhe_an_biaoqianid(biaoqianid: &str) -> Vec<Value> {
+    let sql = format!(
+        "SELECT g.ren1, g.ren2, g.guanxi, \
+         STRING_AGG(DISTINCT g.miaoshu, '；') FILTER (WHERE g.miaoshu != '') AS miaoshu, \
+         COUNT(*)::TEXT AS cishu, \
+         MAX(g.xindu::DOUBLE PRECISION)::TEXT AS xindu, \
+         STRING_AGG(DISTINCT g.zhengjupianduan, '；') FILTER (WHERE g.zhengjupianduan != '') AS zhengjupianduan, \
+         MAX(g.juese_ren1) FILTER (WHERE g.juese_ren1 != '') AS juese_ren1, \
+         MAX(g.juese_ren2) FILTER (WHERE g.juese_ren2 != '') AS juese_ren2, \
+         MAX(g.qinggan_qingxiang) FILTER (WHERE g.qinggan_qingxiang != '') AS qinggan_qingxiang \
+         FROM {} g \
+         WHERE g.ribaoid IN (SELECT rb.ribaoid FROM ribao_biaoqian rb WHERE rb.biaoqianid = $1::BIGINT) \
+         GROUP BY g.ren1, g.ren2, g.guanxi",
+        biaoming
+    );
+    psqlcaozuo::chaxun(&sql, &[biaoqianid]).await.unwrap_or_default()
+}
+
+/// 聚合查询某标签类型关联日报中的关系边
+pub async fn chaxun_juhe_an_leixingmingcheng(leixingmingcheng: &str) -> Vec<Value> {
+    let sql = format!(
+        "SELECT g.ren1, g.ren2, g.guanxi, \
+         STRING_AGG(DISTINCT g.miaoshu, '；') FILTER (WHERE g.miaoshu != '') AS miaoshu, \
+         COUNT(*)::TEXT AS cishu, \
+         MAX(g.xindu::DOUBLE PRECISION)::TEXT AS xindu, \
+         STRING_AGG(DISTINCT g.zhengjupianduan, '；') FILTER (WHERE g.zhengjupianduan != '') AS zhengjupianduan, \
+         MAX(g.juese_ren1) FILTER (WHERE g.juese_ren1 != '') AS juese_ren1, \
+         MAX(g.juese_ren2) FILTER (WHERE g.juese_ren2 != '') AS juese_ren2, \
+         MAX(g.qinggan_qingxiang) FILTER (WHERE g.qinggan_qingxiang != '') AS qinggan_qingxiang \
+         FROM {} g \
+         WHERE g.ribaoid IN ( \
+           SELECT rb.ribaoid FROM ribao_biaoqian rb \
+           JOIN biaoqian b ON rb.biaoqianid = b.id \
+           JOIN biaoqianleixing l ON b.leixingid = l.id \
+           WHERE l.mingcheng = $1 \
+         ) \
+         GROUP BY g.ren1, g.ren2, g.guanxi",
+        biaoming
+    );
+    psqlcaozuo::chaxun(&sql, &[leixingmingcheng]).await.unwrap_or_default()
+}
+
+/// 按实体名称分页查询关联日报（虚拟节点→日报）
+pub async fn chaxun_ribao_an_shitimingcheng(mingcheng: &str, yeshu: i64, meiyetiaoshu: i64) -> Option<Vec<Value>> {
+    let (tiaoshu, pianyi) = jichugongju::jisuanfenye(yeshu, meiyetiaoshu);
+    psqlcaozuo::chaxun(
+        &format!(
+            "SELECT DISTINCT r.*, y.nicheng AS fabuzhemingcheng, y.zhanghao AS fabuzhezhanghao \
+             FROM ribao r \
+             INNER JOIN {} g ON r.id = g.ribaoid \
+             LEFT JOIN yonghu y ON r.yonghuid = y.id \
+             WHERE g.ren1 = $1 OR g.ren2 = $1 \
+             ORDER BY r.fabushijian DESC \
+             LIMIT $2::BIGINT OFFSET $3::BIGINT",
+            biaoming
+        ),
+        &[mingcheng, &tiaoshu, &pianyi],
+    ).await
+}
+
+/// 统计实体名称关联的日报总数
+pub async fn tongji_ribao_an_shitimingcheng(mingcheng: &str) -> Option<i64> {
+    let jieguo = psqlcaozuo::chaxun(
+        &format!(
+            "SELECT COUNT(DISTINCT g.ribaoid)::TEXT AS count \
+             FROM {} g \
+             WHERE g.ren1 = $1 OR g.ren2 = $1",
+            biaoming
+        ),
+        &[mingcheng],
+    ).await?;
+    jieguo.first()?.get("count")?.as_str()?.parse().ok()
+}
+
 /// 回填历史数据：从 ribao.kuozhan 中解析已有关系写入 ribao_guanxi_bian
 pub async fn huitian_lishi() -> u64 {
     let ribaolie = match psqlcaozuo::chaxun(

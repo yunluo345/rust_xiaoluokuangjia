@@ -88,6 +88,14 @@ pub struct Ai {
     pub xiangmu_guanlian_tishici: String,
     #[serde(default = "moren_fenxi_shiti_leixing")]
     pub fenxi_shiti_leixing: Vec<Fenxishitileixing>,
+    #[serde(default = "moren_shendu_fenxi_tishici")]
+    pub shendu_fenxi_tishici: String,
+    #[serde(default = "moren_guanlian_shendu_tishici")]
+    pub guanlian_shendu_tishici: String,
+    #[serde(default = "moren_biaoti_shengcheng_tishici")]
+    pub biaoti_shengcheng_tishici: String,
+    #[serde(default = "moren_zhaiyao_shengcheng_tishici")]
+    pub zhaiyao_shengcheng_tishici: String,
 }
 
 fn moren_ribao_biaoqianrenwu_chongshi_cishu() -> u32 {
@@ -128,6 +136,22 @@ fn moren_jiaoliu_fenxi_tishici() -> String {
 
 fn moren_xiangmu_guanlian_tishici() -> String {
     tishici_moban::xiangmu_guanlian()
+}
+
+fn moren_shendu_fenxi_tishici() -> String {
+    tishici_moban::shendu_fenxi()
+}
+
+fn moren_guanlian_shendu_tishici() -> String {
+    tishici_moban::guanlian_shendu_fenxi()
+}
+
+fn moren_biaoti_shengcheng_tishici() -> String {
+    tishici_moban::biaoti_shengcheng()
+}
+
+fn moren_zhaiyao_shengcheng_tishici() -> String {
+    tishici_moban::zhaiyao_shengcheng()
 }
 
 fn moren_fenxi_shiti_leixing() -> Vec<Fenxishitileixing> {
@@ -229,6 +253,10 @@ impl Default for Ai {
             jiaoliu_fenxi_tishici: moren_jiaoliu_fenxi_tishici(),
             xiangmu_guanlian_tishici: moren_xiangmu_guanlian_tishici(),
             fenxi_shiti_leixing: moren_fenxi_shiti_leixing(),
+            shendu_fenxi_tishici: moren_shendu_fenxi_tishici(),
+            guanlian_shendu_tishici: moren_guanlian_shendu_tishici(),
+            biaoti_shengcheng_tishici: moren_biaoti_shengcheng_tishici(),
+            zhaiyao_shengcheng_tishici: moren_zhaiyao_shengcheng_tishici(),
         }
     }
 }

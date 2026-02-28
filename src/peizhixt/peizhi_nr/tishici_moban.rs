@@ -1,7 +1,19 @@
 //! 提示词模板集中管理
 //!
-//! 将原散落在 peizhi_ai.rs 默认函数中的长提示词集中于此模块，
-//! 实现提示词与配置结构解耦，后续可进一步支持从外部文件加载。
+//! 将原散落在各模块中的硬编码提示词集中于此模块，
+//! 实现提示词与业务逻辑解耦，所有 AI 提示词均可通过配置覆盖。
+
+/// 深度分析（维度分析）JSON 输出格式——定义前后端数据契约，不可通过配置修改
+#[allow(non_upper_case_globals)]
+pub const shendu_fenxi_json_geshi: &str = r#"输出JSON必须严格使用以下结构（只输出一个JSON对象，不要用Report等包裹）：
+{"zhutihuizong":[{"zhuti":"主题名","cishu":数字,"miaoshu":"描述"}],"yanbianguiji":"演变轨迹描述","guanjianwenti":[{"wenti":"问题描述","yanzhongchengdu":"高/中/低"}],"jianyi":"1.建议一 2.建议二"}
+字段说明：zhutihuizong=主题汇总,yanbianguiji=演变轨迹,guanjianwenti=关键问题,jianyi=建议。所有字段名必须用拼音，不要用英文。"#;
+
+/// 深度关联分析 JSON 输出格式——定义前后端数据契约，不可通过配置修改
+#[allow(non_upper_case_globals)]
+pub const guanlian_shendu_json_geshi: &str = r#"输出JSON必须严格使用以下结构（只输出一个JSON对象）：
+{"xiangmuguanxi":[{"xm1":"实体1","xm2":"实体2","guanxi":"关系描述","gongxiangziyuan":["人/客户/技术"],"miaoshu":"详细分析"}],"fengxiantishi":["风险描述"],"zhutihuizong":[{"zhuti":"主题名","miaoshu":"描述","shejiXiangmu":["实体名"]}],"guanjianwenti":[{"neirong":"问题描述","shejiXiangmu":["实体名"],"yanzhongchengdu":"高/中/低"}],"jianyi":"1.建议一 2.建议二"}
+所有字段名必须用拼音，不要用英文。内容必须基于日报原文事实，不要泛泛而谈。"#;
 
 /// 关系分析系统提示词
 pub fn guanxifenxi() -> String {
@@ -56,4 +68,34 @@ pub fn xiangmu_guanlian() -> String {
     2. fengxiantishi 识别跨项目的资源冲突、进度风险等\n\
     3. ziyuanfenbu.gaofuzairenyuan 找出参与多个项目的高负载人员\n\
     4. 只返回JSON，不要返回其他内容".to_string()
+}
+
+/// 深度分析（按维度）默认系统提示词
+pub fn shendu_fenxi() -> String {
+    "你是一名资深项目分析专家。你需要对日报内容进行深度分析。\n\
+    要求：1)输出必须是合法JSON; 2)所有分析必须基于日报原文事实; 3)内容要有实际价值，不要泛泛而谈; 4)使用中文。".to_string()
+}
+
+/// 深度关联分析默认系统提示词
+pub fn guanlian_shendu_fenxi() -> String {
+    "你是一名资深项目分析专家。你需要对多个实体进行深度关联分析。\n\
+    要求：1)输出必须是合法JSON; 2)分析必须基于日报原文事实，引用具体细节; 3)内容要有实际价值，切入要深; 4)使用中文。".to_string()
+}
+
+/// 日报标题生成提示词
+pub fn biaoti_shengcheng() -> String {
+    "你是日报标题生成助手。根据日报内容生成简洁标题。\n\
+    要求：\n\
+    1. 控制在15字以内\n\
+    2. 概括核心工作内容\n\
+    3. 只返回标题文本，不要返回其他内容".to_string()
+}
+
+/// 日报摘要生成提示词
+pub fn zhaiyao_shengcheng() -> String {
+    "你是日报摘要生成助手。根据日报内容生成简洁摘要。\n\
+    要求：\n\
+    1. 控制在100字以内\n\
+    2. 突出重点工作和关键成果\n\
+    3. 只返回摘要文本，不要返回其他内容".to_string()
 }

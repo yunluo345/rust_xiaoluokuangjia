@@ -1,20 +1,27 @@
 use crate::peizhixt::peizhi_nr::peizhi_ai::Ai;
+use crate::peizhixt::peizhixitongzhuti;
 use serde_json::{json, Value};
 
 use super::gongyong::{ai_putongqingqiu_wenben, jinghua_json_huifu};
 
+#[allow(non_upper_case_globals)]
+const biaoti_chaoshi_miao: u64 = 30;
+#[allow(non_upper_case_globals)]
+const zhaiyao_chaoshi_miao: u64 = 60;
+#[allow(non_upper_case_globals)]
+const siweidaotu_chaoshi_miao: u64 = 120;
+
+fn duqu_ai_peizhi() -> Ai {
+    peizhixitongzhuti::duqupeizhi::<Ai>(Ai::wenjianming()).unwrap_or_default()
+}
+
 /// AI生成日报标题
 pub async fn ai_shengcheng_biaoti(neirong: &str) -> Option<String> {
-    let xitongtishici =
-        "你是日报标题生成助手。根据日报内容生成简洁标题。\n\
-        要求：\n\
-        1. 控制在15字以内\n\
-        2. 概括核心工作内容\n\
-        3. 只返回标题文本，不要返回其他内容";
+    let peizhi = duqu_ai_peizhi();
     let huifu = ai_putongqingqiu_wenben(
-        xitongtishici,
+        &peizhi.biaoti_shengcheng_tishici,
         format!("请为以下日报生成标题：\n\n{}", neirong),
-        30,
+        biaoti_chaoshi_miao,
     ).await?;
     let biaoti = huifu.trim().to_string();
     println!("[标题生成] {}", biaoti);
@@ -23,16 +30,11 @@ pub async fn ai_shengcheng_biaoti(neirong: &str) -> Option<String> {
 
 /// AI生成日报摘要
 pub async fn ai_shengcheng_zhaiyao(neirong: &str) -> Option<String> {
-    let xitongtishici =
-        "你是日报摘要生成助手。根据日报内容生成简洁摘要。\n\
-        要求：\n\
-        1. 控制在100字以内\n\
-        2. 突出重点工作和关键成果\n\
-        3. 只返回摘要文本，不要返回其他内容";
+    let peizhi = duqu_ai_peizhi();
     let huifu = ai_putongqingqiu_wenben(
-        xitongtishici,
+        &peizhi.zhaiyao_shengcheng_tishici,
         format!("请为以下日报生成摘要：\n\n{}", neirong),
-        60,
+        zhaiyao_chaoshi_miao,
     ).await?;
     let zhaiyao = huifu.trim().to_string();
     println!("[摘要生成] {}", zhaiyao.chars().take(60).collect::<String>());
@@ -86,7 +88,7 @@ pub async fn ai_shengcheng_siweidaotu(neirong: &str, peizhi: &Ai) -> Option<Stri
     let huifu = ai_putongqingqiu_wenben(
         &xitongtishici,
         format!("请对以下日报进行全面分析并生成思维导图：\n\n{}", neirong),
-        120,
+        siweidaotu_chaoshi_miao,
     ).await?;
     let jinghua = jinghua_json_huifu(&huifu);
 

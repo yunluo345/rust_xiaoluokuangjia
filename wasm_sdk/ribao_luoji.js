@@ -455,6 +455,11 @@ export class Ribaoluoji {
         return jg;
     }
 
+    async tupu_guanxi_shiti_ribao_fenye(shitimingcheng, yeshu, meiyetiaoshu) {
+        const jg = await this.zhixing('tupu_guanxi_shiti_ribao_fenye', { shitimingcheng, yeshu, meiyetiaoshu });
+        return jg;
+    }
+
     async tupu_ribao_duobiaoqian_fenye(biaoqianidlie, yeshu, meiyetiaoshu) {
         const jg = await this.zhixing('tupu_ribao_duobiaoqian_fenye', { biaoqianidlie, yeshu, meiyetiaoshu });
         return jg;

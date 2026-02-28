@@ -4,6 +4,15 @@ use sha2::{Digest, Sha256};
 use serde_json::{json, Value};
 use std::collections::HashSet;
 
+/// 人员/公司类实体禁止的泛称值
+#[allow(non_upper_case_globals)]
+pub const jinzhi_fancheng: &[&str] = &[
+    "我", "我们", "我方", "本人", "自己", "我司", "本公司", "本部门",
+    "他", "她", "你", "对方", "对方公司", "客户", "客户方",
+    "甲方", "乙方", "领导", "老板", "同事", "上级", "下属",
+    "负责人", "经理", "老师", "朋友",
+];
+
 /// 通用AI文本请求
 pub async fn ai_putongqingqiu_wenben(xitongtishici: &str, yonghuxiaoxi: String, chaoshi: u64) -> Option<String> {
     let aipeizhi = crate::jiekouxt::jiekou_nr::ai::huoqu_peizhi().await?

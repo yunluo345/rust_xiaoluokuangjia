@@ -2,7 +2,7 @@ use crate::peizhixt::peizhi_nr::peizhi_ai::Ai;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
-use super::gongyong::{ai_putongqingqiu_wenben, jinghua_json_huifu, anzi_fenduan};
+use super::gongyong::{ai_putongqingqiu_wenben, jinghua_json_huifu, anzi_fenduan, jinzhi_fancheng};
 
 /// 从AI回复中提取关系列表
 fn tiqu_guanxilie(huifu: &str) -> Vec<Value> {
@@ -40,6 +40,10 @@ fn hebing_guanxilie(guanxilie: Vec<Value>) -> Vec<Value> {
             Some(s) => s.to_string(),
             None => continue,
         };
+        // 双方都是泛称时跳过（无价值），仅单方泛称时保留（图谱显示时替换为真名）
+        if jinzhi_fancheng.contains(&ren1.as_str()) && jinzhi_fancheng.contains(&ren2.as_str()) {
+            continue;
+        }
         let guanxi = match gx.get("guanxi").and_then(|v| v.as_str()).map(str::trim).filter(|s| !s.is_empty()) {
             Some(s) => s.to_string(),
             None => continue,
@@ -277,5 +281,26 @@ mod ceshi {
         ];
         let jieguo = hebing_guanxilie(guanxilie);
         assert_eq!(jieguo.len(), 2);
+    }
+
+    #[test]
+    fn ceshi_hebing_danfang_fancheng_baoliu() {
+        // 单方泛称+具体名称→保留（图谱显示时替换为真名）
+        let guanxilie = vec![
+            json!({"ren1": "我方", "ren2": "某友商", "guanxi": "竞争对手", "xindu": 0.9}),
+        ];
+        let jieguo = hebing_guanxilie(guanxilie);
+        assert_eq!(jieguo.len(), 1);
+        assert_eq!(jieguo[0]["ren1"], "我方");
+    }
+
+    #[test]
+    fn ceshi_hebing_shuangfang_fancheng_tiaoguo() {
+        // 双方都是泛称→跳过（无价值）
+        let guanxilie = vec![
+            json!({"ren1": "我方", "ren2": "对方", "guanxi": "相关", "xindu": 0.5}),
+        ];
+        let jieguo = hebing_guanxilie(guanxilie);
+        assert!(jieguo.is_empty());
     }
 }

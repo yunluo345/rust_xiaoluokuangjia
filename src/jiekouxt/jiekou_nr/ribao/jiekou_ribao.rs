@@ -7,7 +7,7 @@ use crate::gongju::ai::openai::gongjuji::ribao::gongju_ribaotijiao;
 use crate::shujuku::psqlshujuku::shujubiao_nr::ribao::{
     shujucaozuo_biaoqianleixing, shujucaozuo_biaoqian,
     shujucaozuo_ribao, shujucaozuo_ribao_biaoqian,
-    shujucaozuo_ribao_biaoqianrenwu,
+    shujucaozuo_ribao_biaoqianrenwu, shujucaozuo_ribao_guanxi,
 };
 use crate::gongju::ai::openai::gongjuji::ribao::gongju_ribaorenwuchuli;
 use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::{shujucaozuo_yonghuzu, yonghuyanzheng};
@@ -129,6 +129,9 @@ struct TupuBianribaofenyecanshu { yuan_biaoqianid: String, mubiao_biaoqianid: St
 
 #[derive(Deserialize)]
 struct TupuDuobiaoqianfenyecanshu { biaoqianidlie: Vec<String>, yeshu: i64, meiyetiaoshu: i64 }
+
+#[derive(Deserialize)]
+struct Tupuguanxishitiribaofenyecanshu { shitimingcheng: String, yeshu: i64, meiyetiaoshu: i64 }
 
 #[derive(Deserialize)]
 struct Fenxijiaoliuneirongcanshu { shiti_leixing: String, shiti_mingcheng: String }
@@ -551,6 +554,12 @@ async fn chulicaozuo(mingwen: &[u8], miyao: &[u8]) -> HttpResponse {
             let canshu = jiexi_canshu!(qingqiu, TupuBianribaofenyecanshu, miyao);
             let liebiao = shujucaozuo_ribao_biaoqian::tupu_bian_ribao_fenye(&canshu.yuan_biaoqianid, &canshu.mubiao_biaoqianid, canshu.yeshu, canshu.meiyetiaoshu).await.unwrap_or_default();
             let zongshu = shujucaozuo_ribao_biaoqian::tongji_tupu_bian_ribao_zongshu(&canshu.yuan_biaoqianid, &canshu.mubiao_biaoqianid).await.unwrap_or(0);
+            jiamichenggong("查询成功", serde_json::json!({"liebiao": liebiao, "zongshu": zongshu}), miyao)
+        }
+        "tupu_guanxi_shiti_ribao_fenye" => {
+            let canshu = jiexi_canshu!(qingqiu, Tupuguanxishitiribaofenyecanshu, miyao);
+            let liebiao = shujucaozuo_ribao_guanxi::chaxun_ribao_an_shitimingcheng(&canshu.shitimingcheng, canshu.yeshu, canshu.meiyetiaoshu).await.unwrap_or_default();
+            let zongshu = shujucaozuo_ribao_guanxi::tongji_ribao_an_shitimingcheng(&canshu.shitimingcheng).await.unwrap_or(0);
             jiamichenggong("查询成功", serde_json::json!({"liebiao": liebiao, "zongshu": zongshu}), miyao)
         }
         "tupu_ribao_duobiaoqian_fenye" => {

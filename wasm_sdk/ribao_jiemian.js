@@ -49,11 +49,13 @@ export class Ribaojiemian {
                <button class="aq-btn aq-btn-zhu" onclick="ribao_qiehuanshitu('renwu')">任务</button>
                <button class="aq-btn aq-btn-zhu" onclick="ribao_qiehuanshitu('tupu')">图谱</button>
                <button class="aq-btn aq-btn-zhu" onclick="ribao_qiehuanshitu('fenxi')">分析</button>
-               <button class="aq-btn aq-btn-lv" onclick="ribao_shuaxin()">刷新数据</button>`
+               <button class="aq-btn aq-btn-lv" onclick="ribao_shuaxin()">刷新数据</button>
+               <button class="aq-btn" onclick="ribao_quanping()" style="background:linear-gradient(135deg,#8B5CF6 0%,#7C3AED 100%)">全屏</button>`
             : `<button class="aq-btn ${this.dangqianshitu === 'ribao' ? 'aq-btn-lv' : 'aq-btn-zhu'}" onclick="ribao_qiehuanshitu('ribao')">我的日报</button>
                <button class="aq-btn ${this.dangqianshitu === 'quanburibao' ? 'aq-btn-lv' : 'aq-btn-zhu'}" onclick="ribao_qiehuanshitu('quanburibao')">全部日报</button>
                <button class="aq-btn aq-btn-zhu" onclick="ribao_qiehuanshitu('tupu')">图谱</button>
-               <button class="aq-btn aq-btn-lv" onclick="ribao_shuaxin()">刷新数据</button>`;
+               <button class="aq-btn aq-btn-lv" onclick="ribao_shuaxin()">刷新数据</button>
+               <button class="aq-btn" onclick="ribao_quanping()" style="background:linear-gradient(135deg,#8B5CF6 0%,#7C3AED 100%)">全屏</button>`;
         tou.innerHTML = `<h2 style="font-size:15px;color:#475569;margin:0">日报管理</h2><div>${anniulie}</div>`;
         this.rongqi.appendChild(tou);
         const neirong = document.createElement('div');
@@ -202,7 +204,7 @@ export class Ribaojiemian {
 
             let neironghtml = `<div id="rb_nr_${rb.id}" style="font-size:14px;color:#1E293B;line-height:1.6;white-space:pre-wrap">${jiedneirong}</div>`;
             if (shifouchaochu) {
-                neironghtml += `<span id="rb_zk_${rb.id}" onclick="ribao_qiehuanneirong('${rb.id}')" style="color:#3B82F6;font-size:12px;cursor:pointer;user-select:none;display:inline-block;margin-top:4px" onmouseover="this.style.color='#2563EB'" onmouseout="this.style.color='#3B82F6'">查看完整内容 ▼</span>`;
+                neironghtml += `<span id="rb_zk_${rb.id}" onclick="ribao_qiehuanneirong('${rb.id}')" style="color:#3B82F6;font-size:12px;cursor:pointer;user-select:none;display:inline-block;margin-top:4px" onmouseenter="this.style.color='#2563EB'" onmouseleave="this.style.color='#3B82F6'">查看完整内容 ▼</span>`;
             }
             if (rb.zhaiyao) {
                 neironghtml += `<div style="margin-top:8px;padding:8px 12px;background:linear-gradient(135deg,#F0FDF4,#ECFDF5);border:1px solid #BBF7D0;border-radius:6px;font-size:13px;color:#15803D;line-height:1.5"><span style="font-weight:600">摘要：</span>${rb.zhaiyao}</div>`;
@@ -232,9 +234,9 @@ export class Ribaojiemian {
                 for (const bq of biaoqianlie) {
                     const leixing = bq.leixingmingcheng || '未知';
                     const zhi = bq.zhi || '';
-                    html += `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#EFF6FF;color:#1E40AF;border-radius:16px;font-size:12px;transition:background 200ms" onmouseover="this.style.background='#DBEAFE'" onmouseout="this.style.background='#EFF6FF'">
+                    html += `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#EFF6FF;color:#1E40AF;border-radius:16px;font-size:12px;transition:background 200ms" onmouseenter="this.style.background='#DBEAFE'" onmouseleave="this.style.background='#EFF6FF'">
                         <span onclick="ribao_dianjibibaoqian('${leixing}','${zhi}')" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px"><span style="color:#64748B">${leixing}:</span>${zhi}</span>
-                        <span onclick="ribao_biaoqian_tiaozhuan_tupu('${bq.biaoqianid}')" title="在图谱中查看" style="cursor:pointer;color:#0369A1;font-size:13px;line-height:1;opacity:0.4;transition:opacity 150ms" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.4'">◎</span>
+                        <span onclick="ribao_biaoqian_tiaozhuan_tupu('${bq.biaoqianid}')" title="在图谱中查看" style="cursor:pointer;color:#0369A1;font-size:13px;line-height:1;opacity:0.4;transition:opacity 150ms" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.4'">◎</span>
                     </span>`;
                 }
                 html += '</div>';
@@ -665,7 +667,7 @@ export class Ribaojiemian {
         } else {
             html += '<div style="display:flex;flex-wrap:wrap;gap:8px">';
             for (const bq of weiguanlian) {
-                html += `<button onclick="ribao_xinzengguanlian('${ribaoid}','${bq.id}')" style="padding:6px 12px;font-size:13px;background:#E0F2FE;color:#0369A1;border:1px solid #BAE6FD;border-radius:20px;cursor:pointer;line-height:1.2;transition:background 200ms" onmouseover="this.style.background='#BAE6FD'" onmouseout="this.style.background='#E0F2FE'">${bq.zhi}</button>`;
+                html += `<button onclick="ribao_xinzengguanlian('${ribaoid}','${bq.id}')" style="padding:6px 12px;font-size:13px;background:#E0F2FE;color:#0369A1;border:1px solid #BAE6FD;border-radius:20px;cursor:pointer;line-height:1.2;transition:background 200ms" onmouseenter="this.style.background='#BAE6FD'" onmouseleave="this.style.background='#E0F2FE'">${bq.zhi}</button>`;
             }
             html += '</div>';
         }
@@ -916,7 +918,7 @@ export class Ribaojiemian {
             html += '</div>';
         } else if (cj === 1) {
             const t = zhuti[sy % zhuti.length];
-            html += `<div style="padding:10px 16px;border-radius:10px;background:#fff;border-left:3px solid ${t.zhu};box-shadow:0 2px 8px rgba(0,0,0,0.04);flex-shrink:0;min-width:110px;transition:box-shadow 200ms,transform 200ms" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.08)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.04)';this.style.transform='none'">`;
+            html += `<div style="padding:10px 16px;border-radius:10px;background:#fff;border-left:3px solid ${t.zhu};box-shadow:0 2px 8px rgba(0,0,0,0.04);flex-shrink:0;min-width:110px;transition:box-shadow 200ms,transform 200ms" onmouseenter="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.08)';this.style.transform='translateY(-1px)'" onmouseleave="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.04)';this.style.transform='none'">`;
             html += `<div style="font-weight:600;font-size:14px;color:${t.zhu}">${jd.mingcheng || ''}</div>`;
             if (jd.neirong) {
                 html += `<div style="font-size:12px;color:#64748B;margin-top:4px;line-height:1.5;white-space:pre-wrap;word-break:break-all;max-width:200px">${jd.neirong}</div>`;
@@ -924,7 +926,7 @@ export class Ribaojiemian {
             html += '</div>';
         } else {
             const t = zhuti[sy % zhuti.length];
-            html += `<div style="padding:7px 12px;border-radius:8px;background:${t.qian};border:1px solid ${t.bian};flex-shrink:0;max-width:280px;transition:box-shadow 200ms,transform 200ms" onmouseover="this.style.boxShadow='0 3px 10px rgba(0,0,0,0.06)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">`;
+            html += `<div style="padding:7px 12px;border-radius:8px;background:${t.qian};border:1px solid ${t.bian};flex-shrink:0;max-width:280px;transition:box-shadow 200ms,transform 200ms" onmouseenter="this.style.boxShadow='0 3px 10px rgba(0,0,0,0.06)';this.style.transform='translateY(-1px)'" onmouseleave="this.style.boxShadow='none';this.style.transform='none'">`;
             html += `<div style="font-weight:600;font-size:13px;color:#334155">${jd.mingcheng || ''}</div>`;
             if (jd.neirong) {
                 html += `<div style="font-size:12px;color:#64748B;margin-top:2px;line-height:1.5;white-space:pre-wrap;word-break:break-all">${jd.neirong}</div>`;
@@ -1546,9 +1548,9 @@ export class Ribaojiemian {
             btn.style.cssText = 'width:32px;height:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;border:none;background:transparent;color:#64748B;border-radius:8px;cursor:pointer;transition:all 150ms ease;margin:0;min-height:0;font-size:12px';
             if (zidingyi) Object.assign(btn.style, zidingyi);
             btn.onmouseenter = () => { btn.style.background = '#F1F5F9'; btn.style.color = '#0F172A'; };
-            btn.onmouseleave = () => { btn.style.background = 'transparent'; btn.style.color = '#64748B'; };
+            btn.onmouseleave = () => { btn.style.background = 'transparent'; btn.style.color = '#64748B'; btn.style.transform = ''; };
             btn.onmousedown = () => { btn.style.transform = 'scale(0.9)'; };
-            btn.onmouseup = () => { btn.style.transform = 'scale(1)'; };
+            btn.onmouseup = () => { btn.style.transform = ''; };
             return btn;
         };
         const _gj_fengefu = () => {
@@ -2231,6 +2233,7 @@ export class Ribaojiemian {
         if (!celan) return;
         celan.style.display = 'block';
         const tubiao = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><circle cx="8" cy="8" r="4.5"/></svg>';
+        const shifou_xuni = String(j.id).startsWith('-');
         let gx_html = '';
         if (gx_lie && gx_lie.length > 0) {
             gx_html += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
@@ -2257,18 +2260,19 @@ export class Ribaojiemian {
             }
             gx_html += '<div style="height:8px"></div>';
         }
+        const zitu_html = shifou_xuni ? '' : `<button class="aq-btn aq-btn-xiao" onclick="ribao_tupu_jiazai_biaoqianid_celan('${j.id}')" style="width:100%;display:flex;align-items:center;justify-content:center;gap:6px;background:transparent;color:#3B82F6;border:1.5px solid #BFDBFE;border-radius:8px;padding:9px;margin-bottom:16px;font-weight:500;transition:all 150ms" onmouseenter="this.style.background='#EFF6FF';this.style.borderColor='#3B82F6'" onmouseleave="this.style.background='transparent';this.style.borderColor='#BFDBFE'">
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/><line x1="5.5" y1="7" x2="8.5" y2="7"/><line x1="7" y1="5.5" x2="7" y2="8.5"/></svg>
+                        \u67e5\u770b\u5b50\u56fe
+                    </button>`;
         celan.innerHTML = `
             <div style="display:flex;flex-direction:column;height:100%">
                 ${this._tupu_celan_tou_html(tubiao, '\u8282\u70b9\u8be6\u60c5')}
                 <div style="flex:1;overflow-y:auto;padding:16px">
-                    <div style="background:linear-gradient(135deg,#F8FAFC,#F1F5F9);border:1px solid #E2E8F0;border-radius:10px;padding:14px;margin-bottom:14px;border-left:3px solid #3B82F6">
-                        <div style="display:inline-block;padding:2px 8px;background:#EFF6FF;color:#3B82F6;border-radius:10px;font-size:11px;font-weight:600;letter-spacing:0.3px">${j.leixing}</div>
+                    <div style="background:linear-gradient(135deg,#F8FAFC,#F1F5F9);border:1px solid #E2E8F0;border-radius:10px;padding:14px;margin-bottom:14px;border-left:3px solid ${shifou_xuni ? '#F59E0B' : '#3B82F6'}">
+                        <div style="display:inline-block;padding:2px 8px;background:${shifou_xuni ? '#FEF3C7' : '#EFF6FF'};color:${shifou_xuni ? '#D97706' : '#3B82F6'};border-radius:10px;font-size:11px;font-weight:600;letter-spacing:0.3px">${j.leixing}</div>
                         <div style="font-size:14px;font-weight:600;color:#0F172A;margin-top:8px;line-height:1.5">${j.zhi}</div>
                     </div>
-                    <button class="aq-btn aq-btn-xiao" onclick="ribao_tupu_jiazai_biaoqianid_celan('${j.id}')" style="width:100%;display:flex;align-items:center;justify-content:center;gap:6px;background:transparent;color:#3B82F6;border:1.5px solid #BFDBFE;border-radius:8px;padding:9px;margin-bottom:16px;font-weight:500;transition:all 150ms" onmouseenter="this.style.background='#EFF6FF';this.style.borderColor='#3B82F6'" onmouseleave="this.style.background='transparent';this.style.borderColor='#BFDBFE'">
-                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/><line x1="5.5" y1="7" x2="8.5" y2="7"/><line x1="7" y1="5.5" x2="7" y2="8.5"/></svg>
-                        \u67e5\u770b\u5b50\u56fe
-                    </button>
+                    ${zitu_html}
                     ${gx_html}
                     <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
                         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#64748B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="11" rx="1.5"/><line x1="2" y1="7" x2="14" y2="7"/><line x1="6" y1="3" x2="6" y2="7"/></svg>
@@ -2278,10 +2282,15 @@ export class Ribaojiemian {
                 </div>
             </div>`;
         this._tupu_celan_yeshu = 1;
-        this._tupu_celan_biaoqianid = j.id;
+        this._tupu_celan_biaoqianid = shifou_xuni ? null : j.id;
+        this._tupu_celan_shitimingcheng = shifou_xuni ? j.zhi : null;
         this._tupu_celan_yuan_id = null;
         this._tupu_celan_mubiao_id = null;
-        this._tupu_celan_jiazai_jiedian_ribao(j.id, 1);
+        if (shifou_xuni) {
+            this._tupu_celan_jiazai_shiti_ribao(j.zhi, 1);
+        } else {
+            this._tupu_celan_jiazai_jiedian_ribao(j.id, 1);
+        }
     }
 
     _tupu_xianshi_celan_guanxibian(yuan, mubiao, gb) {
@@ -2315,6 +2324,7 @@ export class Ribaojiemian {
             </div>`;
         this._tupu_celan_yeshu = 1;
         this._tupu_celan_biaoqianid = null;
+        this._tupu_celan_shitimingcheng = null;
         this._tupu_celan_yuan_id = yuan.id;
         this._tupu_celan_mubiao_id = mubiao.id;
         this._tupu_celan_jiazai_bian_ribao(yuan.id, mubiao.id, 1);
@@ -2352,6 +2362,7 @@ export class Ribaojiemian {
             </div>`;
         this._tupu_celan_yeshu = 1;
         this._tupu_celan_biaoqianid = null;
+        this._tupu_celan_shitimingcheng = null;
         this._tupu_celan_yuan_id = yuan.id;
         this._tupu_celan_mubiao_id = mubiao.id;
         this._tupu_celan_jiazai_bian_ribao(yuan.id, mubiao.id, 1);
@@ -2405,6 +2416,18 @@ export class Ribaojiemian {
         this._tupu_celan_xuanran_ribaolie(liebiao, zongshu, yeshu, meiyetiaoshu);
     }
 
+    async _tupu_celan_jiazai_shiti_ribao(shitimingcheng, yeshu) {
+        const meiyetiaoshu = 5;
+        const jg = await this.luoji.tupu_guanxi_shiti_ribao_fenye(shitimingcheng, yeshu, meiyetiaoshu);
+        if (!jg || jg.zhuangtaima !== 200) {
+            const rongqi = document.getElementById('tupu_celan_ribaolie');
+            if (rongqi) rongqi.innerHTML = '<p style="color:#EF4444;font-size:13px">加载失败</p>';
+            return;
+        }
+        const { liebiao = [], zongshu = 0 } = jg.shuju || {};
+        this._tupu_celan_xuanran_ribaolie(liebiao, zongshu, yeshu, meiyetiaoshu);
+    }
+
     async _tupu_celan_jiazai_bian_ribao(yuan_biaoqianid, mubiao_biaoqianid, yeshu) {
         const meiyetiaoshu = 5;
         const jg = await this.luoji.tupu_bian_ribao_fenye(yuan_biaoqianid, mubiao_biaoqianid, yeshu, meiyetiaoshu);
@@ -2420,6 +2443,7 @@ export class Ribaojiemian {
     tupu_celan_chakanGuanxi(yuan_id, mubiao_id) {
         this._tupu_celan_yeshu = 1;
         this._tupu_celan_biaoqianid = null;
+        this._tupu_celan_shitimingcheng = null;
         this._tupu_celan_yuan_id = yuan_id;
         this._tupu_celan_mubiao_id = mubiao_id;
         const celan = document.getElementById('tupu_celan');
@@ -2441,6 +2465,8 @@ export class Ribaojiemian {
         const yeshu = this._tupu_celan_yeshu - 1;
         if (this._tupu_celan_yuan_id && this._tupu_celan_mubiao_id) {
             this._tupu_celan_jiazai_bian_ribao(this._tupu_celan_yuan_id, this._tupu_celan_mubiao_id, yeshu);
+        } else if (this._tupu_celan_shitimingcheng) {
+            this._tupu_celan_jiazai_shiti_ribao(this._tupu_celan_shitimingcheng, yeshu);
         } else if (this._tupu_celan_biaoqianid) {
             this._tupu_celan_jiazai_jiedian_ribao(this._tupu_celan_biaoqianid, yeshu);
         }
@@ -2450,6 +2476,8 @@ export class Ribaojiemian {
         const yeshu = this._tupu_celan_yeshu + 1;
         if (this._tupu_celan_yuan_id && this._tupu_celan_mubiao_id) {
             this._tupu_celan_jiazai_bian_ribao(this._tupu_celan_yuan_id, this._tupu_celan_mubiao_id, yeshu);
+        } else if (this._tupu_celan_shitimingcheng) {
+            this._tupu_celan_jiazai_shiti_ribao(this._tupu_celan_shitimingcheng, yeshu);
         } else if (this._tupu_celan_biaoqianid) {
             this._tupu_celan_jiazai_jiedian_ribao(this._tupu_celan_biaoqianid, yeshu);
         }
@@ -2482,7 +2510,7 @@ export class Ribaojiemian {
             }
             let html = '';
             for (const item of liebiao) {
-                html += `<div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #F1F5F9;font-size:13px" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background=''" onclick="ribao_tupu_sousuo_xuanze('${item.biaoqianid}')">
+                html += `<div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #F1F5F9;font-size:13px" onmouseenter="this.style.background='#F8FAFC'" onmouseleave="this.style.background=''" onclick="ribao_tupu_sousuo_xuanze('${item.biaoqianid}')">
                     <span style="color:#0F172A">${item.zhi}</span>
                     <span style="color:#94A3B8;font-size:11px;margin-left:6px">${item.leixingmingcheng}</span>
                     <span style="color:#64748B;font-size:11px;float:right">${item.ribao_zongshu || 0}篇</span>
@@ -2605,14 +2633,13 @@ export class Ribaojiemian {
 
     .fenxi-section{margin-bottom:16px}
     .fenxi-section-h{font-size:12px;font-weight:700;color:#475569;margin-bottom:8px}
-    .fenxi-tag{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:#F1F5F9;border:1px solid #E2E8F0;border-radius:999px;font-size:12px;color:#475569}
+    .fenxi-tag{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:#F1F5F9;border:1px solid #E2E8F0;border-radius:6px;font-size:12px;color:#475569}
 
     .fenxi-ribao-list{display:flex;flex-direction:column;gap:8px;max-height:420px;overflow:auto;padding:10px;background:#FFFFFF;border:1px solid #E2E8F0;border-radius:12px}
     .fenxi-ribao{border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;background:#FFFFFF}
-    .fenxi-ribao summary{list-style:none;padding:10px 12px;cursor:pointer;user-select:none;outline:none}
+    .fenxi-ribao summary{list-style:none;padding:10px 12px;cursor:pointer;user-select:none;outline:none;display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
     .fenxi-ribao summary::-webkit-details-marker{display:none}
     .fenxi-ribao:hover{border-color:#CBD5E1}
-    .fenxi-ribao-head{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
     .fenxi-ribao-meta{font-size:11px;color:#94A3B8;white-space:nowrap;flex-shrink:0}
     .fenxi-ribao-title{font-size:13px;font-weight:700;color:#0F172A;line-height:1.35;flex:1;min-width:0;word-break:break-word}
     .fenxi-ribao-zhaiyao{display:block;margin-top:6px;font-size:12px;color:#64748B;line-height:1.55;white-space:pre-wrap;word-break:break-word}
@@ -2786,15 +2813,21 @@ export class Ribaojiemian {
             return;
         }
         const label = document.createElement('label');
-        label.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:999px;cursor:pointer;font-size:12px;color:#166534;transition:all 150ms;user-select:none';
-        label.innerHTML = `<input type="checkbox" class="fenxi_weidu_xz" value="${zhi.replace(/"/g, '&quot;')}" checked style="width:14px;height:14px;accent-color:#16A34A;cursor:pointer"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#16A34A;flex-shrink:0"></span>${zhi}<span onclick="this.parentElement.remove();event.stopPropagation()" style="margin-left:2px;color:#94A3B8;cursor:pointer;font-size:14px;line-height:1">×</span>`;
+        label.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:#F0FDF4;border:1px solid #16A34A;border-radius:999px;cursor:pointer;font-size:12px;color:#166534;transition:all 150ms;user-select:none';
+        label.onmouseenter = function() { this.style.borderColor = '#86EFAC'; };
+        label.onmouseleave = function() { this.style.borderColor = this.querySelector('input').checked ? '#16A34A' : '#BBF7D0'; };
+        label.innerHTML = `<input type="checkbox" class="fenxi_weidu_xz" value="${zhi.replace(/"/g, '&quot;')}" checked onchange="this.parentElement.style.borderColor=this.checked?'#16A34A':'#BBF7D0'" style="width:14px;height:14px;accent-color:#16A34A;cursor:pointer;outline:none"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#16A34A;flex-shrink:0"></span>${zhi}<span onclick="this.parentElement.remove();event.stopPropagation()" style="margin-left:2px;color:#94A3B8;cursor:pointer;font-size:14px;line-height:1">×</span>`;
         qu.appendChild(label);
         shuru.value = '';
     }
 
     fenxi_quanxuan_weidu(xuanzhong) {
         const cblie = document.querySelectorAll('.fenxi_weidu_xz');
-        for (const cb of cblie) cb.checked = xuanzhong;
+        for (const cb of cblie) {
+            cb.checked = xuanzhong;
+            const lbl = cb.closest('label');
+            if (lbl) lbl.style.borderColor = xuanzhong ? '#3B82F6' : '#E2E8F0';
+        }
     }
 
     fenxi_tingzhi_fenxi() {
@@ -2919,5 +2952,18 @@ export class Ribaojiemian {
 
     _xuanran_xiangmu_guanlian_jieguo(fenxi) {
         return fxr.xuanran_xiangmu_guanlian_jieguo(fenxi);
+    }
+}
+
+function ribao_quanping() {
+    const rongqi = document.querySelector('.card');
+    if (!rongqi) return;
+    
+    if (!document.fullscreenElement) {
+        rongqi.requestFullscreen().catch(err => {
+            console.error('全屏失败:', err);
+        });
+    } else {
+        document.exitFullscreen();
     }
 }
