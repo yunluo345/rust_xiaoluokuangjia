@@ -6,8 +6,10 @@ pub use diaoduqizhuti::{
     huoqu_xukezheng,
     changshi_huoqu_xukezheng_moren,
     changshi_huoqu_xukezheng,
+    huoqu_paidui_chaoshi_miao,
     chaxun_zhuangtai,
     regengxin_shangxian,
+    regengxin_chaoshi,
     DiaoduZhuangtai,
 };
 

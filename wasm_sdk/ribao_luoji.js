@@ -19,6 +19,67 @@ export class Ribaoluoji {
         }
     }
 
+    async zhixing_ai_jiekou(fangfa, lujing, qingqiuti = null, fanhui_json = true) {
+        if (!this.kehu) { this.rizhi('尚未初始化', 'warn'); return null; }
+        if (!this.kehu.yidenglu()) { this.rizhi('请先登录', 'warn'); return null; }
+        const lingpai = this.kehu.huoqulingpai?.();
+        const fuwuqidizhi = this.kehu.huoqufuwuqidizhi?.();
+        if (!lingpai || !fuwuqidizhi) {
+            this.rizhi('登录信息异常，无法请求AI调度器', 'err');
+            return null;
+        }
+        try {
+            const qingqiutou = { Authorization: 'Bearer ' + lingpai };
+            const canshu = { method: fangfa, headers: qingqiutou };
+            if (qingqiuti !== null && qingqiuti !== undefined) {
+                qingqiutou['Content-Type'] = 'application/json';
+                canshu.body = JSON.stringify(qingqiuti);
+            }
+            const xiangying = await fetch(fuwuqidizhi + lujing, canshu);
+            const wenben = await xiangying.text();
+            if (!fanhui_json) {
+                return { zhuangtaima: xiangying.ok ? 200 : xiangying.status, xiaoxi: xiangying.statusText || '', shuju: wenben };
+            }
+            return JSON.parse(wenben);
+        } catch (e) {
+            this.rizhi('AI调度器请求失败: ' + e, 'err');
+            return null;
+        }
+    }
+
+    async diaoduqi_chaxun_zhuangtai() {
+        const jg = await this.zhixing_ai_jiekou('GET', '/jiekou/ai/diaoduqi');
+        if (jg) this.rizhi('查询AI调度器状态: ' + (jg.xiaoxi || ''), jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
+    async diaoduqi_chaxun_jiankong() {
+        const jg = await this.zhixing_ai_jiekou('GET', '/jiekou/ai/diaoduqi/jiankong', null, false);
+        if (!jg || jg.zhuangtaima !== 200) {
+            this.rizhi('查询AI调度器监控失败', 'err');
+            return jg;
+        }
+        const zhibiao = {};
+        for (const hang of String(jg.shuju || '').split('\n')) {
+            const trim = hang.trim();
+            if (!trim || trim.startsWith('#')) continue;
+            const [mingcheng, yuanshi] = trim.split(/\s+/, 2);
+            if (!mingcheng || yuanshi === undefined) continue;
+            const shuzi = Number(yuanshi);
+            zhibiao[mingcheng] = Number.isNaN(shuzi) ? yuanshi : shuzi;
+        }
+        return { zhuangtaima: 200, xiaoxi: '查询成功', shuju: zhibiao };
+    }
+
+    async diaoduqi_gengxin(quanju_shangxian, paidui_chaoshi_miao) {
+        const qingqiuti = {};
+        if (Number.isInteger(quanju_shangxian) && quanju_shangxian > 0) qingqiuti.quanju_shangxian = quanju_shangxian;
+        if (Number.isInteger(paidui_chaoshi_miao) && paidui_chaoshi_miao > 0) qingqiuti.paidui_chaoshi_miao = paidui_chaoshi_miao;
+        const jg = await this.zhixing_ai_jiekou('POST', '/jiekou/ai/diaoduqi/gengxin', qingqiuti);
+        if (jg) this.rizhi('更新AI调度器配置: ' + (jg.xiaoxi || ''), jg.zhuangtaima === 200 ? 'ok' : 'err');
+        return jg;
+    }
+
     async yonghuzhixing(caozuo, canshu) {
         if (!this.kehu) { this.rizhi('尚未初始化', 'warn'); return null; }
         if (!this.kehu.yidenglu()) { this.rizhi('请先登录', 'warn'); return null; }

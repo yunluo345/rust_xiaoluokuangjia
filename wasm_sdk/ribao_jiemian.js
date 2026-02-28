@@ -1,10 +1,48 @@
 // 日报管理 - 界面层
 import * as gj from './jiemian_gongju.js';
-import { tiqushuju, tiqufenyeshuju, zhuangtai_html, chuli_api_jieguo, tongjigaopin, huoqushitibiaoqian } from './jiemian_gongju.js';
 import { FenxiZhuangtai } from './fenxi_zhuangtai.js';
 import { FenxiApiClient } from './ribao_luoji.js';
 import * as fxr from './fenxi_xuanran.js';
 import { TupuXuanran } from './tupu_xuanran.js';
+
+const tiqushuju = gj.tiqushuju || ((jg, morenzhi = []) => jg?.zhuangtaima === 200 ? (jg.shuju || morenzhi) : morenzhi);
+const tiqufenyeshuju = gj.tiqufenyeshuju || (jg => {
+    if (!jg || jg.zhuangtaima !== 200) return { liebiao: [], zongshu: 0 };
+    return { liebiao: jg.shuju?.liebiao || [], zongshu: jg.shuju?.zongshu || 0 };
+});
+const zhuangtai_html = gj.zhuangtai_html || ((leixing, xiaoxi) => {
+    const yansemap = { jiazai: '#64748B', cuowu: '#EF4444', kong: '#94A3B8', jinggao: '#F59E0B' };
+    return `<p style="color:${yansemap[leixing] || '#64748B'}">${xiaoxi}</p>`;
+});
+const chuli_api_jieguo = gj.chuli_api_jieguo || ((luoji, jg) => {
+    if (jg?.zhuangtaima === 200) return true;
+    if (jg?.zhuangtaima === 403) luoji.rizhi('权限不足：' + jg.xiaoxi, 'warn');
+    return false;
+});
+const tongjigaopin = gj.tongjigaopin || ((biaoqianlie, paichutiaojian = null, zuiduo = 8) => {
+    const map = new Map();
+    for (const bq of (biaoqianlie || [])) {
+        const lx = String(bq.leixingmingcheng || '').trim();
+        const zhi = String(bq.zhi || '').trim();
+        if (!lx || !zhi) continue;
+        if (paichutiaojian && paichutiaojian(lx, zhi)) continue;
+        const key = `${lx}::${zhi}`;
+        const cishu = parseInt(bq.cishu, 10);
+        const zengliang = (!isNaN(cishu) && cishu > 0) ? cishu : 1;
+        map.set(key, (map.get(key) || 0) + zengliang);
+    }
+    return Array.from(map.entries())
+        .map(([k, cishu]) => {
+            const idx = k.indexOf('::');
+            return { leixing: k.slice(0, idx), zhi: k.slice(idx + 2), cishu };
+        })
+        .sort((a, b) => b.cishu - a.cishu)
+        .slice(0, zuiduo);
+});
+const huoqushitibiaoqian = gj.huoqushitibiaoqian || (leixingmingcheng => {
+    const map = { '客户公司': '公司', '客户名字': '联系人', '项目名称': '项目' };
+    return map[leixingmingcheng] || '标签';
+});
 
 function jiexishijian(canchuo) {
     const ms = Number(canchuo);
@@ -56,6 +94,7 @@ export class Ribaojiemian {
                <button class="aq-btn aq-btn-zhu" onclick="ribao_qiehuanshitu('biaoqian')">标签</button>
                <button class="aq-btn aq-btn-zhu" onclick="ribao_qiehuanshitu('leixing')">类型</button>
                <button class="aq-btn aq-btn-zhu" onclick="ribao_qiehuanshitu('renwu')">任务</button>
+               <button class="aq-btn aq-btn-zhu" onclick="ribao_qiehuanshitu('diaoduqi')">调度器</button>
                <button class="aq-btn aq-btn-zhu" onclick="ribao_qiehuanshitu('jiandang')">建档</button>
                <button class="aq-btn aq-btn-zhu" onclick="ribao_qiehuanshitu('tupu')">图谱</button>
                <button class="aq-btn aq-btn-zhu" onclick="ribao_qiehuanshitu('fenxi')">分析</button>
@@ -74,7 +113,7 @@ export class Ribaojiemian {
 
     async qiehuanshitu(shitu) {
         const yunxushitu = this.shifouquanxian
-            ? ['ribao', 'biaoqian', 'leixing', 'renwu', 'jiandang', 'tupu', 'fenxi']
+            ? ['ribao', 'biaoqian', 'leixing', 'renwu', 'diaoduqi', 'jiandang', 'tupu', 'fenxi']
             : ['ribao', 'quanburibao', 'tupu'];
         this.dangqianshitu = yunxushitu.includes(shitu) ? shitu : 'ribao';
         this.chakanquanbu = this.dangqianshitu === 'quanburibao';
@@ -136,6 +175,7 @@ export class Ribaojiemian {
             'biaoqian': () => this.shuaxinbiaoqianliebiao(),
             'leixing': () => this.shuaxinleixingliebiao(),
             'renwu': () => this.shuaxinrenwuliebiao(),
+            'diaoduqi': () => this.shuaxindiaoduqishitu(),
             'jiandang': () => this.shuaxinjiandangshitu(),
             'tupu': () => this.shuaxintupushitu(),
             'fenxi': () => this.shuaxinfenxishitu()
@@ -2074,6 +2114,106 @@ export class Ribaojiemian {
             await new Promise(r => setTimeout(r, 300));
             await this.shuaxinrenwuliebiao();
         }
+    }
+
+    async shuaxindiaoduqishitu() {
+        const nr = document.getElementById('ribao_neirong');
+        nr.innerHTML = zhuangtai_html('jiazai', '加载调度器中...');
+        const [zhuangtaijg, diaoduqizt_jg, diaoduqijk_jg, kechuli_jg, chulizhong_jg, yichuli_jg, shibai_jg] = await Promise.all([
+            this.luoji.renwu_biaoqian_ai_zhuangtai(),
+            this.luoji.diaoduqi_chaxun_zhuangtai(),
+            this.luoji.diaoduqi_chaxun_jiankong(),
+            this.luoji.renwu_tongji_kechuli(),
+            this.luoji.renwu_tongji_zhuangtai('processing'),
+            this.luoji.renwu_tongji_zhuangtai('true'),
+            this.luoji.renwu_tongji_zhuangtai('shibai'),
+        ]);
+        const yunxingzhong = zhuangtaijg?.zhuangtaima === 200 && zhuangtaijg.shuju?.yunxingzhong === true;
+        const diaoduqi_zt = diaoduqizt_jg?.zhuangtaima === 200 ? (diaoduqizt_jg.shuju || {}) : {};
+        const diaoduqi_jk = diaoduqijk_jg?.zhuangtaima === 200 ? (diaoduqijk_jg.shuju || {}) : {};
+        const quanju_shangxian = diaoduqi_zt.quanju_shangxian ?? diaoduqi_jk.ai_diaoduqi_quanju_shangxian ?? '';
+        const dangqian_bingfa = diaoduqi_zt.dangqian_bingfashu ?? diaoduqi_jk.ai_diaoduqi_dangqian_bingfashu ?? '';
+        const dengdaishu = diaoduqi_zt.dengdaishu ?? diaoduqi_jk.ai_diaoduqi_dengdaishu ?? '';
+        const shengyu_weizhi = diaoduqi_zt.shengyu_weizhi ?? diaoduqi_jk.ai_diaoduqi_shengyu_weizhi ?? '';
+        const paidui_chaoshi_miao = diaoduqi_jk.ai_diaoduqi_paidui_chaoshi_miao ?? '';
+        const kechuli = kechuli_jg?.zhuangtaima === 200 ? kechuli_jg.shuju?.count ?? 0 : 0;
+        const chulizhong = chulizhong_jg?.zhuangtaima === 200 ? chulizhong_jg.shuju?.count ?? 0 : 0;
+        const yichuli = yichuli_jg?.zhuangtaima === 200 ? yichuli_jg.shuju?.count ?? 0 : 0;
+        const shibai = shibai_jg?.zhuangtaima === 200 ? shibai_jg.shuju?.count ?? 0 : 0;
+        const shuaxinshijian = new Date().toLocaleString('zh-CN');
+        let html = `<div style="margin-bottom:14px;padding:12px;border:1px solid #E2E8F0;border-radius:10px;background:#FFFFFF">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+                <div style="font-size:15px;font-weight:700;color:#0F172A">全局AI任务调度器仪表盘</div>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                    <span style="font-size:12px;color:#64748B">刷新时间：${shuaxinshijian}</span>
+                    <button class="aq-btn aq-btn-xiao" onclick="ribao_diaoduqi_shuaxin()" style="height:32px">刷新</button>
+                </div>
+            </div>
+        </div>`;
+        html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:14px">
+            <div style="background:${yunxingzhong ? '#ECFDF5' : '#F8FAFC'};border:1px solid ${yunxingzhong ? '#A7F3D0' : '#E2E8F0'};border-radius:10px;padding:12px">
+                <div style="font-size:12px;color:#64748B">运行状态</div>
+                <div style="font-size:20px;font-weight:700;color:${yunxingzhong ? '#059669' : '#94A3B8'}">${yunxingzhong ? '运行中' : '已停止'}</div>
+            </div>
+            <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:12px">
+                <div style="font-size:12px;color:#64748B">并发占用</div>
+                <div style="font-size:20px;font-weight:700;color:#2563EB">${dangqian_bingfa || '-'} / ${quanju_shangxian || '-'}</div>
+            </div>
+            <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:12px">
+                <div style="font-size:12px;color:#64748B">排队任务</div>
+                <div style="font-size:20px;font-weight:700;color:#EA580C">${dengdaishu || 0}</div>
+            </div>
+            <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:12px">
+                <div style="font-size:12px;color:#64748B">剩余并发位</div>
+                <div style="font-size:20px;font-weight:700;color:#334155">${shengyu_weizhi || 0}</div>
+            </div>
+            <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:12px">
+                <div style="font-size:12px;color:#64748B">排队超时(秒)</div>
+                <div style="font-size:20px;font-weight:700;color:#DC2626">${paidui_chaoshi_miao || '-'}</div>
+            </div>
+            <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:12px">
+                <div style="font-size:12px;color:#64748B">待处理 / 处理中 / 已完成 / 失败</div>
+                <div style="font-size:16px;font-weight:700;color:#0F172A">${kechuli} / ${chulizhong} / ${yichuli} / ${shibai}</div>
+            </div>
+        </div>`;
+        html += `<div style="padding:12px;border:1px solid #E2E8F0;border-radius:10px;background:#FFFFFF">
+            <div style="font-size:14px;font-weight:700;color:#0F172A;margin-bottom:10px">调度器配置更新</div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <input id="diaoduqi_quanju_shangxian" type="number" min="1" placeholder="全局并发上限" value="${quanju_shangxian}" style="height:34px;padding:0 10px;border:1px solid #E2E8F0;border-radius:6px;width:160px;font-size:13px;box-sizing:border-box">
+                <input id="diaoduqi_paidui_chaoshi_miao" type="number" min="1" placeholder="排队超时(秒)" value="${paidui_chaoshi_miao}" style="height:34px;padding:0 10px;border:1px solid #E2E8F0;border-radius:6px;width:160px;font-size:13px;box-sizing:border-box">
+                <button class="aq-btn aq-btn-lv" onclick="ribao_diaoduqi_gengxin()" style="height:34px">更新配置</button>
+            </div>
+        </div>`;
+        nr.innerHTML = html;
+    }
+
+    async diaoduqi_shuaxin() {
+        await this.shuaxindiaoduqishitu();
+    }
+
+    async diaoduqi_gengxin() {
+        const shangxian_zhi = document.getElementById('diaoduqi_quanju_shangxian')?.value?.trim();
+        const chaoshi_zhi = document.getElementById('diaoduqi_paidui_chaoshi_miao')?.value?.trim();
+        const shangxian = shangxian_zhi ? parseInt(shangxian_zhi, 10) : null;
+        const chaoshi = chaoshi_zhi ? parseInt(chaoshi_zhi, 10) : null;
+        if (shangxian === null && chaoshi === null) {
+            this.luoji.rizhi('请至少填写一个调度器配置项', 'warn');
+            return;
+        }
+        if (shangxian !== null && (!Number.isInteger(shangxian) || shangxian < 1)) {
+            this.luoji.rizhi('全局并发上限必须是大于等于1的整数', 'warn');
+            return;
+        }
+        if (chaoshi !== null && (!Number.isInteger(chaoshi) || chaoshi < 1)) {
+            this.luoji.rizhi('排队超时秒数必须是大于等于1的整数', 'warn');
+            return;
+        }
+        const jg = await this.luoji.diaoduqi_gengxin(shangxian, chaoshi);
+        if (jg?.zhuangtaima === 200) {
+            await this.shuaxindiaoduqishitu();
+            return;
+        }
+        this.luoji.rizhi('更新调度器配置失败：' + (jg?.xiaoxi || '请求错误'), 'err');
     }
 
     async shuaxintupushitu() {

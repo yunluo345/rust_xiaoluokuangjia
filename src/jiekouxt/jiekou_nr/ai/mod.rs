@@ -1,13 +1,14 @@
 pub mod jiekou_aiduihua;
 pub mod jiekou_aiduihualiushi;
 pub mod jiekou_aidiaoduqi;
+pub mod jiekou_aidiaoduqi_gengxin;
+pub mod jiekou_aidiaoduqi_jiankong;
 pub mod ceshi;
 
 use serde::Deserialize;
 use crate::gongju::ai::openai::{aipeizhi, aixiaoxiguanli, gongjuji, openaizhuti};
 use crate::gongju::ai::openai::openaizhuti::ReactJieguo;
 use crate::shujuku::psqlshujuku::shujubiao_nr::ai::shujucaozuo_aiqudao;
-use crate::peizhixt::peizhixitongzhuti;
 use crate::peizhixt::peizhi_nr::peizhi_ai::Ai;
 
 #[allow(non_upper_case_globals)]
@@ -323,8 +324,7 @@ pub async fn react_xunhuan(
     lingpai: &str,
     _qingqiu: &Qingqiuti,
 ) -> Option<ReactJieguo> {
-    let zuida = peizhixitongzhuti::duqupeizhi::<Ai>(Ai::wenjianming())
-        .map(|p| p.zuida_xunhuancishu).unwrap_or(20);
+    let zuida = Ai::duqu_huo_moren().zuida_xunhuancishu;
     let mut shangci_hash: u64 = 0;
     let mut chongfu: u32 = 0;
 
@@ -367,5 +367,7 @@ pub fn zhuce(cfg: &mut web::ServiceConfig, qianzhui: &str) {
             .route(jiekou_aiduihua::dinyi.lujing, huoqufangfa(jiekou_aiduihua::dinyi.fangshi)().to(jiekou_aiduihua::chuli))
             .route(jiekou_aiduihualiushi::dinyi.lujing, huoqufangfa(jiekou_aiduihualiushi::dinyi.fangshi)().to(jiekou_aiduihualiushi::chuli))
             .route(jiekou_aidiaoduqi::dinyi.lujing, huoqufangfa(jiekou_aidiaoduqi::dinyi.fangshi)().to(jiekou_aidiaoduqi::chuli))
+            .route(jiekou_aidiaoduqi_gengxin::dinyi.lujing, huoqufangfa(jiekou_aidiaoduqi_gengxin::dinyi.fangshi)().to(jiekou_aidiaoduqi_gengxin::chuli))
+            .route(jiekou_aidiaoduqi_jiankong::dinyi.lujing, huoqufangfa(jiekou_aidiaoduqi_jiankong::dinyi.fangshi)().to(jiekou_aidiaoduqi_jiankong::chuli))
     );
 }

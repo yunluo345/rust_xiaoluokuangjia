@@ -3,7 +3,6 @@ use std::sync::{Arc, OnceLock, RwLock};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
 use crate::peizhixt::peizhi_nr::peizhi_ai::{Ai, DiaoduqiPeizhi};
-use crate::peizhixt::peizhixitongzhuti;
 use super::renwuzu::{Renwuzu, DANGQIAN_RENWUZU};
 
 // ── 全局状态 ──
@@ -18,18 +17,21 @@ struct NeibuZhuangtai {
 
 #[allow(non_upper_case_globals)]
 static quanju: OnceLock<NeibuZhuangtai> = OnceLock::new();
+fn xinjian_neibu_zhuangtai(quanju_shangxian: u32, paidui_chaoshi_miao: u32) -> NeibuZhuangtai {
+    NeibuZhuangtai {
+        xinhaoling: RwLock::new(Arc::new(Semaphore::new(quanju_shangxian as usize))),
+        dangqian_bingfashu: AtomicU32::new(0),
+        dengdaishu: AtomicU32::new(0),
+        quanju_shangxian: AtomicU32::new(quanju_shangxian),
+        paidui_chaoshi_miao: AtomicU32::new(paidui_chaoshi_miao),
+    }
+}
 
 fn huoqu_quanju() -> &'static NeibuZhuangtai {
     quanju.get_or_init(|| {
         println!("[调度器] 未显式初始化，使用默认配置");
         let moren = DiaoduqiPeizhi::default();
-        NeibuZhuangtai {
-            xinhaoling: RwLock::new(Arc::new(Semaphore::new(moren.quanju_bingfa_shangxian as usize))),
-            dangqian_bingfashu: AtomicU32::new(0),
-            dengdaishu: AtomicU32::new(0),
-            quanju_shangxian: AtomicU32::new(moren.quanju_bingfa_shangxian),
-            paidui_chaoshi_miao: AtomicU32::new(moren.paidui_chaoshi_miao as u32),
-        }
+        xinjian_neibu_zhuangtai(moren.quanju_bingfa_shangxian, moren.paidui_chaoshi_miao as u32)
     })
 }
 
@@ -116,36 +118,30 @@ fn jiancha_renwuzu_quxiao() -> Result<(), DiaoduCuowu> {
     Ok(())
 }
 
+fn zhunbei_huoqu_xukezheng() -> Result<DengdaiShouwei, DiaoduCuowu> {
+    jiancha_renwuzu_quxiao()?;
+    huoqu_quanju().dengdaishu.fetch_add(1, Ordering::SeqCst);
+    Ok(DengdaiShouwei)
+}
+
 // ── 核心函数 ──
 
 /// 从配置文件初始化调度器（应用启动时调用一次）
 pub fn chushihua_cong_peizhi() {
-    let peizhi = peizhixitongzhuti::duqupeizhi::<Ai>(Ai::wenjianming())
-        .map(|p| p.diaoduqi)
-        .unwrap_or_default();
+    let peizhi = Ai::duqu_huo_moren().diaoduqi;
 
     let shangxian = peizhi.quanju_bingfa_shangxian.max(1);
     let chaoshi = peizhi.paidui_chaoshi_miao as u32;
 
     let _ = quanju.get_or_init(|| {
         println!("[调度器] 初始化 全局并发上限={} 排队超时={}秒", shangxian, chaoshi);
-        NeibuZhuangtai {
-            xinhaoling: RwLock::new(Arc::new(Semaphore::new(shangxian as usize))),
-            dangqian_bingfashu: AtomicU32::new(0),
-            dengdaishu: AtomicU32::new(0),
-            quanju_shangxian: AtomicU32::new(shangxian),
-            paidui_chaoshi_miao: AtomicU32::new(chaoshi),
-        }
+        xinjian_neibu_zhuangtai(shangxian, chaoshi)
     });
 }
 
 /// 无超时获取许可（永久等待直到可用），支持任务组取消检测
 pub async fn huoqu_xukezheng() -> Result<XukezhengShouwei, DiaoduCuowu> {
-    jiancha_renwuzu_quxiao()?;
-
-    let zhuangtai = huoqu_quanju();
-    zhuangtai.dengdaishu.fetch_add(1, Ordering::SeqCst);
-    let dengdai_shouwei = DengdaiShouwei;
+    let dengdai_shouwei = zhunbei_huoqu_xukezheng()?;
 
     let jieguo = huoqu_xinhaoling().acquire_owned().await;
     drop(dengdai_shouwei);
@@ -162,14 +158,14 @@ pub async fn changshi_huoqu_xukezheng_moren() -> Result<XukezhengShouwei, Diaodu
     changshi_huoqu_xukezheng(chaoshi_miao).await
 }
 
+pub fn huoqu_paidui_chaoshi_miao() -> u64 {
+    huoqu_quanju().paidui_chaoshi_miao.load(Ordering::Relaxed) as u64
+}
+
 /// 带超时获取许可
 pub async fn changshi_huoqu_xukezheng(chaoshi_miao: u64) -> Result<XukezhengShouwei, DiaoduCuowu> {
-    jiancha_renwuzu_quxiao()?;
-
     let zhuangtai = huoqu_quanju();
-    // 标记进入等待（用 RAII guard 保护，future 被取消时也能正确递减）
-    zhuangtai.dengdaishu.fetch_add(1, Ordering::SeqCst);
-    let dengdai_shouwei = DengdaiShouwei;
+    let dengdai_shouwei = zhunbei_huoqu_xukezheng()?;
 
     let jieguo = tokio::time::timeout(
         std::time::Duration::from_secs(chaoshi_miao),

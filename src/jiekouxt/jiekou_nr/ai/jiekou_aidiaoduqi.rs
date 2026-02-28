@@ -10,8 +10,8 @@ pub const dinyi: Jiekoudinyi = Jiekoudinyi {
     fangshi: Qingqiufangshi::Get,
     jiami: false,
     xudenglu: true,
-    xuyonghuzu: false,
-    yunxuputong: true,
+    xuyonghuzu: true,
+    yunxuputong: false,
 };
 
 pub async fn chuli(_req: HttpRequest) -> HttpResponse {

@@ -324,5 +324,10 @@ impl Ai {
     pub fn wenjianming() -> &'static str {
         "ai"
     }
+
+    pub fn duqu_huo_moren() -> Self {
+        crate::peizhixt::peizhixitongzhuti::duqupeizhi::<Self>(Self::wenjianming())
+            .unwrap_or_default()
+    }
 }
 

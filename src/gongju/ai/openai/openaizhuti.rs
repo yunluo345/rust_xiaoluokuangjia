@@ -89,24 +89,48 @@ fn goujian_qingqiuti(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli, liushi: bool, dai
     }
     ti
 }
+fn goujian_zongchaoshi(peizhi: &Aipeizhi) -> std::time::Duration {
+    let paidui_chaoshi = super::diaoduqi::huoqu_paidui_chaoshi_miao();
+    std::time::Duration::from_secs(peizhi.chaoshishijian.saturating_add(paidui_chaoshi))
+}
+
+fn jiancha_shengyu_shijian(jiezhi: tokio::time::Instant, jieduan: &str) -> Option<std::time::Duration> {
+    let shengyu = jiezhi.saturating_duration_since(tokio::time::Instant::now());
+    if shengyu.is_zero() {
+        println!("[OpenAI] 调用总超时，终止阶段: {}", jieduan);
+        None
+    } else {
+        Some(shengyu)
+    }
+}
 
 /// 发送 HTTP 请求（含重试+退避），返回成功的原始响应
-async fn fasong_qingqiu(peizhi: &Aipeizhi, ti: &serde_json::Value) -> Option<reqwest::Response> {
-    // 调度器：获取全局AI并发许可，满则排队，超时返回None
-    let _xukezheng = match super::diaoduqi::changshi_huoqu_xukezheng_moren().await {
-        Ok(xk) => xk,
-        Err(e) => {
-            println!("[OpenAI] 调度器排队超时: {}", e);
+async fn fasong_qingqiu(
+    peizhi: &Aipeizhi,
+    ti: &serde_json::Value,
+    jiezhi: tokio::time::Instant,
+) -> Option<reqwest::Response> {
+    let paidui_shengyu = jiancha_shengyu_shijian(jiezhi, "排队前检查")?;
+    let _xukezheng = match tokio::time::timeout(paidui_shengyu, super::diaoduqi::huoqu_xukezheng()).await {
+        Ok(Ok(xk)) => xk,
+        Ok(Err(e)) => {
+            println!("[OpenAI] 调度器获取许可失败: {}", e);
+            return None;
+        }
+        Err(_) => {
+            println!("[OpenAI] 调用总超时，终止阶段: 排队获取许可");
             return None;
         }
     };
 
     let dizhi = format!("{}/chat/completions", peizhi.jiekoudizhi.trim_end_matches('/'));
-    let chaoshi = std::time::Duration::from_secs(peizhi.chaoshishijian);
+    let dan_ci_http_chaoshi = std::time::Duration::from_secs(peizhi.chaoshishijian);
     for cishu in 0..=peizhi.chongshicishu {
         if super::diaoduqi::dangqian_yiquxiao() {
             return None;
         }
+        let benci_http_chaoshi = jiancha_shengyu_shijian(jiezhi, "HTTP请求前检查")?
+            .min(dan_ci_http_chaoshi);
         match reqwest::Client::builder()
             .no_proxy()
             .build()
@@ -114,7 +138,7 @@ async fn fasong_qingqiu(peizhi: &Aipeizhi, ti: &serde_json::Value) -> Option<req
             .post(&dizhi)
             .header("Authorization", format!("Bearer {}", peizhi.miyao))
             .header("Content-Type", "application/json")
-            .timeout(chaoshi)
+            .timeout(benci_http_chaoshi)
             .json(ti)
             .send()
             .await
@@ -132,7 +156,13 @@ async fn fasong_qingqiu(peizhi: &Aipeizhi, ti: &serde_json::Value) -> Option<req
                     };
                     let yanchi = jichu + fastrand::u64(0..4);
                     println!("[OpenAI] 等待{}秒后重试", yanchi);
-                    tokio::time::sleep(std::time::Duration::from_secs(yanchi)).await;
+                    let yanchi_shijian = std::time::Duration::from_secs(yanchi);
+                    let shengyu = jiancha_shengyu_shijian(jiezhi, "HTTP失败后退避")?;
+                    if yanchi_shijian >= shengyu {
+                        println!("[OpenAI] 调用总超时，放弃HTTP重试");
+                        return None;
+                    }
+                    tokio::time::sleep(yanchi_shijian).await;
                 }
             }
             Err(e) => {
@@ -140,7 +170,13 @@ async fn fasong_qingqiu(peizhi: &Aipeizhi, ti: &serde_json::Value) -> Option<req
                 if cishu < peizhi.chongshicishu {
                     let yanchi = 2 * (cishu as u64 + 1) + fastrand::u64(0..3);
                     println!("[OpenAI] 等待{}秒后重试", yanchi);
-                    tokio::time::sleep(std::time::Duration::from_secs(yanchi)).await;
+                    let yanchi_shijian = std::time::Duration::from_secs(yanchi);
+                    let shengyu = jiancha_shengyu_shijian(jiezhi, "HTTP异常后退避")?;
+                    if yanchi_shijian >= shengyu {
+                        println!("[OpenAI] 调用总超时，放弃HTTP重试");
+                        return None;
+                    }
+                    tokio::time::sleep(yanchi_shijian).await;
                 }
             }
         }
@@ -165,9 +201,14 @@ fn tiqu_sikao(json: &serde_json::Value) -> Option<String> {
 }
 
 /// 非流式请求，返回解析后的 JSON
-async fn feiliushi_json(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli, dai_gongju: bool) -> Option<serde_json::Value> {
+async fn feiliushi_json(
+    peizhi: &Aipeizhi,
+    guanli: &Xiaoxiguanli,
+    dai_gongju: bool,
+    jiezhi: tokio::time::Instant,
+) -> Option<serde_json::Value> {
     let ti = goujian_qingqiuti(peizhi, guanli, false, dai_gongju);
-    let xiangying = fasong_qingqiu(peizhi, &ti).await?;
+    let xiangying = fasong_qingqiu(peizhi, &ti, jiezhi).await?;
     let neirong = xiangying.text().await.unwrap_or_default();
     match serde_json::from_str(&neirong) {
         Ok(json) => Some(json),
@@ -193,12 +234,14 @@ fn shifou_xianliu_xiangying(json: &serde_json::Value) -> bool {
 
 /// 非流式调用内部实现（含响应体限流退避重试），返回 (wenben, sikao)
 async fn putongqingqiu_neibu(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli) -> Option<(String, Option<String>)> {
+    let zongchaoshi = goujian_zongchaoshi(peizhi);
+    let jiezhi = tokio::time::Instant::now() + zongchaoshi;
     let zuida_xianliu_chongshi: u32 = 3;
     for changshi in 0..=zuida_xianliu_chongshi {
         if super::diaoduqi::dangqian_yiquxiao() {
             return None;
         }
-        let json = match feiliushi_json(peizhi, guanli, false).await {
+        let json = match feiliushi_json(peizhi, guanli, false, jiezhi).await {
             Some(j) => j,
             None => return None,
         };
@@ -207,7 +250,13 @@ async fn putongqingqiu_neibu(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli) -> Option
             if changshi < zuida_xianliu_chongshi {
                 let yanchi = 5 * (changshi as u64 + 1) + fastrand::u64(0..5);
                 println!("[OpenAI] 响应体限流，等待{}秒后重试（{}/{})", yanchi, changshi + 1, zuida_xianliu_chongshi);
-                tokio::time::sleep(std::time::Duration::from_secs(yanchi)).await;
+                let yanchi_shijian = std::time::Duration::from_secs(yanchi);
+                let shengyu = jiancha_shengyu_shijian(jiezhi, "响应体限流退避")?;
+                if yanchi_shijian >= shengyu {
+                    println!("[OpenAI] 调用总超时，放弃响应体限流重试");
+                    return None;
+                }
+                tokio::time::sleep(yanchi_shijian).await;
                 continue;
             }
             println!("[OpenAI] 响应体限流，重试已耗尽");
@@ -265,7 +314,8 @@ fn jiexi_wenben_gongjudiaoyong(neirong: &str) -> Option<Vec<llm::ToolCall>> {
 
 /// 非流式 ReAct 单次调用，返回文本或工具调用
 pub async fn putongqingqiu_react(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli) -> Option<ReactJieguo> {
-    let json = feiliushi_json(peizhi, guanli, true).await?;
+    let jiezhi = tokio::time::Instant::now() + goujian_zongchaoshi(peizhi);
+    let json = feiliushi_json(peizhi, guanli, true, jiezhi).await?;
     // 优先检查标准 tool_calls 字段
     if let Some(diaoyong_shuzu) = json["choices"][0]["message"]["tool_calls"].as_array() {
         if !diaoyong_shuzu.is_empty() {
@@ -297,7 +347,7 @@ pub async fn putongqingqiu_react(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli) -> Op
     // 兜底：移除工具重试
     println!("[ReAct] 响应无文本也无工具调用，移除工具做最终回复");
     if guanli.huoqu_gongjulie().is_some() {
-        if let Some(json2) = feiliushi_json(peizhi, guanli, false).await {
+        if let Some(json2) = feiliushi_json(peizhi, guanli, false, jiezhi).await {
             if let Some(wenben) = tiqu_wenben(&json2) {
                 let sikao = tiqu_sikao(&json2);
                 return Some(ReactJieguo::Wenben { neirong: wenben, sikao });
@@ -312,5 +362,6 @@ pub async fn putongqingqiu_react(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli) -> Op
 /// dai_gongju 控制是否携带工具定义，最终流式输出阶段应传 false
 pub async fn liushiqingqiu(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli, dai_gongju: bool) -> Option<reqwest::Response> {
     let ti = goujian_qingqiuti(peizhi, guanli, true, dai_gongju);
-    fasong_qingqiu(peizhi, &ti).await
+    let jiezhi = tokio::time::Instant::now() + goujian_zongchaoshi(peizhi);
+    fasong_qingqiu(peizhi, &ti, jiezhi).await
 }

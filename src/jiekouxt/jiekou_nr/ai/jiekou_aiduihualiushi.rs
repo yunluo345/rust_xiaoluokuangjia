@@ -1,7 +1,7 @@
 use actix_web::{HttpRequest, HttpResponse, web};
 use crate::jiekouxt::jiekouxtzhuti::{self, Jiekoudinyi, Qingqiufangshi};
-use crate::gongju::ai::openai::{gongjuji, openaizhuti};
-use crate::peizhixt::peizhixitongzhuti;
+use crate::gongju::ai::openai::{diaoduqi, gongjuji, openaizhuti};
+use crate::gongju::jichugongju;
 use crate::peizhixt::peizhi_nr::peizhi_ai::Ai;
 
 #[allow(non_upper_case_globals)]
@@ -15,6 +15,17 @@ pub const dinyi: Jiekoudinyi = Jiekoudinyi {
     xuyonghuzu: false,
     yunxuputong: false,
 };
+
+#[allow(non_upper_case_globals)]
+const duihua_renwuzu_mingcheng: &str = "对话流式";
+
+fn shengcheng_duihua_renwuzu_id() -> String {
+    format!(
+        "duihua_{}_{}",
+        jichugongju::huoqushijianchuo(),
+        fastrand::u16(0..10000),
+    )
+}
 
 fn cuowu_sse(xinxi: &str) -> HttpResponse {
     let neirong = serde_json::json!({"cuowu": xinxi}).to_string();
@@ -94,89 +105,95 @@ async fn chuliqingqiu(ti: &[u8], lingpai: &str) -> HttpResponse {
     let lingpai = lingpai.to_string();
 
     actix_web::rt::spawn(async move {
-        let duihua_houtai = peizhixitongzhuti::duqupeizhi::<Ai>(Ai::wenjianming())
-            .map(|p| p.diaoduqi.duihua_houtai_zhixing)
-            .unwrap_or(false);
+        let ai_peizhi = Ai::duqu_huo_moren();
+        let duihua_houtai = ai_peizhi.diaoduqi.duihua_houtai_zhixing;
+        let zuida = ai_peizhi.zuida_xunhuancishu;
+        let renwuzu = diaoduqi::Renwuzu::xingjian(
+            shengcheng_duihua_renwuzu_id(),
+            duihua_renwuzu_mingcheng,
+            duihua_houtai,
+        );
 
-        let mut yitu_json = serde_json::json!({"shijian": "yitu", "yitu": yitu_miaoshu});
-        if let Some(s) = yitu_sikao {
-            yitu_json["sikao"] = serde_json::json!(s);
-        }
-        if !fasongshuju(&fasongqi, yitu_json) {
-            return;
-        }
-
-        let mut guanli = super::goujian_guanli_anyitu(&qingqiu, gongjulie);
-        let zuida = peizhixitongzhuti::duqupeizhi::<Ai>(Ai::wenjianming())
-            .map(|p| p.zuida_xunhuancishu).unwrap_or(20);
-        let mut shangci_hash: u64 = 0;
-        let mut chongfu: u32 = 0;
-
-        for cishu in 1..=zuida {
-            if !duihua_houtai && fasongqi.is_closed() {
-                println!("[流式ReAct] 前端已断开，停止AI调用");
-                return;
+        diaoduqi::zai_renwuzu_zhong(renwuzu.clone(), async move {
+            let mut yitu_json = serde_json::json!({"shijian": "yitu", "yitu": yitu_miaoshu});
+            if let Some(s) = yitu_sikao {
+                yitu_json["sikao"] = serde_json::json!(s);
             }
-            guanli.caijian_shangxiawen(peizhi.zuida_token);
-            if !fasongshuju(&fasongqi, serde_json::json!({
-                "shijian": "xunhuan",
-                "lun": cishu,
-                "neirong": format!("第{}轮思考中", cishu),
-            })) {
+            if !fasongshuju(&fasongqi, yitu_json) {
                 return;
             }
 
-            match openaizhuti::putongqingqiu_react(&peizhi, &guanli).await {
-                Some(openaizhuti::ReactJieguo::Wenben { neirong, sikao }) => {
-                    if let Some(s) = sikao {
-                        fasongshuju(&fasongqi, serde_json::json!({"shijian": "sikao", "neirong": s}));
-                    }
-                    zhuzi_fasong(&fasongqi, &neirong).await;
+            let mut guanli = super::goujian_guanli_anyitu(&qingqiu, gongjulie);
+            let mut shangci_hash: u64 = 0;
+            let mut chongfu: u32 = 0;
+
+            for cishu in 1..=zuida {
+                if !duihua_houtai && fasongqi.is_closed() {
+                    renwuzu.quxiao();
+                    println!("[流式ReAct] 前端已断开，停止AI调用");
                     return;
                 }
-                Some(openaizhuti::ReactJieguo::Gongjudiaoyong(lie)) => {
-                let hash = super::gongju_qianming(&lie);
-                if hash == shangci_hash && shangci_hash != 0 {
-                    chongfu += 1;
-                if chongfu >= 2 {
-                        println!("[流式ReAct] 工具重复调用，移除工具做最终回复");
-                        guanli.qingkong_gongjulie();
-                            if let Some((neirong, sikao)) = openaizhuti::putongqingqiu_daisikao(&peizhi, &guanli).await {
-                                if let Some(s) = sikao {
-                                    fasongshuju(&fasongqi, serde_json::json!({"shijian": "sikao", "neirong": s}));
-                                }
-                                zhuzi_fasong(&fasongqi, &neirong).await;
-                            } else {
-                                let _ = fasongshuju(&fasongqi, serde_json::json!({"cuowu": "AI服务调用失败"}));
-                            }
-                            return;
-                        }
-                    } else {
-                        chongfu = 0;
-                    }
-                    shangci_hash = hash;
+                guanli.caijian_shangxiawen(peizhi.zuida_token);
+                if !fasongshuju(&fasongqi, serde_json::json!({
+                    "shijian": "xunhuan",
+                    "lun": cishu,
+                    "neirong": format!("第{}轮思考中", cishu),
+                })) {
+                    return;
+                }
 
-                    if !fasongshuju(&fasongqi, serde_json::json!({
-                        "shijian": "gongjudiaoyong",
-                        "lun": cishu,
-                        "gongju": lie.iter().map(|d| d.function.name.clone()).collect::<Vec<_>>(),
-                        "neirong": format!("第{}轮调用工具", cishu),
-                    })) {
+                match openaizhuti::putongqingqiu_react(&peizhi, &guanli).await {
+                    Some(openaizhuti::ReactJieguo::Wenben { neirong, sikao }) => {
+                        if let Some(s) = sikao {
+                            fasongshuju(&fasongqi, serde_json::json!({"shijian": "sikao", "neirong": s}));
+                        }
+                        zhuzi_fasong(&fasongqi, &neirong).await;
                         return;
                     }
+                    Some(openaizhuti::ReactJieguo::Gongjudiaoyong(lie)) => {
+                    let hash = super::gongju_qianming(&lie);
+                    if hash == shangci_hash && shangci_hash != 0 {
+                        chongfu += 1;
+                    if chongfu >= 2 {
+                            println!("[流式ReAct] 工具重复调用，移除工具做最终回复");
+                            guanli.qingkong_gongjulie();
+                                if let Some((neirong, sikao)) = openaizhuti::putongqingqiu_daisikao(&peizhi, &guanli).await {
+                                    if let Some(s) = sikao {
+                                        fasongshuju(&fasongqi, serde_json::json!({"shijian": "sikao", "neirong": s}));
+                                    }
+                                    zhuzi_fasong(&fasongqi, &neirong).await;
+                                } else {
+                                    let _ = fasongshuju(&fasongqi, serde_json::json!({"cuowu": "AI服务调用失败"}));
+                                }
+                                return;
+                            }
+                        } else {
+                            chongfu = 0;
+                        }
+                        shangci_hash = hash;
 
-                    guanli.zhuijia_zhushou_gongjudiaoyong(lie.clone());
-                    let jieguolie = zhixing_gongju_liushi("流式ReAct", &lie, &lingpai, &fasongqi).await;
-                    guanli.zhuijia_gongjujieguo(jieguolie);
-                }
-                None => {
-                    let _ = fasongshuju(&fasongqi, serde_json::json!({"cuowu": "AI服务调用失败或处理超时"}));
-                    return;
+                        if !fasongshuju(&fasongqi, serde_json::json!({
+                            "shijian": "gongjudiaoyong",
+                            "lun": cishu,
+                            "gongju": lie.iter().map(|d| d.function.name.clone()).collect::<Vec<_>>(),
+                            "neirong": format!("第{}轮调用工具", cishu),
+                        })) {
+                            return;
+                        }
+
+                        guanli.zhuijia_zhushou_gongjudiaoyong(lie.clone());
+                        let jieguolie = zhixing_gongju_liushi("流式ReAct", &lie, &lingpai, &fasongqi).await;
+                        guanli.zhuijia_gongjujieguo(jieguolie);
+                    }
+                    None => {
+                        let _ = fasongshuju(&fasongqi, serde_json::json!({"cuowu": "AI服务调用失败或处理超时"}));
+                        return;
+                    }
                 }
             }
-        }
 
-        let _ = fasongshuju(&fasongqi, serde_json::json!({"cuowu": "超过最大循环次数，已终止"}));
+            let _ = fasongshuju(&fasongqi, serde_json::json!({"cuowu": "超过最大循环次数，已终止"}));
+        }).await;
     });
 
     HttpResponse::Ok()

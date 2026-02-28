@@ -40,6 +40,8 @@ pub fn huoqujiekoulie() -> Vec<Jiekouzhucexinxi> {
         Jiekouzhucexinxi { qianzhui: ai_qianzhui, dinyi: &ai::jiekou_aiduihua::dinyi },
         Jiekouzhucexinxi { qianzhui: ai_qianzhui, dinyi: &ai::jiekou_aiduihualiushi::dinyi },
         Jiekouzhucexinxi { qianzhui: ai_qianzhui, dinyi: &ai::jiekou_aidiaoduqi::dinyi },
+        Jiekouzhucexinxi { qianzhui: ai_qianzhui, dinyi: &ai::jiekou_aidiaoduqi_gengxin::dinyi },
+        Jiekouzhucexinxi { qianzhui: ai_qianzhui, dinyi: &ai::jiekou_aidiaoduqi_jiankong::dinyi },
         Jiekouzhucexinxi { qianzhui: xitong_qianzhui, dinyi: &xitong::jiekou_aiqudao::dinyi },
         Jiekouzhucexinxi { qianzhui: ribao_qianzhui, dinyi: &ribao::jiekou_ribao::dinyi },
         Jiekouzhucexinxi { qianzhui: ribao_qianzhui, dinyi: &ribao::jiekou_ribao_yonghu::dinyi },

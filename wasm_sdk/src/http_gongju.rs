@@ -86,8 +86,14 @@ pub async fn duquliushi(xiangying: &Response, huidiao: &js_sys::Function) -> Res
 
 pub async fn duqujiamiliushi(xiangying: &Response, miyao: &[u8], huidiao: &js_sys::Function, duquqi_huidiao: Option<&js_sys::Function>) -> Result<(), JsValue> {
     duquliugushu(xiangying, duquqi_huidiao, |hang| {
-        let jiemi = super::jiami_gongju::jiemixiangying(hang, miyao)?;
-        let _ = huidiao.call1(&JsValue::NULL, &JsValue::from_str(&jiemi));
+        if let Some(miwen) = hang.strip_prefix("data: ") {
+            let miwen = miwen.trim();
+            if miwen.is_empty() {
+                return Ok(());
+            }
+            let jiemi = super::jiami_gongju::jiemixiangying(miwen, miyao)?;
+            let _ = huidiao.call1(&JsValue::NULL, &JsValue::from_str(&format!("data: {}", jiemi)));
+        }
         Ok(())
     }).await
 }
