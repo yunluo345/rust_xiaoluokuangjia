@@ -50,15 +50,6 @@ async fn zhuzi_fasong(
     fasongshuju(fasongqi, serde_json::json!({"wancheng": true}))
 }
 
-fn gongju_qianming(lie: &[llm::ToolCall]) -> u64 {
-    use std::hash::{Hash, Hasher};
-    let mut h = std::collections::hash_map::DefaultHasher::new();
-    for d in lie {
-        d.function.name.hash(&mut h);
-        d.function.arguments.hash(&mut h);
-    }
-    h.finish()
-}
 
 async fn zhixing_gongju_liushi(
     qz: &str,
@@ -144,7 +135,7 @@ async fn chuliqingqiu(ti: &[u8], lingpai: &str) -> HttpResponse {
                     return;
                 }
                 Some(openaizhuti::ReactJieguo::Gongjudiaoyong(lie)) => {
-                let hash = gongju_qianming(&lie);
+                let hash = super::gongju_qianming(&lie);
                 if hash == shangci_hash && shangci_hash != 0 {
                     chongfu += 1;
                 if chongfu >= 2 {

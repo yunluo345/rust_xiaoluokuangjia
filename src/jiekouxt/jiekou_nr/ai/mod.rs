@@ -304,8 +304,8 @@ async fn zhixing_gongjudiaoyong(qz: &str, lie: &[llm::ToolCall], lingpai: &str) 
     jieguolie
 }
 
-/// 工具调用签名，用于重复检测
-fn gongju_qianming(lie: &[llm::ToolCall]) -> u64 {
+/// 工具调用签名，用于重复检测（供普通/流式ReAct共用）
+pub(super) fn gongju_qianming(lie: &[llm::ToolCall]) -> u64 {
     use std::hash::{Hash, Hasher};
     let mut h = std::collections::hash_map::DefaultHasher::new();
     for d in lie {

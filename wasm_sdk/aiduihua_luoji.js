@@ -1,4 +1,5 @@
 // AI对话管理 - 逻辑层
+const zhongzhizhuangtai_yizhongzhi = 'yizhongzhi';
 export class Aiduihualuoji {
     constructor(kehu, rizhifn) {
         this.kehu = kehu;
@@ -8,7 +9,7 @@ export class Aiduihualuoji {
         this.shuju = this.jiazaishuju();
         // 确保至少有一个会话
         if (this.shuju.huihualiebiao.length === 0) {
-            this.xinjianhiuhua();
+            this.xinjianhuihua();
         }
     }
 
@@ -67,7 +68,7 @@ export class Aiduihualuoji {
     }
 
     // 新建会话
-    xinjianhiuhua() {
+    xinjianhuihua() {
         const id = this.shengchengid();
         const huihua = { id, mingcheng: '新对话', xiaoxilie: [], chuangjianshijian: Date.now() };
         this.shuju.huihualiebiao.unshift(huihua);
@@ -92,7 +93,7 @@ export class Aiduihualuoji {
             if (this.shuju.huihualiebiao.length > 0) {
                 this.shuju.dangqianid = this.shuju.huihualiebiao[0].id;
             } else {
-                this.xinjianhiuhua();
+                this.xinjianhuihua();
                 return;
             }
         }
@@ -165,28 +166,33 @@ export class Aiduihualuoji {
             this.rizhi('切换到' + (moshi === 'liushi' ? '流式' : '非流式') + '模式', 'info');
         }
     }
-
-    // 非流式对话
-    async feiliushiduihua(neirong) {
+    duihuaqianjianzha(neirong) {
         if (!this.kehu) {
             this.rizhi('尚未初始化', 'warn');
-            return null;
+            return false;
         }
         if (!this.kehu.yidenglu()) {
             this.rizhi('请先登录', 'warn');
-            return null;
+            return false;
         }
         if (!neirong || !neirong.trim()) {
             this.rizhi('消息内容不能为空', 'warn');
-            return null;
+            return false;
         }
+        return true;
+    }
+
+    goujianxiaoxijson() {
+        const xiaoxilie = this.huoqulishi().map(x => ({ juese: x.juese, neirong: x.neirong }));
+        return JSON.stringify(xiaoxilie);
+    }
+
+    // 非流式对话
+    async feiliushiduihua(neirong) {
+        if (!this.duihuaqianjianzha(neirong)) return null;
 
         try {
-            // 用户消息已由界面层提前添加
-
-            // 构建请求
-            const xiaoxilie = this.huoqulishi().map(x => ({ juese: x.juese, neirong: x.neirong }));
-            const xiaoxilie_json = JSON.stringify(xiaoxilie);
+            const xiaoxilie_json = this.goujianxiaoxijson();
 
             this.rizhi('发送非流式对话请求...', 'info');
             this.abortController = null;
@@ -205,27 +211,17 @@ export class Aiduihualuoji {
                 return huifu;
             } else {
                 this.rizhi('AI回复失败: ' + jieguo.xiaoxi, 'err');
-                // 失败时移除用户消息
-                const huihua = this.huoqudangqianhuihua();
-                if (huihua) { huihua.xiaoxilie.pop(); this.baocunshuju(); }
+                this.shanchuzuihouyonghuxiaoxi();
                 return null;
             }
         } catch (e) {
-            // abort() 导致的中断不算错误
-            if (this.abortController === 'yizhongzhi') {
+            if (this.abortController === zhongzhizhuangtai_yizhongzhi) {
                 this.rizhi('非流式对话已终止', 'info');
-                // 失败时移除用户消息
-                const huihua = this.huoqudangqianhuihua();
-                if (huihua) { huihua.xiaoxilie.pop(); this.baocunshuju(); }
+                this.shanchuzuihouyonghuxiaoxi();
                 return null;
             }
             this.rizhi('对话请求失败: ' + e, 'err');
-            // 失败时移除用户消息
-            const huihua = this.huoqudangqianhuihua();
-            if (huihua && huihua.xiaoxilie.length > 0 && huihua.xiaoxilie[huihua.xiaoxilie.length - 1].juese === 'user') {
-                huihua.xiaoxilie.pop();
-                this.baocunshuju();
-            }
+            this.shanchuzuihouyonghuxiaoxi();
             return null;
         } finally {
             this.abortController = null;
@@ -234,18 +230,7 @@ export class Aiduihualuoji {
 
     // 流式对话
     async liushiduihua(neirong, huidiaohanming, duquqi_huidiaohanming) {
-        if (!this.kehu) {
-            this.rizhi('尚未初始化', 'warn');
-            return false;
-        }
-        if (!this.kehu.yidenglu()) {
-            this.rizhi('请先登录', 'warn');
-            return false;
-        }
-        if (!neirong || !neirong.trim()) {
-            this.rizhi('消息内容不能为空', 'warn');
-            return false;
-        }
+        if (!this.duihuaqianjianzha(neirong)) return false;
 
         try {
             // 用户消息已由界面层提前添加
@@ -260,8 +245,7 @@ export class Aiduihualuoji {
             this.rizhi('流式对话完成', 'ok');
             return true;
         } catch (e) {
-            // abort() 导致的中断不算错误
-            if (this.abortController === 'yizhongzhi') {
+            if (this.abortController === zhongzhizhuangtai_yizhongzhi) {
                 this.rizhi('流式对话已终止', 'info');
                 return true;
             }
@@ -274,51 +258,35 @@ export class Aiduihualuoji {
 
     // 保存 AbortController（由 WASM 回调调用）
     baocunduquqi(controller) {
-        console.log('[DEBUG] baocunduquqi 被调用');
-        console.log('[DEBUG] controller:', controller);
-        console.log('[DEBUG] controller type:', typeof controller);
-        console.log('[DEBUG] controller.abort:', controller?.abort);
         this.abortController = controller;
         this.rizhi('已获取 AbortController，可以终止', 'info');
     }
 
     // 终止流式对话
     async zhongzhiliushi() {
-        console.log('[DEBUG] zhongzhiliushi 被调用');
-        console.log('[DEBUG] this.abortController:', this.abortController);
-        console.log('[DEBUG] this.abortController type:', typeof this.abortController);
-        
         if (!this.abortController) {
             this.rizhi('AbortController 尚未就绪，无法终止', 'warn');
             return;
         }
-        if (this.abortController === 'yizhongzhi') {
+        if (this.abortController === zhongzhizhuangtai_yizhongzhi) {
             this.rizhi('已经终止过了', 'warn');
             return;
         }
         try {
-            console.log('[DEBUG] 准备调用 controller.abort()');
             this.rizhi('正在终止流式对话...', 'info');
             this.abortController.abort();
-            console.log('[DEBUG] controller.abort() 执行完成');
-            this.abortController = 'yizhongzhi';
+            this.abortController = zhongzhizhuangtai_yizhongzhi;
             this.rizhi('流式对话已终止', 'ok');
         } catch (e) {
-            console.error('[DEBUG] controller.abort() 失败:', e);
             this.rizhi('终止失败: ' + e, 'err');
         }
     }
 
     // 导出历史记录
+    huoqudaochushuju() {
+        return JSON.stringify(this.shuju, null, 2);
+    }
     daochulishi() {
-        const json = JSON.stringify(this.lishijilu, null, 2);
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'ai_duihua_lishi_' + new Date().getTime() + '.json';
-        a.click();
-        URL.revokeObjectURL(url);
-        this.rizhi('历史记录已导出', 'ok');
+        return this.huoqudaochushuju();
     }
 }

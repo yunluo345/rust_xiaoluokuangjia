@@ -1,5 +1,5 @@
 use serde_json::Value;
-use super::gongyong::{ai_putongqingqiu_wenben, jinghua_json_huifu};
+use super::gongyong::{ai_putongqingqiu_wenben_chongshi, jinghua_json_huifu};
 
 /// AI JSON 执行结果
 pub enum AiZhixingJieguo {
@@ -40,10 +40,11 @@ pub async fn zhixing_ai_json(peizhi: AiJsonPeizhi<'_>) -> AiZhixingJieguo {
 
     println!("[AI执行器] {} 开始调用", peizhi.renwu_biaoshi);
 
-    let huifu = match ai_putongqingqiu_wenben(
+    let huifu = match ai_putongqingqiu_wenben_chongshi(
         peizhi.xitong_tishici,
         peizhi.yonghu_xiaoxi,
         peizhi.chaoshi_miao,
+        3,
     ).await {
         Some(h) => h,
         None => {

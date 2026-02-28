@@ -13,11 +13,16 @@ pub const jinzhi_fancheng: &[&str] = &[
     "负责人", "经理", "老师", "朋友",
 ];
 
-/// 通用AI文本请求
-pub async fn ai_putongqingqiu_wenben(xitongtishici: &str, yonghuxiaoxi: String, chaoshi: u64) -> Option<String> {
+/// 通用AI文本请求（可自定义HTTP重试次数）
+pub async fn ai_putongqingqiu_wenben_chongshi(
+    xitongtishici: &str,
+    yonghuxiaoxi: String,
+    chaoshi: u64,
+    chongshicishu: u32,
+) -> Option<String> {
     let aipeizhi = crate::jiekouxt::jiekou_nr::ai::huoqu_peizhi().await?
         .shezhi_chaoshi(chaoshi)
-        .shezhi_chongshi(3);
+        .shezhi_chongshi(chongshicishu);
 
     let mut guanli = aixiaoxiguanli::Xiaoxiguanli::xingjian()
         .shezhi_xitongtishici(xitongtishici);
@@ -26,6 +31,11 @@ pub async fn ai_putongqingqiu_wenben(xitongtishici: &str, yonghuxiaoxi: String, 
     openaizhuti::putongqingqiu(&aipeizhi, &guanli)
         .await
         .map(|h| h.trim().to_string())
+}
+
+/// 通用AI文本请求（默认重试1次，适合标签任务场景）
+pub async fn ai_putongqingqiu_wenben(xitongtishici: &str, yonghuxiaoxi: String, chaoshi: u64) -> Option<String> {
+    ai_putongqingqiu_wenben_chongshi(xitongtishici, yonghuxiaoxi, chaoshi, 1).await
 }
 
 /// 清理AI返回的JSON（去除markdown代码块标记）

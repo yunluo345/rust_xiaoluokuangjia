@@ -195,6 +195,9 @@ fn shifou_xianliu_xiangying(json: &serde_json::Value) -> bool {
 async fn putongqingqiu_neibu(peizhi: &Aipeizhi, guanli: &Xiaoxiguanli) -> Option<(String, Option<String>)> {
     let zuida_xianliu_chongshi: u32 = 3;
     for changshi in 0..=zuida_xianliu_chongshi {
+        if super::diaoduqi::dangqian_yiquxiao() {
+            return None;
+        }
         let json = match feiliushi_json(peizhi, guanli, false).await {
             Some(j) => j,
             None => return None,
