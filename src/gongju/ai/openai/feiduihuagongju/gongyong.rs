@@ -17,7 +17,7 @@ pub const jinzhi_fancheng: &[&str] = &[
 pub async fn ai_putongqingqiu_wenben(xitongtishici: &str, yonghuxiaoxi: String, chaoshi: u64) -> Option<String> {
     let aipeizhi = crate::jiekouxt::jiekou_nr::ai::huoqu_peizhi().await?
         .shezhi_chaoshi(chaoshi)
-        .shezhi_chongshi(1);
+        .shezhi_chongshi(3);
 
     let mut guanli = aixiaoxiguanli::Xiaoxiguanli::xingjian()
         .shezhi_xitongtishici(xitongtishici);

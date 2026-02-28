@@ -51,14 +51,14 @@ export class Aiduihuajiemian {
         // 对话区域
         const duihuaqu = document.createElement('div');
         duihuaqu.id = 'aiduihua_quyu';
-        duihuaqu.style.cssText = 'background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:12px;max-height:400px;overflow-y:auto;margin-bottom:12px;min-height:200px';
+        duihuaqu.style.cssText = 'background:#F8FAFC;border-radius:8px;padding:12px;max-height:400px;overflow-y:auto;margin-bottom:12px;min-height:200px';
         this.rongqi.appendChild(duihuaqu);
 
         // 输入区域
         const shuruqu = document.createElement('div');
         shuruqu.style.cssText = 'display:flex;gap:8px;align-items:stretch';
         shuruqu.innerHTML = `
-            <textarea id="aiduihua_shuru" placeholder="输入消息..." style="flex:1;border:1px solid #E2E8F0;border-radius:8px;padding:10px;font-size:14px;resize:vertical;min-height:60px;outline:none;font-family:inherit"></textarea>
+            <textarea id="aiduihua_shuru" placeholder="输入消息..." style="flex:1;border:none;border-radius:8px;padding:10px;font-size:14px;resize:vertical;min-height:60px;outline:none;font-family:inherit;background:#F8FAFC;color:#1E293B"></textarea>
             <button id="aiduihua_fasong_btn" class="aq-btn aq-btn-lv" onclick="aiduihua_fasong()" style="margin:0">发送</button>
             <button id="aiduihua_zhongzhi_btn" class="aq-btn aq-btn-hong" onclick="aiduihua_zhongzhi()" style="margin:0;display:none">终止</button>
         `;
@@ -78,13 +78,12 @@ export class Aiduihuajiemian {
         let html = '';
         liebiao.forEach(h => {
             const xuanzhong = h.id === dangqianid;
-            const bg = xuanzhong ? '#3B82F6' : '#E2E8F0';
-            const color = xuanzhong ? '#fff' : '#475569';
+            const zhongliang = xuanzhong ? '600' : '500';
             html += `
                 <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
-                    <button onclick="aiduihua_qiehuanhuihua('${h.id}')" style="background:${bg};color:${color};border:none;border-radius:6px;padding:6px 12px;font-size:13px;cursor:pointer;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;margin:0;min-height:32px" title="${this.zhuanyihtml(h.mingcheng)}">${this.zhuanyihtml(h.mingcheng)}</button>
-                    <button onclick="aiduihua_chongmingming('${h.id}')" style="background:#F1F5F9;border:1px solid #CBD5E1;border-radius:4px;cursor:pointer;font-size:13px;padding:4px 6px;margin:0;color:#64748B;min-height:28px" title="重命名">✏</button>
-                    <button onclick="aiduihua_shanchuhuihua('${h.id}')" style="background:#FEF2F2;border:1px solid #FECACA;border-radius:4px;cursor:pointer;font-size:13px;padding:4px 6px;margin:0;color:#EF4444;min-height:28px" title="删除">✕</button>
+                    <button class="aq-btn aq-btn-xiao" onclick="aiduihua_qiehuanhuihua('${h.id}')" style="font-weight:${zhongliang};white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;margin:0;min-height:32px" title="${this.zhuanyihtml(h.mingcheng)}">${this.zhuanyihtml(h.mingcheng)}</button>
+                    <button class="aq-btn aq-btn-xiao" onclick="aiduihua_chongmingming('${h.id}')" style="font-size:13px;padding:4px 6px;margin:0;min-height:28px" title="重命名">✏</button>
+                    <button class="aq-btn aq-btn-xiao" onclick="aiduihua_shanchuhuihua('${h.id}')" style="font-size:13px;padding:4px 6px;margin:0;min-height:28px" title="删除">✕</button>
                 </div>
             `;
         });
@@ -114,7 +113,7 @@ export class Aiduihuajiemian {
                 // 事件消息：紧凑小气泡
                 html += `
                     <div style="display:flex;justify-content:flex-start;margin-bottom:6px">
-                        <div style="background:#F5F3FF;border:1px solid #E9D5FF;border-radius:16px;padding:5px 12px">
+                        <div style="background:#F5F3FF;border:none;border-radius:16px;padding:5px 12px">
                             <span style="font-size:12px;color:#7C3AED">${this.zhuanyihtml(xiaoxi.neirong)}</span>
                         </div>
                     </div>`;
@@ -130,7 +129,7 @@ export class Aiduihuajiemian {
                                 <span style="font-size:12px;font-weight:600;color:${yanse}">${juese_text}</span>
                                 <button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="aiduihua_shanchuxiaoxi(${idx})" style="padding:2px 6px;font-size:11px;min-height:20px">删除</button>
                             </div>
-                            ${xiaoxi.sikao ? `<details style="margin-bottom:6px;border:1px solid #E9D5FF;border-radius:6px;padding:4px 8px;background:#FAF5FF"><summary style="cursor:pointer;font-size:12px;color:#7C3AED;user-select:none">💭 思考过程</summary><div style="font-size:12px;color:#6B21A8;white-space:pre-wrap;word-break:break-word;margin-top:4px">${this.zhuanyihtml(xiaoxi.sikao)}</div></details>` : ''}
+                            ${xiaoxi.sikao ? `<details style="margin-bottom:6px;border:none;border-radius:6px;padding:4px 8px;background:#FAF5FF"><summary style="cursor:pointer;font-size:12px;color:#7C3AED;user-select:none">💭 思考过程</summary><div style="font-size:12px;color:#6B21A8;white-space:pre-wrap;word-break:break-word;margin-top:4px">${this.zhuanyihtml(xiaoxi.sikao)}</div></details>` : ''}
                             <div style="font-size:13px;color:#1E293B;white-space:pre-wrap;word-break:break-word">${this.zhuanyihtml(xiaoxi.neirong)}</div>
                         </div>
                     </div>`;
@@ -274,7 +273,7 @@ export class Aiduihuajiemian {
         const qipao = document.createElement('div');
         qipao.className = 'aiduihua_shijian_linshi';
         qipao.style.cssText = 'display:flex;justify-content:flex-start;margin-bottom:6px';
-        qipao.innerHTML = `<details style="max-width:80%;border:1px solid #E9D5FF;border-radius:6px;padding:4px 8px;background:#FAF5FF">
+        qipao.innerHTML = `<details style="max-width:80%;border:none;border-radius:6px;padding:4px 8px;background:#FAF5FF">
             <summary style="cursor:pointer;font-size:12px;color:#7C3AED;user-select:none">💭 ${this.zhuanyihtml(biaoti || '思考过程')}</summary>
             <div style="font-size:12px;color:#6B21A8;white-space:pre-wrap;word-break:break-word;margin-top:4px">${this.zhuanyihtml(neirong)}</div>
         </details>`;
@@ -288,7 +287,7 @@ export class Aiduihuajiemian {
         const qipao = document.createElement('div');
         qipao.className = 'aiduihua_shijian_linshi';
         qipao.style.cssText = 'display:flex;justify-content:flex-start;margin-bottom:6px';
-        qipao.innerHTML = `<div style="background:#F5F3FF;border:1px solid #E9D5FF;border-radius:16px;padding:5px 12px">
+        qipao.innerHTML = `<div style="background:#F5F3FF;border:none;border-radius:16px;padding:5px 12px">
             <span style="font-size:12px;color:#7C3AED">${this.zhuanyihtml(neirong)}</span>
         </div>`;
         quyu.appendChild(qipao);
@@ -389,7 +388,7 @@ export class Aiduihuajiemian {
             sikaoqu.id = 'aiduihua_liushi_sikao';
             sikaoqu.style.cssText = 'display:flex;justify-content:flex-start;margin-bottom:6px';
             sikaoqu.innerHTML = `
-                <details open style="max-width:80%;border:1px solid #E9D5FF;border-radius:6px;padding:6px 10px;background:#FAF5FF">
+                <details open style="max-width:80%;border:none;border-radius:6px;padding:6px 10px;background:#FAF5FF">
                     <summary style="cursor:pointer;font-size:12px;color:#7C3AED;user-select:none">💭 思考中...</summary>
                     <div id="aiduihua_liushi_sikao_neirong" style="font-size:12px;color:#6B21A8;white-space:pre-wrap;word-break:break-word;margin-top:4px"></div>
                 </details>

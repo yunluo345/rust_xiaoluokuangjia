@@ -1,6 +1,12 @@
 {
   "biaoti_shengcheng_tishici": "你是日报标题生成助手。根据日报内容生成简洁标题。\n要求：\n1. 控制在15字以内\n2. 概括核心工作内容\n3. 只返回标题文本，不要返回其他内容",
   "bingxingrenwushu": 1,
+  "diaoduqi": {
+    "duihua_houtai_zhixing": false,
+    "paidui_chaoshi_miao": 300,
+    "quanju_bingfa_shangxian": 5,
+    "renwu_houtai_zhixing": true
+  },
   "fenxi_shiti_leixing": [
     {
       "biaoti": "项目",
@@ -180,6 +186,18 @@
       "duozhi": true,
       "miaoshu": "客户姓名",
       "mingcheng": "客户名字"
+    },
+    {
+      "biecheng": [
+        "岗位",
+        "职务",
+        "头衔",
+        "职位信息",
+        "岗位信息"
+      ],
+      "bitian": false,
+      "miaoshu": "人员在公司中的职位或职务名称",
+      "mingcheng": "职位"
     },
     {
       "biecheng": [

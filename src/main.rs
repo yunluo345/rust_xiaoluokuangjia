@@ -27,6 +27,9 @@ async fn main() -> std::io::Result<()> {
     if !peizhixitongzhuti::chushihua() {
         tuichu("配置系统初始化失败");
     }
+
+    // 初始化AI调度器（读取配置中的全局并发上限）
+    gongju::ai::openai::diaoduqi::chushihua_cong_peizhi();
     
     let zongpeizhi = peizhixitongzhuti::duqupeizhi::<Zongpeizhi>(
         Zongpeizhi::wenjianming()

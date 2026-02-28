@@ -33,8 +33,13 @@ export function xuanran_fenxi_liebiao(liebiao, leixing, guanlianfenxi = false) {
 // ========== 主视图：实体交流详情页 ==========
 
 export function xuanran_shiti_xiangqing(shiti_mingcheng, shiti_leixing, ribaolie, biaoqianlie) {
+    const lx_escaped = String(shiti_leixing || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const mc_escaped = String(shiti_mingcheng || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     let html = `<div class="fenxi-title">${shiti_mingcheng}</div>`;
     html += `<div class="fenxi-sub">类型：${shiti_leixing}　日报：${ribaolie.length} 篇</div>`;
+    html += `<div style="margin:10px 0 12px 0;display:flex;gap:8px;flex-wrap:wrap">`;
+    html += `<button class="aq-btn aq-btn-xiao" onclick="ribao_jiandang_tupu('${lx_escaped}','${mc_escaped}')" style="background:#F5F3FF;color:#7C3AED">图谱聚焦</button>`;
+    html += `</div>`;
     // 维度选择器
     html += `<div style="margin-bottom:12px">`;
     html += `<div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:8px">选择分析维度</div>`;

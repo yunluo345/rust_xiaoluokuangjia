@@ -103,6 +103,10 @@ async fn chuliqingqiu(ti: &[u8], lingpai: &str) -> HttpResponse {
     let lingpai = lingpai.to_string();
 
     actix_web::rt::spawn(async move {
+        let duihua_houtai = peizhixitongzhuti::duqupeizhi::<Ai>(Ai::wenjianming())
+            .map(|p| p.diaoduqi.duihua_houtai_zhixing)
+            .unwrap_or(false);
+
         let mut yitu_json = serde_json::json!({"shijian": "yitu", "yitu": yitu_miaoshu});
         if let Some(s) = yitu_sikao {
             yitu_json["sikao"] = serde_json::json!(s);
@@ -118,6 +122,10 @@ async fn chuliqingqiu(ti: &[u8], lingpai: &str) -> HttpResponse {
         let mut chongfu: u32 = 0;
 
         for cishu in 1..=zuida {
+            if !duihua_houtai && fasongqi.is_closed() {
+                println!("[流式ReAct] 前端已断开，停止AI调用");
+                return;
+            }
             guanli.caijian_shangxiawen(peizhi.zuida_token);
             if !fasongshuju(&fasongqi, serde_json::json!({
                 "shijian": "xunhuan",

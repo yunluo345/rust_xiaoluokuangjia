@@ -59,6 +59,49 @@ pub struct Fenxishitileixing {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiaoduqiPeizhi {
+    /// 全局AI并发上限（同时发送给AI的请求数）
+    #[serde(default = "moren_quanju_bingfa_shangxian")]
+    pub quanju_bingfa_shangxian: u32,
+    /// 单个请求排队超时（秒），超时返回错误
+    #[serde(default = "moren_paidui_chaoshi_miao")]
+    pub paidui_chaoshi_miao: u64,
+    /// 标签任务：前端断开后是否继续
+    #[serde(default = "moren_renwu_houtai_zhixing")]
+    pub renwu_houtai_zhixing: bool,
+    /// 对话请求：前端断开后是否继续
+    #[serde(default)]
+    pub duihua_houtai_zhixing: bool,
+}
+
+fn moren_quanju_bingfa_shangxian() -> u32 {
+    5
+}
+
+fn moren_paidui_chaoshi_miao() -> u64 {
+    300
+}
+
+fn moren_renwu_houtai_zhixing() -> bool {
+    true
+}
+
+impl Default for DiaoduqiPeizhi {
+    fn default() -> Self {
+        Self {
+            quanju_bingfa_shangxian: moren_quanju_bingfa_shangxian(),
+            paidui_chaoshi_miao: moren_paidui_chaoshi_miao(),
+            renwu_houtai_zhixing: moren_renwu_houtai_zhixing(),
+            duihua_houtai_zhixing: false,
+        }
+    }
+}
+
+fn moren_diaoduqi_peizhi() -> DiaoduqiPeizhi {
+    DiaoduqiPeizhi::default()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Ai {
     pub zuida_xunhuancishu: u32,
     #[serde(default = "moren_ribao_biaoqianrenwu_chongshi_cishu")]
@@ -67,6 +110,8 @@ pub struct Ai {
     pub ribao_biaoqianrenwu_bingfashuliang: u32,
     #[serde(default = "moren_bingxingrenwushu")]
     pub bingxingrenwushu: u32,
+    #[serde(default = "moren_diaoduqi_peizhi")]
+    pub diaoduqi: DiaoduqiPeizhi,
     pub ribao_biaoqian: Vec<Ribaobiaoqian>,
     #[serde(default = "moren_siweidaotu_weidu")]
     pub siweidaotu_weidu: Vec<Siweidaotuweidu>,
@@ -227,6 +272,7 @@ impl Default for Ai {
             ribao_biaoqianrenwu_chongshi_cishu: 3,
             ribao_biaoqianrenwu_bingfashuliang: 1,
             bingxingrenwushu: 5,
+            diaoduqi: DiaoduqiPeizhi::default(),
             ribao_biaoqian: vec![
                 Ribaobiaoqian {
                     mingcheng: "我方人员".to_string(),
@@ -241,6 +287,19 @@ impl Default for Ai {
                     bitian: true,
                     duozhi: true,
                     biecheng: vec![],
+                },
+                Ribaobiaoqian {
+                    mingcheng: "职位".to_string(),
+                    miaoshu: "人员在公司中的职位或职务名称".to_string(),
+                    bitian: false,
+                    duozhi: false,
+                    biecheng: vec![
+                        "岗位".to_string(),
+                        "职务".to_string(),
+                        "头衔".to_string(),
+                        "职位信息".to_string(),
+                        "岗位信息".to_string(),
+                    ],
                 },
             ],
             siweidaotu_weidu: moren_siweidaotu_weidu(),

@@ -54,30 +54,35 @@ h1 {
 }
 
 button {
-    background: #3B82F6;
-    color: #fff;
+    background: #F5F3FF;
+    color: #7C3AED;
     border: none;
     border-radius: 8px;
     padding: 10px 20px;
     font-size: 14px;
     cursor: pointer;
-    transition: background-color 200ms;
+    transition: all 200ms;
     min-height: 44px;
     margin-right: 8px;
     margin-bottom: 8px;
+    box-shadow: none;
 }
 
 button:hover {
-    background: #2563EB;
+    background: #EDE9FE;
+    color: #6D28D9;
+    box-shadow: none;
+    transform: none;
 }
 
 button:focus {
     outline: none;
-    box-shadow: 0 0 0 2px #3B82F6;
+    box-shadow: none;
 }
 
 button:disabled {
-    background: #94A3B8;
+    background: #E2E8F0;
+    color: #94A3B8;
     cursor: not-allowed;
 }
 
@@ -196,9 +201,9 @@ label {
 }
 
 .aq-btn {
-    background: #3B82F6;
-    color: #fff;
-    border: none;
+    background: #F5F3FF;
+    color: #7C3AED;
+    border: 1px solid #DDD6FE;
     border-radius: 8px;
     padding: 8px 16px;
     font-size: 13px;
@@ -209,55 +214,68 @@ label {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: none;
 }
 
 .aq-btn:hover {
-    background: #2563EB;
+    background: #EDE9FE;
+    color: #6D28D9;
     transform: translateY(-1px);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: none;
 }
 
 .aq-btn:active {
     transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: none;
 }
 
 .aq-btn:focus {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(59,130,246,0.3);
+    box-shadow: 0 0 0 3px rgba(124,58,237,0.2);
 }
 
 .aq-btn-zhu {
-    background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+    background: #F5F3FF;
+    color: #7C3AED;
+    border-color: #DDD6FE;
 }
 
 .aq-btn-zhu:hover {
-    background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+    background: #EDE9FE;
+    color: #6D28D9;
 }
 
 .aq-btn-lv {
-    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+    background: #F5F3FF;
+    color: #7C3AED;
+    border-color: #DDD6FE;
 }
 
 .aq-btn-lv:hover {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    background: #EDE9FE;
+    color: #6D28D9;
 }
 
 .aq-btn-huang {
-    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+    background: #F5F3FF;
+    color: #7C3AED;
+    border-color: #DDD6FE;
 }
 
 .aq-btn-huang:hover {
-    background: linear-gradient(135deg, #D97706 0%, #B45309 100%);
+    background: #EDE9FE;
+    color: #6D28D9;
 }
 
 .aq-btn-hong {
-    background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+    background: #F5F3FF;
+    color: #7C3AED;
+    border-color: #DDD6FE;
 }
 
 .aq-btn-hong:hover {
-    background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+    background: #EDE9FE;
+    color: #6D28D9;
 }
 
 .aq-btn-xiao {
@@ -265,6 +283,47 @@ label {
     font-size: 12px;
     min-height: 30px;
     margin-right: 4px;
+}
+
+/* 统一无边框扁平按钮风格（按需求覆盖所有 aq-btn 变体） */
+.aq-btn,
+.aq-btn-zhu,
+.aq-btn-lv,
+.aq-btn-huang,
+.aq-btn-hong {
+    background: #F5F3FF !important;
+    color: #7C3AED !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.aq-btn:hover,
+.aq-btn-zhu:hover,
+.aq-btn-lv:hover,
+.aq-btn-huang:hover,
+.aq-btn-hong:hover {
+    background: #EDE9FE !important;
+    color: #6D28D9 !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.aq-btn:active,
+.aq-btn-zhu:active,
+.aq-btn-lv:active,
+.aq-btn-huang:active,
+.aq-btn-hong:active {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.aq-btn:focus,
+.aq-btn-zhu:focus,
+.aq-btn-lv:focus,
+.aq-btn-huang:focus,
+.aq-btn-hong:focus {
+    outline: none !important;
+    box-shadow: none !important;
 }
 
 .aq-biaodan {
@@ -350,39 +409,51 @@ label {
 }
 
 .yh-btn-zhu {
-    background: linear-gradient(135deg, #3B82F6, #2563EB);
+    background: #F5F3FF;
+    color: #7C3AED;
+    border: 1px solid #DDD6FE;
 }
 
 .yh-btn-zhu:hover:not(:disabled) {
-    background: linear-gradient(135deg, #2563EB, #1D4ED8);
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+    background: #EDE9FE;
+    color: #6D28D9;
+    box-shadow: none;
 }
 
 .yh-btn-cheng {
-    background: linear-gradient(135deg, #F59E0B, #D97706);
+    background: #F5F3FF;
+    color: #7C3AED;
+    border: 1px solid #DDD6FE;
 }
 
 .yh-btn-cheng:hover:not(:disabled) {
-    background: linear-gradient(135deg, #D97706, #B45309);
-    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.3);
+    background: #EDE9FE;
+    color: #6D28D9;
+    box-shadow: none;
 }
 
 .yh-btn-zi {
-    background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+    background: #F5F3FF;
+    color: #7C3AED;
+    border: 1px solid #DDD6FE;
 }
 
 .yh-btn-zi:hover:not(:disabled) {
-    background: linear-gradient(135deg, #7C3AED, #6D28D9);
-    box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+    background: #EDE9FE;
+    color: #6D28D9;
+    box-shadow: none;
 }
 
 .yh-btn-qing {
-    background: linear-gradient(135deg, #06B6D4, #0891B2);
+    background: #F5F3FF;
+    color: #7C3AED;
+    border: 1px solid #DDD6FE;
 }
 
 .yh-btn-qing:hover:not(:disabled) {
-    background: linear-gradient(135deg, #0891B2, #0E7490);
-    box-shadow: 0 2px 8px rgba(8, 145, 178, 0.3);
+    background: #EDE9FE;
+    color: #6D28D9;
+    box-shadow: none;
 }
 
 .yh-xq-ka {
@@ -601,23 +672,27 @@ label {
 }
 
 .tc-an-queren {
-    background: linear-gradient(135deg, #3B82F6, #2563EB);
-    color: #fff;
+    background: #F5F3FF;
+    color: #7C3AED;
+    border: 1px solid #DDD6FE;
 }
 
 .tc-an-queren:hover {
-    background: linear-gradient(135deg, #2563EB, #1D4ED8);
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+    background: #EDE9FE;
+    color: #6D28D9;
+    box-shadow: none;
 }
 
 .tc-an-weixian {
-    background: linear-gradient(135deg, #EF4444, #DC2626);
-    color: #fff;
+    background: #F5F3FF;
+    color: #7C3AED;
+    border: 1px solid #DDD6FE;
 }
 
 .tc-an-weixian:hover {
-    background: linear-gradient(135deg, #DC2626, #B91C1C);
-    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+    background: #EDE9FE;
+    color: #6D28D9;
+    box-shadow: none;
 }
 
 .rizhi-qingkong {
@@ -629,4 +704,81 @@ label {
 
 .rizhi-qingkong:hover {
     background: #475569;
+}
+
+/* ===== 全局无边框模式（统一覆盖） ===== */
+.card,
+.aq-biao,
+.aq-biao th,
+.aq-biao td,
+.aq-biaodan,
+.aq-hang input,
+.aq-hang select,
+.aq-hang textarea,
+.log,
+.zhuangtai,
+.yh-xq-ka,
+.yh-xq-tou,
+.yh-xq-hang,
+.yh-lb-ka,
+.yh-lb-tou,
+.tc-ka,
+.tc-tou,
+.tc-neirong,
+.tc-dibu,
+.tc-shuru,
+.aq-btn,
+.aq-btn-zhu,
+.aq-btn-lv,
+.aq-btn-huang,
+.aq-btn-hong,
+.yh-btn,
+.yh-btn-zhu,
+.yh-btn-cheng,
+.yh-btn-zi,
+.yh-btn-qing,
+.tc-an,
+.tc-an-quxiao,
+.tc-an-queren,
+.tc-an-weixian,
+button,
+input:not([type='checkbox']):not([type='radio']),
+select,
+textarea {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+
+
+/* AI对话会话栏按钮（防止被内联旧样式覆盖成蓝色） */
+button[onclick^="aiduihua_qiehuanhuihua"],
+button[onclick^="aiduihua_chongmingming"],
+button[onclick^="aiduihua_shanchuhuihua"] {
+    background: #F5F3FF !important;
+    color: #7C3AED !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+button[onclick^="aiduihua_qiehuanhuihua"]:hover,
+button[onclick^="aiduihua_chongmingming"]:hover,
+button[onclick^="aiduihua_shanchuhuihua"]:hover {
+    background: #EDE9FE !important;
+    color: #6D28D9 !important;
+}
+
+/* 日志清空按钮保留独立风格 */
+button.rizhi-qingkong {
+    background: #64748B !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    box-shadow: none !important;
+    font-size: 12px !important;
+    padding: 6px 14px !important;
+    min-height: 36px !important;
+}
+button.rizhi-qingkong:hover {
+    background: #475569 !important;
+    color: #FFFFFF !important;
 }

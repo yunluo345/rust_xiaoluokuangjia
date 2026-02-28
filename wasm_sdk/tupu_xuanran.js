@@ -76,6 +76,7 @@ export class TupuXuanran {
             .nodeCanvasObjectMode(() => 'replace')
             .nodeCanvasObject((node, ctx, globalScale) => this._huajiedian(node, ctx, globalScale))
             .nodePointerAreaPaint((node, color, ctx) => {
+                if (!isFinite(node.x) || !isFinite(node.y)) return;
                 ctx.beginPath();
                 ctx.arc(node.x, node.y, node._banjing + 4, 0, Math.PI * 2);
                 ctx.fillStyle = color;
@@ -152,6 +153,20 @@ export class TupuXuanran {
         // 全屏处理
         this._fullscreen_handler = () => this._tiaozheng_quanping(rongqi, graph);
         document.addEventListener('fullscreenchange', this._fullscreen_handler);
+
+        this._visibility_handler = () => {
+            if (document.visibilityState === 'visible' && this._graph) {
+                const data = this._graph.graphData();
+                for (const n of data.nodes) {
+                    if (!isFinite(n.x)) n.x = 0;
+                    if (!isFinite(n.y)) n.y = 0;
+                    if (!isFinite(n.vx)) n.vx = 0;
+                    if (!isFinite(n.vy)) n.vy = 0;
+                }
+                this._graph.graphData(data);
+            }
+        };
+        document.addEventListener('visibilitychange', this._visibility_handler);
     }
 
     tingzhi() {
@@ -166,9 +181,75 @@ export class TupuXuanran {
             document.removeEventListener('fullscreenchange', this._fullscreen_handler);
             this._fullscreen_handler = null;
         }
+        if (this._visibility_handler) {
+            document.removeEventListener('visibilitychange', this._visibility_handler);
+            this._visibility_handler = null;
+        }
         this._xuanzhong = null;
         this._xuanzhong_link = null;
         this._linjiSet.clear();
+    }
+
+    _pipei_mubiao_jiedian(nodes, mubiao) {
+        if (!Array.isArray(nodes) || nodes.length === 0 || !mubiao) return null;
+        const mubiaoObj = (typeof mubiao === 'object') ? mubiao : { biaoqianid: mubiao };
+        const biaoqianid = String(mubiaoObj.biaoqianid || mubiaoObj.id || '').trim();
+        const mingcheng = String(mubiaoObj.mingcheng || mubiaoObj.zhi || '').trim();
+        const leixingmingcheng = String(mubiaoObj.leixingmingcheng || mubiaoObj.leixing || '').trim();
+
+        if (biaoqianid) {
+            const anid = nodes.find(n => String(n?.id) === biaoqianid);
+            if (anid) return anid;
+        }
+        if (mingcheng && leixingmingcheng) {
+            const anmingchengLeixing = nodes.find(n =>
+                String(n?.zhi || '').trim() === mingcheng &&
+                String(n?.leixing || '').trim() === leixingmingcheng
+            );
+            if (anmingchengLeixing) return anmingchengLeixing;
+        }
+        if (mingcheng) {
+            return nodes.find(n => String(n?.zhi || '').trim() === mingcheng) || null;
+        }
+        return null;
+    }
+
+    xuanze_jiedian(mubiao, dianji_huidiao) {
+        if (!this._graph || !mubiao) return false;
+        const shuju = this._graph.graphData?.();
+        const nodes = Array.isArray(shuju?.nodes) ? shuju.nodes : [];
+        const links = Array.isArray(shuju?.links) ? shuju.links : [];
+        const mubiaojiedian = this._pipei_mubiao_jiedian(nodes, mubiao);
+        if (!mubiaojiedian) return false;
+
+        this._xuanzhong = mubiaojiedian;
+        this._xuanzhong_link = null;
+        this._gengxin_linji(mubiaojiedian, links);
+        this._gengxin_xinxi_jiedian(mubiaojiedian);
+
+        if (typeof dianji_huidiao === 'function') {
+            const gx_lie = links
+                .filter(l => l._leixing === 'guanxi' &&
+                    ((l.source?.id === mubiaojiedian.id || l.source === mubiaojiedian.id) ||
+                        (l.target?.id === mubiaojiedian.id || l.target === mubiaojiedian.id)))
+                .map(l => ({
+                    duifang: (l.source?.id === mubiaojiedian.id || l.source === mubiaojiedian.id) ? l.target : l.source,
+                    guanxi: l._guanxi,
+                    miaoshu: l._miaoshu,
+                    cishu: l._cishu,
+                    secai: l._secai
+                }));
+            dianji_huidiao(mubiaojiedian, gx_lie);
+        }
+
+        if (isFinite(mubiaojiedian.x) && isFinite(mubiaojiedian.y)) {
+            const dangqianZoom = Number(this._graph.zoom?.()) || 1;
+            const mubiaoZoom = Math.max(1.35, dangqianZoom);
+            this._graph.centerAt(mubiaojiedian.x, mubiaojiedian.y, 450);
+            this._graph.zoom(mubiaoZoom, 450);
+        }
+        if (typeof this._graph.refresh === 'function') this._graph.refresh();
+        return true;
     }
 
     // ========== 数据准备 ==========
