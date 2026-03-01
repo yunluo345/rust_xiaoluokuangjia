@@ -5,6 +5,7 @@ use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::yonghuyanzheng;
 
 pub mod gongjutexing;
 mod gongju_shijianchaxun;
+mod gongju_xunwen;
 pub mod gongju_aiqudaoguanli;
 mod gongju_ribaotupu;
 mod gongju_ribaobiaoqianguanli;
@@ -133,6 +134,7 @@ fn suoyouzhuce() -> Vec<Gongjuzhuce> {
     vec![
         // 使用宏简化注册
         zhuce_gongju!(gongju_shijianchaxun),
+        zhuce_gongju!(gongju_xunwen),
         zhuce_gongju!(gongju_aiqudaoguanli),
         zhuce_gongju!(gongju_ribaojiancha),
         zhuce_gongju!(gongju_ribaorenwuchuli),
@@ -141,6 +143,15 @@ fn suoyouzhuce() -> Vec<Gongjuzhuce> {
         zhuce_gongju!(gongju_ribaorenwuguanli),
         zhuce_gongju!(gongju_ribaoshendufenxi),
     ]
+}
+
+/// 询问工具包装函数
+fn gongju_xunwen_wrapper(canshu: &str, lingpai: &str) -> Pin<Box<dyn Future<Output = String> + Send + 'static>> {
+    let canshu = canshu.to_string();
+    let lingpai = lingpai.to_string();
+    Box::pin(async move {
+        gongju_xunwen::zhixing(&canshu, &lingpai).await
+    })
 }
 
 /// 包装函数，解决生命周期问题
@@ -372,6 +383,30 @@ pub async fn guolv_gongjulie_anlingpai(gongjulie: Vec<Tool>, lingpai: &str) -> V
         }
     }
     jieguo
+}
+
+/// 询问信号检测结果
+pub struct Xunwenxinhao {
+    pub wenti: String,
+    pub xuanxiang: Vec<String>,
+}
+
+/// 检测工具执行结果中是否包含询问信号
+/// 遍历工具结果，若发现 leixing=="xunwen" 则提取 wenti 和 xuanxiang
+pub fn jiancha_xunwen(jieguolie: &[llm::ToolCall]) -> Option<Xunwenxinhao> {
+    for dan in jieguolie {
+        if let Ok(v) = serde_json::from_str::<Value>(&dan.function.arguments) {
+            if v.get("leixing").and_then(|l| l.as_str()) == Some("xunwen") {
+                let wenti = v.get("wenti").and_then(|w| w.as_str()).unwrap_or("").to_string();
+                let xuanxiang = v.get("xuanxiang")
+                    .and_then(|x| x.as_array())
+                    .map(|arr| arr.iter().filter_map(|i| i.as_str().map(String::from)).collect())
+                    .unwrap_or_default();
+                return Some(Xunwenxinhao { wenti, xuanxiang });
+            }
+        }
+    }
+    None
 }
 
 /// 按工具名称分发执行，返回结果字符串

@@ -33,7 +33,11 @@ pub const xitongtishici: &str = "\
 当用户询问关系/图谱（如“谁和谁有关系”“关系网”“查询标签王经理”“实体关联”）时，优先调用图谱或分析工具，不要凭空推断。\
 当用户要求深入洞察（如“深度分析”“关联分析”“按维度分析”）时，优先调用深度分析工具。\
 当用户在“分类/标签/核对遗漏/补充分类”语境下查询时，必须先确认分类再查标签：优先调用 ribao_biaoqian_guanli 先分页查看列表（yeshu/meiyetiaoshu）或通过 guanjianci 搜索列表，再调用 biaoqian_chaxun_leixingid_zhi 做精确匹配。\
-不要输出“请提供任务ID列表”或“请指示我是否再次执行”这类反问。";
+不要输出“请提供任务ID列表”或“请指示我是否再次执行”这类反问。\
+询问工具使用规则：\
+- 在调用ribao_jiancha提交日报之前，必须先调用xunwen工具询问用户是否确认提交，并提供“确认提交”和“取消”选项；\
+- 用户明确确认后才可调用ribao_jiancha；\
+- xunwen工具调用后会终止当前对话轮次，等待用户回复后再继续。";
 
 #[allow(non_upper_case_globals)]
 pub const yitu_tishici: &str = "\
@@ -396,7 +400,25 @@ pub async fn react_xunhuan(
                 }
                 shangci_hash = hash;
                 guanli.zhuijia_zhushou_gongjudiaoyong(lie.clone());
-                guanli.zhuijia_gongjujieguo(zhixing_gongjudiaoyong(qz, &lie, lingpai).await);
+                let jieguolie = zhixing_gongjudiaoyong(qz, &lie, lingpai).await;
+
+                // 检测询问信号：若工具返回 xunwen，直接返回询问内容终止循环
+                if let Some(xinhao) = gongjuji::jiancha_xunwen(&jieguolie) {
+                    println!("[{}] 检测到询问信号: {}", qz, xinhao.wenti);
+                    let shuju = if xinhao.xuanxiang.is_empty() {
+                        serde_json::json!(null)
+                    } else {
+                        serde_json::json!({"xuanxiang": xinhao.xuanxiang})
+                    };
+                    let neirong = serde_json::json!({
+                        "huifu": xinhao.wenti,
+                        "leixing": "xunwen",
+                        "shuju": shuju,
+                    }).to_string();
+                    return Some(ReactJieguo::Wenben { neirong, sikao: None });
+                }
+
+                guanli.zhuijia_gongjujieguo(jieguolie);
             }
             None => return None,
         }

@@ -1,4 +1,6 @@
 // AI对话管理 - 界面层
+import { Xunwengongju } from './aiui/xunwengongju.js';
+
 export class Aiduihuajiemian {
     constructor(luoji, rongqiid) {
         this.luoji = luoji;
@@ -7,6 +9,9 @@ export class Aiduihuajiemian {
         this.liushisikao = ''; // 流式思考内容缓存
         this.liushishijianlie = []; // 流式事件消息列表
         this.zhengzaifasong = false;
+        this.xunwengongju = null; // 询问工具 UI 实例
+        this.xunwenzhong = false; // 是否处于询问状态
+        this.xunwenshuju = null;  // 当前询问数据
     }
 
     xuanran() {
@@ -131,6 +136,13 @@ export class Aiduihuajiemian {
         });
 
         quyu.innerHTML = html;
+        // 恢复询问UI（从会话持久化数据）
+        const xunwenshuju = this.luoji.huoquxunwen();
+        if (xunwenshuju) {
+            this.xunwenzhong = true;
+            this.xunwenshuju = xunwenshuju;
+            this._chuangjianxunwenui();
+        }
         quyu.scrollTop = quyu.scrollHeight;
     }
     shuaxinquanbu() {
@@ -215,6 +227,14 @@ export class Aiduihuajiemian {
             return;
         }
 
+        // 清理询问状态
+        if (this.xunwenzhong) {
+            this.xunwenzhong = false;
+            this.xunwenshuju = null;
+            this.luoji.qingchuxunwen();
+            if (this.xunwengongju) { this.xunwengongju.yichu(); this.xunwengongju = null; }
+        }
+
         this.zhengzaifasong = true;
         this.shezhibtnzhuangtai(true);
 
@@ -226,8 +246,15 @@ export class Aiduihuajiemian {
 
         try {
             if (this.luoji.dangqianmoshi === 'feiliushi') {
-                await this.luoji.feiliushiduihua(neirong);
-                this.shuaxinquanbu();
+                const feiliushijieguo = await this.luoji.feiliushiduihua(neirong);
+                if (feiliushijieguo && typeof feiliushijieguo === 'object' && feiliushijieguo.leixing === 'xunwen') {
+                    this.xunwenzhong = true;
+                    this.xunwenshuju = feiliushijieguo;
+                    this.luoji.baocunxunwen(feiliushijieguo);
+                    this.shuaxinquanbu();
+                } else {
+                    this.shuaxinquanbu();
+                }
             } else {
                 this.liushihuifu = '';
                 this.liushisikao = '';
@@ -236,12 +263,24 @@ export class Aiduihuajiemian {
         } finally {
             if (this.luoji.dangqianmoshi === 'liushi') {
                 for (const sj of this.liushishijianlie) {
+                    if (this.xunwenzhong && sj.startsWith('[AI\u8be2\u95ee]')) continue;
                     this.luoji.tianjiaxiaoxi('assistant', sj);
                 }
-                if (this.liushihuifu) {
-                    this.luoji.tianjiaxiaoxi('assistant', this.liushihuifu, this.liushisikao || null);
-                } else if (this.liushishijianlie.length === 0) {
+                // 检查流式回复文本是否为询问JSON
+                if (!this.xunwenzhong && this.liushihuifu) {
+                    const xunwen = this._jiexi_xunwen_wenben(this.liushihuifu);
+                    if (xunwen) {
+                        this.xunwenzhong = true;
+                        this.xunwenshuju = xunwen;
+                    } else {
+                        this.luoji.tianjiaxiaoxi('assistant', this.liushihuifu, this.liushisikao || null);
+                    }
+                } else if (!this.xunwenzhong && !this.liushihuifu && this.liushishijianlie.length === 0) {
                     this.luoji.shanchuzuihouyonghuxiaoxi();
+                }
+                // 持久化询问状态
+                if (this.xunwenzhong && this.xunwenshuju) {
+                    this.luoji.baocunxunwen(this.xunwenshuju);
                 }
                 this.qingchulishilinshi();
                 this.shuaxinquanbu();
@@ -300,6 +339,13 @@ export class Aiduihuajiemian {
                     continue;
                 }
                 if (this.chuliliushishijian(json)) continue;
+
+                // 询问工具：检测 aihuifu.leixing === 'xunwen'
+                if (json.aihuifu && json.aihuifu.leixing === 'xunwen') {
+                    this._xianshixunwen(json.aihuifu);
+                    continue;
+                }
+
                 if (json.shijian === 'sikao' && json.neirong) {
                     this.liushisikao += json.neirong;
                     this.gengxinliushisikao();
@@ -418,5 +464,47 @@ export class Aiduihuajiemian {
             this.luoji.chongmingminghuihua(id, xinming.trim());
             this.xuanranhuihualiebiao();
         }
+    }
+
+    // 询问工具：流式回调中仅保存数据（UI在finally中渲染）
+    _xianshixunwen(aihuifu) {
+        this.xunwenzhong = true;
+        this.xunwenshuju = aihuifu;
+        this.liushishijianlie.push('[AI询问] ' + (aihuifu.huifu || ''));
+    }
+
+    // 创建询问工具 UI（在聊天区域末尾追加）
+    _chuangjianxunwenui() {
+        const quyu = document.getElementById('aiduihua_quyu');
+        if (!quyu || !this.xunwenshuju) return;
+
+        const wenti = this.xunwenshuju.huifu || '';
+        const xuanxiang = (this.xunwenshuju.shuju && this.xunwenshuju.shuju.xuanxiang) || [];
+
+        this.xunwengongju = new Xunwengongju({
+            rongqi: quyu,
+            fasonghuifu: (huida) => {
+                this.xunwenzhong = false;
+                this.xunwenshuju = null;
+                this.luoji.qingchuxunwen();
+                const shuru = document.getElementById('aiduihua_shuru');
+                if (shuru) {
+                    shuru.value = huida;
+                    this.fasong();
+                }
+            },
+            zhuanyihtml: (s) => this.zhuanyihtml(s),
+        });
+
+        this.xunwengongju.xuanran(wenti, xuanxiang);
+    }
+
+    // 尝试解析文本为询问工具JSON
+    _jiexi_xunwen_wenben(wenben) {
+        try {
+            const obj = JSON.parse(wenben);
+            if (obj && obj.leixing === 'xunwen' && obj.huifu) return obj;
+        } catch (e) {}
+        return null;
     }
 }

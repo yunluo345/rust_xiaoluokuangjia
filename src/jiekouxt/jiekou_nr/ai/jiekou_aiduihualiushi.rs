@@ -183,6 +183,26 @@ async fn chuliqingqiu(ti: &[u8], lingpai: &str) -> HttpResponse {
 
                         guanli.zhuijia_zhushou_gongjudiaoyong(lie.clone());
                         let jieguolie = zhixing_gongju_liushi("流式ReAct", &lie, &lingpai, &fasongqi).await;
+
+                        // 检测询问信号：若工具返回 xunwen，发送问题给前端并终止循环
+                        if let Some(xinhao) = gongjuji::jiancha_xunwen(&jieguolie) {
+                            println!("[流式ReAct] 检测到询问信号: {}", xinhao.wenti);
+                            let shuju = if xinhao.xuanxiang.is_empty() {
+                                serde_json::json!(null)
+                            } else {
+                                serde_json::json!({"xuanxiang": xinhao.xuanxiang})
+                            };
+                            fasongshuju(&fasongqi, serde_json::json!({
+                                "aihuifu": {
+                                    "huifu": xinhao.wenti,
+                                    "leixing": "xunwen",
+                                    "shuju": shuju,
+                                }
+                            }));
+                            let _ = fasongshuju(&fasongqi, serde_json::json!({"wancheng": true}));
+                            return;
+                        }
+
                         guanli.zhuijia_gongjujieguo(jieguolie);
                     }
                     None => {
