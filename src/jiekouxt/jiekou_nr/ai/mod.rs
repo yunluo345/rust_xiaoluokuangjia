@@ -34,6 +34,8 @@ pub const xitongtishici: &str = "\
 询问工具使用规则：\
 - 在调用ribao_jiancha提交日报之前，必须先调用xunwen工具询问用户是否确认提交，并提供“确认提交”和“取消”选项；\
 - 用户明确确认后才可调用ribao_jiancha；\
+- 当用户回复“确认提交/确定提交/同意提交”等确认语句时，禁止再次调用xunwen，直接调用ribao_jiancha；\
+- 当用户回复“取消/不提交”时，不再调用xunwen，直接告知已取消本次提交；\
 - xunwen工具调用后会终止当前对话轮次，等待用户回复后再继续。";
 
 #[allow(non_upper_case_globals)]
@@ -79,6 +81,38 @@ fn shifou_shijianxiaoxi(xiaoxi: &Xiaoxi) -> bool {
 
 fn guolv_youxiao_xiaoxilie(xiaoxilie: &[Xiaoxi]) -> Vec<&Xiaoxi> {
     xiaoxilie.iter().filter(|x| !shifou_shijianxiaoxi(x)).collect()
+}
+
+fn shifou_queren_tijiao_ribao(neirong: &str) -> bool {
+    let n = neirong.trim();
+    if n.is_empty() {
+        return false;
+    }
+    let x = n.to_lowercase();
+    x == "确认提交"
+        || x == "确定提交"
+        || x == "同意提交"
+        || (x.contains("确认") && x.contains("提交"))
+        || (x.contains("确定") && x.contains("提交"))
+        || (x.contains("同意") && x.contains("提交"))
+}
+
+fn shifou_quxiao_tijiao_ribao(neirong: &str) -> bool {
+    let n = neirong.trim();
+    if n.is_empty() {
+        return false;
+    }
+    let x = n.to_lowercase();
+    x == "取消"
+        || x == "不提交"
+        || x.contains("取消提交")
+        || x.contains("暂不提交")
+}
+
+fn huoqu_dange_gongju(mingcheng: &str) -> Option<llm::chat::Tool> {
+    gongjuji::huoqu_suoyougongju()
+        .into_iter()
+        .find(|g| g.function.name == mingcheng)
 }
 
 #[derive(Deserialize)]
@@ -267,6 +301,20 @@ pub async fn huoqu_yitu_gongju(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi]
         .find(|x| !shifou_shijianxiaoxi(x))
         .map(|x| x.neirong.as_str())
         .unwrap_or("");
+
+    // 用户已明确确认提交：直接进入日报提交工具，避免再次触发询问工具
+    if shifou_queren_tijiao_ribao(benci_neirong) {
+        if let Some(gongju) = huoqu_dange_gongju("ribao_jiancha") {
+            println!("[意图] 检测到用户确认提交，直达 ribao_jiancha");
+            return (vec![gongju], "工具调用: [确认提交日报]".to_string(), None);
+        }
+    }
+
+    // 用户取消提交：直接结束本次提交流程，不再触发询问工具
+    if shifou_quxiao_tijiao_ribao(benci_neirong) {
+        println!("[意图] 检测到用户取消提交，转普通对话");
+        return (vec![], "普通对话: 用户取消提交".to_string(), None);
+    }
     // 1. 尝试AI意图分析
     if let Some(yitu) = fenxi_yitu(peizhi, xiaoxilie).await {
         let sikao = yitu.sikao;

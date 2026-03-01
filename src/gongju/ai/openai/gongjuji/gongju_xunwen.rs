@@ -11,11 +11,10 @@ struct Qingqiucanshu {
 
 pub fn huoqu_guanjianci() -> Vec<String> {
     vec![
-        "确认".to_string(),
+        "询问工具".to_string(),
         "询问".to_string(),
-        "是否".to_string(),
         "提问".to_string(),
-        "确定".to_string(),
+        "确认操作".to_string(),
     ]
 }
 

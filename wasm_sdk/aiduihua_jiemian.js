@@ -9,9 +9,21 @@ export class Aiduihuajiemian {
         this.liushisikao = ''; // 流式思考内容缓存
         this.liushishijianlie = []; // 流式事件消息列表
         this.zhengzaifasong = false;
-        this.xunwengongju = null; // 询问工具 UI 实例
-        this.xunwenzhong = false; // 是否处于询问状态
-        this.xunwenshuju = null;  // 当前询问数据
+        this.aiuishili = null; // 当前 AIUI 实例
+        this.dengdai_aiui = null; // 当前待处理 AIUI 数据
+        this.aiui_xuanranqi = {
+            xunwen: (aiui, quyu) => {
+                const shili = new Xunwengongju({
+                    rongqi: quyu,
+                    fasonghuifu: (huida) => this._huifu_aiui(huida),
+                    zhuanyihtml: (s) => this.zhuanyihtml(s),
+                });
+                const wenti = aiui.huifu || '';
+                const xuanxiang = (aiui.shuju && aiui.shuju.xuanxiang) || [];
+                shili.xuanran(wenti, xuanxiang);
+                return shili;
+            },
+        };
     }
 
     xuanran() {
@@ -104,45 +116,48 @@ export class Aiduihuajiemian {
         if (!quyu) return;
 
         const lishi = this.luoji.huoqulishi();
-        if (lishi.length === 0) {
-            quyu.innerHTML = '<p style="color:#94A3B8;text-align:center;margin:20px 0">暂无对话记录</p>';
-            return;
-        }
+        const aiui = this.luoji.huoquaiui();
+        this.dengdai_aiui = aiui;
 
         let html = '';
-        lishi.forEach((xiaoxi, idx) => {
-            const shiuser = xiaoxi.juese === 'user';
-            const shiShijian = !shiuser && this.shifoushijian(xiaoxi.neirong);
-
-            if (shiShijian) {
-                html += this.shengchengshijianhtml(xiaoxi.neirong);
-            } else {
-                const yanse = shiuser ? '#3B82F6' : '#10B981';
-                const beijing = shiuser ? '#EFF6FF' : '#F0FDF4';
-                const duiqi = shiuser ? 'flex-end' : 'flex-start';
-                const juese_text = shiuser ? '我' : 'AI';
-                html += `
-                    <div style="display:flex;justify-content:${duiqi};margin-bottom:12px">
-                        <div style="max-width:80%;background:${beijing};border-radius:8px;padding:10px;position:relative">
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                                <span style="font-size:12px;font-weight:600;color:${yanse}">${juese_text}</span>
-                                <button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="aiduihua_shanchuxiaoxi(${idx})" style="padding:2px 6px;font-size:11px;min-height:20px">删除</button>
-                            </div>
-                            ${xiaoxi.sikao ? this.shengchengsikaohtml(xiaoxi.sikao, '思考过程') : ''}
-                            <div style="font-size:13px;color:#1E293B;white-space:pre-wrap;word-break:break-word">${this.zhuanyihtml(xiaoxi.neirong)}</div>
-                        </div>
-                    </div>`;
+        if (lishi.length === 0) {
+            if (!aiui) {
+                quyu.innerHTML = '<p style="color:#94A3B8;text-align:center;margin:20px 0">暂无对话记录</p>';
+                return;
             }
-        });
+        } else {
+            lishi.forEach((xiaoxi, idx) => {
+                const shiuser = xiaoxi.juese === 'user';
+                const aiui_lishi = !shiuser ? this._jiexi_aiui_lishi_neirong(xiaoxi.neirong) : null;
+                if (aiui_lishi) {
+                    html += this._shengcheng_aiui_lishi_html(aiui_lishi, idx);
+                    return;
+                }
+                const shiShijian = !shiuser && this.shifoushijian(xiaoxi.neirong);
 
-        quyu.innerHTML = html;
-        // 恢复询问UI（从会话持久化数据）
-        const xunwenshuju = this.luoji.huoquxunwen();
-        if (xunwenshuju) {
-            this.xunwenzhong = true;
-            this.xunwenshuju = xunwenshuju;
-            this._chuangjianxunwenui();
+                if (shiShijian) {
+                    html += this.shengchengshijianhtml(xiaoxi.neirong);
+                } else {
+                    const yanse = shiuser ? '#3B82F6' : '#10B981';
+                    const beijing = shiuser ? '#EFF6FF' : '#F0FDF4';
+                    const duiqi = shiuser ? 'flex-end' : 'flex-start';
+                    const juese_text = shiuser ? '我' : 'AI';
+                    html += `
+                        <div style="display:flex;justify-content:${duiqi};margin-bottom:12px">
+                            <div style="max-width:80%;background:${beijing};border-radius:8px;padding:10px;position:relative">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                                    <span style="font-size:12px;font-weight:600;color:${yanse}">${juese_text}</span>
+                                    <button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="aiduihua_shanchuxiaoxi(${idx})" style="padding:2px 6px;font-size:11px;min-height:20px">删除</button>
+                                </div>
+                                ${xiaoxi.sikao ? this.shengchengsikaohtml(xiaoxi.sikao, '思考过程') : ''}
+                                <div style="font-size:13px;color:#1E293B;white-space:pre-wrap;word-break:break-word">${this.zhuanyihtml(xiaoxi.neirong)}</div>
+                            </div>
+                        </div>`;
+                }
+            });
         }
+        quyu.innerHTML = html;
+        if (aiui) this._xuanran_aiui();
         quyu.scrollTop = quyu.scrollHeight;
     }
     shuaxinquanbu() {
@@ -227,13 +242,8 @@ export class Aiduihuajiemian {
             return;
         }
 
-        // 清理询问状态
-        if (this.xunwenzhong) {
-            this.xunwenzhong = false;
-            this.xunwenshuju = null;
-            this.luoji.qingchuxunwen();
-            if (this.xunwengongju) { this.xunwengongju.yichu(); this.xunwengongju = null; }
-        }
+        // 清理待处理 AIUI（用户开始新输入）
+        this._qingchu_dengdai_aiui();
 
         this.zhengzaifasong = true;
         this.shezhibtnzhuangtai(true);
@@ -247,10 +257,9 @@ export class Aiduihuajiemian {
         try {
             if (this.luoji.dangqianmoshi === 'feiliushi') {
                 const feiliushijieguo = await this.luoji.feiliushiduihua(neirong);
-                if (feiliushijieguo && typeof feiliushijieguo === 'object' && feiliushijieguo.leixing === 'xunwen') {
-                    this.xunwenzhong = true;
-                    this.xunwenshuju = feiliushijieguo;
-                    this.luoji.baocunxunwen(feiliushijieguo);
+                const aiui = this._guifan_aiui_duixiang(feiliushijieguo);
+                if (aiui) {
+                    this._shezhi_dengdai_aiui(aiui);
                     this.shuaxinquanbu();
                 } else {
                     this.shuaxinquanbu();
@@ -263,24 +272,22 @@ export class Aiduihuajiemian {
         } finally {
             if (this.luoji.dangqianmoshi === 'liushi') {
                 for (const sj of this.liushishijianlie) {
-                    if (this.xunwenzhong && sj.startsWith('[AI\u8be2\u95ee]')) continue;
                     this.luoji.tianjiaxiaoxi('assistant', sj);
                 }
-                // 检查流式回复文本是否为询问JSON
-                if (!this.xunwenzhong && this.liushihuifu) {
-                    const xunwen = this._jiexi_xunwen_wenben(this.liushihuifu);
-                    if (xunwen) {
-                        this.xunwenzhong = true;
-                        this.xunwenshuju = xunwen;
+                // 检查流式回复文本是否为 AIUI JSON
+                if (!this.dengdai_aiui && this.liushihuifu) {
+                    const aiui = this._jiexi_aiui_wenben(this.liushihuifu);
+                    if (aiui) {
+                        this._shezhi_dengdai_aiui(aiui);
                     } else {
                         this.luoji.tianjiaxiaoxi('assistant', this.liushihuifu, this.liushisikao || null);
                     }
-                } else if (!this.xunwenzhong && !this.liushihuifu && this.liushishijianlie.length === 0) {
+                } else if (!this.dengdai_aiui && !this.liushihuifu && this.liushishijianlie.length === 0) {
                     this.luoji.shanchuzuihouyonghuxiaoxi();
                 }
-                // 持久化询问状态
-                if (this.xunwenzhong && this.xunwenshuju) {
-                    this.luoji.baocunxunwen(this.xunwenshuju);
+                // 持久化待处理 AIUI
+                if (this.dengdai_aiui) {
+                    this.luoji.baocundaiui(this.dengdai_aiui);
                 }
                 this.qingchulishilinshi();
                 this.shuaxinquanbu();
@@ -340,9 +347,9 @@ export class Aiduihuajiemian {
                 }
                 if (this.chuliliushishijian(json)) continue;
 
-                // 询问工具：检测 aihuifu.leixing === 'xunwen'
-                if (json.aihuifu && json.aihuifu.leixing === 'xunwen') {
-                    this._xianshixunwen(json.aihuifu);
+                const aiui = this._guifan_aiui_duixiang(json.aihuifu) || this._guifan_aiui_duixiang(json);
+                if (aiui) {
+                    this._shezhi_dengdai_aiui(aiui);
                     continue;
                 }
 
@@ -466,45 +473,110 @@ export class Aiduihuajiemian {
         }
     }
 
-    // 询问工具：流式回调中仅保存数据（UI在finally中渲染）
-    _xianshixunwen(aihuifu) {
-        this.xunwenzhong = true;
-        this.xunwenshuju = aihuifu;
-        this.liushishijianlie.push('[AI询问] ' + (aihuifu.huifu || ''));
+    _shifou_aiui_duixiang(obj) {
+        return !!(obj && typeof obj === 'object' && typeof obj.leixing === 'string' && obj.leixing.trim());
     }
 
-    // 创建询问工具 UI（在聊天区域末尾追加）
-    _chuangjianxunwenui() {
+    _guifan_aiui_duixiang(obj) {
+        if (!this._shifou_aiui_duixiang(obj)) return null;
+        return {
+            leixing: String(obj.leixing),
+            huifu: String(obj.huifu || ''),
+            shuju: obj.shuju || null,
+        };
+    }
+
+    _shezhi_dengdai_aiui(aiui) {
+        const guifan = this._guifan_aiui_duixiang(aiui);
+        if (!guifan) return;
+        this.dengdai_aiui = guifan;
+        this._jilu_aiui_lishi(guifan);
+        this.luoji.baocundaiui(guifan);
+    }
+
+    _qingchu_dengdai_aiui() {
+        if (this.aiuishili && this.aiuishili.yichu) {
+            this.aiuishili.yichu();
+        }
+        this.aiuishili = null;
+        this.dengdai_aiui = null;
+        this.luoji.qingchuaiui();
+    }
+
+    _xuanran_aiui() {
         const quyu = document.getElementById('aiduihua_quyu');
-        if (!quyu || !this.xunwenshuju) return;
-
-        const wenti = this.xunwenshuju.huifu || '';
-        const xuanxiang = (this.xunwenshuju.shuju && this.xunwenshuju.shuju.xuanxiang) || [];
-
-        this.xunwengongju = new Xunwengongju({
-            rongqi: quyu,
-            fasonghuifu: (huida) => {
-                this.xunwenzhong = false;
-                this.xunwenshuju = null;
-                this.luoji.qingchuxunwen();
-                const shuru = document.getElementById('aiduihua_shuru');
-                if (shuru) {
-                    shuru.value = huida;
-                    this.fasong();
-                }
-            },
-            zhuanyihtml: (s) => this.zhuanyihtml(s),
-        });
-
-        this.xunwengongju.xuanran(wenti, xuanxiang);
+        const aiui = this.dengdai_aiui;
+        if (!quyu || !aiui) return;
+        const xuanranqi = this.aiui_xuanranqi[aiui.leixing];
+        if (!xuanranqi) return;
+        this.aiuishili = xuanranqi(aiui, quyu) || null;
     }
 
-    // 尝试解析文本为询问工具JSON
-    _jiexi_xunwen_wenben(wenben) {
+    _huifu_aiui(huida) {
+        this._qingchu_dengdai_aiui();
+        const shuru = document.getElementById('aiduihua_shuru');
+        if (shuru) {
+            shuru.value = huida;
+            this.fasong();
+        }
+    }
+
+    _jiexi_aiui_wenben(wenben) {
         try {
             const obj = JSON.parse(wenben);
-            if (obj && obj.leixing === 'xunwen' && obj.huifu) return obj;
+            return this._guifan_aiui_duixiang(obj);
         } catch (e) {}
         return null;
+    }
+
+    _shengcheng_aiui_lishi_biaoshi(aiui) {
+        return `[AIUI] ${JSON.stringify(aiui)}`;
+    }
+
+    _jiexi_aiui_lishi_neirong(neirong) {
+        const qianzhui = '[AIUI] ';
+        if (!neirong || !neirong.startsWith(qianzhui)) return null;
+        const json = neirong.substring(qianzhui.length).trim();
+        return this._jiexi_aiui_wenben(json);
+    }
+
+    _jilu_aiui_lishi(aiui) {
+        const biaoji = this._shengcheng_aiui_lishi_biaoshi(aiui);
+        const lishi = this.luoji.huoqulishi();
+        const zuihou = lishi.length > 0 ? lishi[lishi.length - 1] : null;
+        if (!zuihou || zuihou.juese !== 'assistant' || zuihou.neirong !== biaoji) {
+            this.luoji.tianjiaxiaoxi('assistant', biaoji);
+        }
+    }
+
+    _shengcheng_aiui_lishi_html(aiui, idx) {
+        if (aiui.leixing === 'xunwen') {
+            const wenti = this.zhuanyihtml(aiui.huifu || '请确认下一步操作');
+            const xuanxiang = Array.isArray(aiui.shuju && aiui.shuju.xuanxiang) ? aiui.shuju.xuanxiang : [];
+            const xuanxiangHtml = xuanxiang.length > 0
+                ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${xuanxiang.map(x => `<span style="font-size:12px;color:#9A3412;background:#FFF7ED;border:1px solid #FDBA74;border-radius:999px;padding:3px 8px">${this.zhuanyihtml(x)}</span>`).join('')}</div>`
+                : '';
+            return `
+                <div style="display:flex;justify-content:flex-start;margin-bottom:12px">
+                    <div style="max-width:88%;width:min(760px,100%);background:linear-gradient(180deg,#FFFBEB 0%,#FEF3C7 100%);border:1px solid #FCD34D;border-left:4px solid #F59E0B;border-radius:14px;padding:12px 12px 10px;box-sizing:border-box">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                            <span style="font-size:12px;font-weight:700;color:#B45309">AI 询问（历史）</span>
+                            <button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="aiduihua_shanchuxiaoxi(${idx})" style="padding:2px 6px;font-size:11px;min-height:20px">删除</button>
+                        </div>
+                        <div style="font-size:14px;font-weight:600;line-height:1.65;color:#1F2937;white-space:pre-wrap;word-break:break-word">${wenti}</div>
+                        ${xuanxiangHtml}
+                    </div>
+                </div>`;
+        }
+        return `
+            <div style="display:flex;justify-content:flex-start;margin-bottom:12px">
+                <div style="max-width:80%;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:10px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                        <span style="font-size:12px;font-weight:600;color:#64748B">AIUI（历史）</span>
+                        <button class="aq-btn aq-btn-xiao aq-btn-hong" onclick="aiduihua_shanchuxiaoxi(${idx})" style="padding:2px 6px;font-size:11px;min-height:20px">删除</button>
+                    </div>
+                    <div style="font-size:13px;color:#334155;white-space:pre-wrap;word-break:break-word">${this.zhuanyihtml(JSON.stringify(aiui))}</div>
+                </div>
+            </div>`;
     }
 }

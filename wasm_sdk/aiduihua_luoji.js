@@ -129,7 +129,8 @@ export class Aiduihualuoji {
         if (huihua) {
             huihua.xiaoxilie = [];
             huihua.mingcheng = '新对话';
-            delete huihua.xunwen;
+            delete huihua.aiui;
+            delete huihua.xunwen; // 兼容旧字段
             this.baocunshuju();
             this.rizhi('当前对话已清空', 'info');
         }
@@ -201,16 +202,24 @@ export class Aiduihualuoji {
             const jieguo = JSON.parse(jieguo_json);
 
             if (jieguo.zhuangtaima === 200 && jieguo.shuju && jieguo.shuju.huifu) {
-                // 检测询问工具响应（后端解析成功时 leixing 直接在 shuju 上）
-                if (jieguo.shuju.leixing === 'xunwen') {
-                    return { leixing: 'xunwen', huifu: jieguo.shuju.huifu, shuju: jieguo.shuju.shuju || null };
+                // 检测 AIUI 响应（后端解析成功时 leixing 在 shuju 上）
+                if (jieguo.shuju.leixing) {
+                    return {
+                        leixing: jieguo.shuju.leixing,
+                        huifu: jieguo.shuju.huifu || '',
+                        shuju: jieguo.shuju.shuju || null,
+                    };
                 }
                 const huifu = jieguo.shuju.huifu;
-                // 后备检测：huifu 本身是询问JSON字符串（后端解析失败时整串放在 huifu 里）
+                // 后备检测：huifu 本身是 AIUI JSON 字符串（后端解析失败时整串放在 huifu 里）
                 try {
                     const obj = JSON.parse(huifu);
-                    if (obj && obj.leixing === 'xunwen' && obj.huifu) {
-                        return { leixing: 'xunwen', huifu: obj.huifu, shuju: obj.shuju || null };
+                    if (obj && obj.leixing && obj.huifu) {
+                        return {
+                            leixing: obj.leixing,
+                            huifu: obj.huifu,
+                            shuju: obj.shuju || null,
+                        };
                     }
                 } catch (e) {}
                 const sikao = jieguo.shuju.sikao || null;
@@ -302,21 +311,40 @@ export class Aiduihualuoji {
         return this.huoqudaochushuju();
     }
 
-    // 保存询问状态到当前会话
+    // 保存待处理 AIUI 状态到当前会话
+    baocundaiui(shuju) {
+        const huihua = this.huoqudangqianhuihua();
+        if (huihua) {
+            huihua.aiui = shuju;
+            delete huihua.xunwen; // 兼容旧字段迁移
+            this.baocunshuju();
+        }
+    }
+
+    // 清除待处理 AIUI 状态
+    qingchuaiui() {
+        const huihua = this.huoqudangqianhuihua();
+        if (huihua && (huihua.aiui || huihua.xunwen)) {
+            delete huihua.aiui;
+            delete huihua.xunwen; // 兼容旧字段
+            this.baocunshuju();
+        }
+    }
+
+    // 获取当前会话的待处理 AIUI 状态
+    huoquaiui() {
+        const huihua = this.huoqudangqianhuihua();
+        return huihua ? (huihua.aiui || huihua.xunwen || null) : null;
+    }
+
+    // 兼容旧调用：询问工具专用方法转发到通用 AIUI
     baocunxunwen(shuju) {
-        const huihua = this.huoqudangqianhuihua();
-        if (huihua) { huihua.xunwen = shuju; this.baocunshuju(); }
+        this.baocundaiui(shuju);
     }
-
-    // 清除询问状态
     qingchuxunwen() {
-        const huihua = this.huoqudangqianhuihua();
-        if (huihua && huihua.xunwen) { delete huihua.xunwen; this.baocunshuju(); }
+        this.qingchuaiui();
     }
-
-    // 获取当前会话的询问状态
     huoquxunwen() {
-        const huihua = this.huoqudangqianhuihua();
-        return huihua ? huihua.xunwen || null : null;
+        return this.huoquaiui();
     }
 }
