@@ -1,5 +1,5 @@
+use crate::gongju::jwtgongju;
 use crate::shujuku::psqlshujuku::shujubiao_nr::ai::shujucaozuo_aiqudao;
-use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::yonghuyanzheng;
 use llm::chat::Tool;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -315,11 +315,10 @@ async fn zhixing_caozuo(caozuo: Caozuoleixing) -> String {
 }
 /// 工具执行
 pub async fn zhixing(canshu: &str, lingpai: &str) -> String {
-    let _zaiti = match yonghuyanzheng::yanzhenglingpaijiquanxian(lingpai, "/jiekou/xitong/aiqudao").await {
-        Ok(z) => z,
-        Err(yonghuyanzheng::Lingpaicuowu::Yibeifengjin(y)) => return json!({"cuowu": format!("账号已被封禁：{}", y)}).to_string(),
-        Err(yonghuyanzheng::Lingpaicuowu::Quanxianbuzu) => return json!({"cuowu": "权限不足"}).to_string(),
-        Err(_) => return json!({"cuowu": "令牌无效或已过期"}).to_string(),
+    // 验证令牌
+    let _zaiti = match jwtgongju::yanzheng(lingpai).await {
+        Some(z) => z,
+        None => return json!({"cuowu": "令牌无效或已过期"}).to_string(),
     };
 
     // 解析参数

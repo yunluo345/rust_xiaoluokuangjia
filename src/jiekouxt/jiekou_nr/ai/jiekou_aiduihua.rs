@@ -26,7 +26,7 @@ async fn chuliqingqiu(ti: &[u8], lingpai: &str) -> HttpResponse {
         None => return jiekouxtzhuti::shibai(500, "暂无可用AI渠道或配置错误"),
     };
 
-    let (gongjulie, yitu_miaoshu, yitu_sikao) = super::huoqu_yitu_gongju(&peizhi, &qingqiu.xiaoxilie, lingpai).await;
+    let (gongjulie, yitu_miaoshu, yitu_sikao) = super::huoqu_yitu_gongju(&peizhi, &qingqiu.xiaoxilie).await;
     println!("[AI对话] 意图: {} 工具数: {}", yitu_miaoshu, gongjulie.len());
 
     let mut guanli = super::goujian_guanli_anyitu(&qingqiu, gongjulie);

@@ -30,9 +30,6 @@ pub const xitongtishici: &str = "\
 - 若返回zongshu为0，明确告知当前无可处理任务；\
 - 若返回chenggong为true且zongshu大于0，明确告知已处理数量；\
 - 若返回cuowu，直接说明失败原因并建议用户重试。\
-当用户询问关系/图谱（如“谁和谁有关系”“关系网”“查询标签王经理”“实体关联”）时，优先调用图谱或分析工具，不要凭空推断。\
-当用户要求深入洞察（如“深度分析”“关联分析”“按维度分析”）时，优先调用深度分析工具。\
-当用户在“分类/标签/核对遗漏/补充分类”语境下查询时，必须先确认分类再查标签：优先调用 ribao_biaoqian_guanli 先分页查看列表（yeshu/meiyetiaoshu）或通过 guanjianci 搜索列表，再调用 biaoqian_chaxun_leixingid_zhi 做精确匹配。\
 不要输出“请提供任务ID列表”或“请指示我是否再次执行”这类反问。\
 询问工具使用规则：\
 - 在调用ribao_jiancha提交日报之前，必须先调用xunwen工具询问用户是否确认提交，并提供“确认提交”和“取消”选项；\
@@ -49,8 +46,6 @@ pub const yitu_tishici: &str = "\
 - 询问性问题（能不能、可以吗、是否可以、怎么做、如何、为什么）→ putongduihua\
 - 执行命令（帮我、请、立即、马上 + 动词）→ gongjudiaoyong\
 - 查询实时信息（几点了、今天日期、当前时间）→ gongjudiaoyong\
-- 关系/图谱/实体查询（关系网、谁和谁、查询标签、王经理等）→ gongjudiaoyong\
-- 深度分析/关联分析/维度分析 → gongjudiaoyong\
 - 普通问候、闲聊、知识问答 → putongduihua\
 - 指代性表达（上面、刚才、那个）结合上下文判断 → 优先 gongjudiaoyong\
 关键词提取规则：\
@@ -265,37 +260,9 @@ fn zhineng_tiqu_gongju_youxian(guanjianci_lie: &[String], yuanwen: &str) -> Vec<
     gongjuji::huoqu_suoyougongju()
 }
 
-fn shifou_biaoqianfenlei_changjing(guanjianci_lie: &[String], yuanwen: &str) -> bool {
-    let quanwen = format!("{} {}", yuanwen, guanjianci_lie.join(" ")).to_lowercase();
-    let you_biaoqian_fenlei = ["标签", "biaoqian", "分类", "类别", "leixing"]
-        .iter()
-        .any(|ci| quanwen.contains(ci));
-    if !you_biaoqian_fenlei {
-        return false;
-    }
-    ["查询", "查", "核对", "遗漏", "补充", "匹配", "找", "继续", "下一步", "后续操作"]
-        .iter()
-        .any(|ci| quanwen.contains(ci))
-}
-
-fn shouzhai_biaoqianfenlei_gongju(gongjulie: Vec<llm::chat::Tool>) -> Vec<llm::chat::Tool> {
-    if let Some(biaoqian_gongju) = gongjulie.iter().find(|g| g.function.name == "ribao_biaoqian_guanli").cloned() {
-        return vec![biaoqian_gongju];
-    }
-    gongjulie
-}
-async fn guolv_gongju_anlingpai(lingpai: &str, gongjulie: Vec<llm::chat::Tool>) -> Vec<llm::chat::Tool> {
-    let yuanshi = gongjulie.len();
-    let jieguo = gongjuji::guolv_gongjulie_anlingpai(gongjulie, lingpai).await;
-    if jieguo.len() != yuanshi {
-        println!("[意图] 权限过滤后工具数: {} -> {}", yuanshi, jieguo.len());
-    }
-    jieguo
-}
-
 /// 意图分析 + 工具筛选：先AI分析，失败则降级关键词匹配，再失败则无工具
 /// 返回 (gongjulie, yitu_miaoshu, yitu_sikao)
-pub async fn huoqu_yitu_gongju(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi], lingpai: &str) -> (Vec<llm::chat::Tool>, String, Option<String>) {
+pub async fn huoqu_yitu_gongju(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi]) -> (Vec<llm::chat::Tool>, String, Option<String>) {
     let benci_neirong = xiaoxilie.iter().rev()
         .find(|x| !shifou_shijianxiaoxi(x))
         .map(|x| x.neirong.as_str())
@@ -305,25 +272,12 @@ pub async fn huoqu_yitu_gongju(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi]
         let sikao = yitu.sikao;
         if yitu.leixing == "gongjudiaoyong" {
             let guanjianci_miaoshu = yitu.guanjianci.join(", ");
-            let mut gongju = guolv_gongju_anlingpai(lingpai, zhineng_tiqu_gongju_youxian(&yitu.guanjianci, benci_neirong)).await;
-            if shifou_biaoqianfenlei_changjing(&yitu.guanjianci, benci_neirong) {
-                let yuanshi = gongju.len();
-                gongju = shouzhai_biaoqianfenlei_gongju(gongju);
-                println!("[意图] 标签/分类场景，工具收敛: {} -> {}", yuanshi, gongju.len());
-            }
-            if gongju.is_empty() {
-                return (vec![], format!("工具调用: [{}]（但当前账号无可用权限）", guanjianci_miaoshu), sikao);
-            }
+            let gongju = zhineng_tiqu_gongju_youxian(&yitu.guanjianci, benci_neirong);
             println!("[意图] 工具调用，关键词: [{}] 匹配到 {} 个工具", guanjianci_miaoshu, gongju.len());
             return (gongju, format!("工具调用: [{}]", guanjianci_miaoshu), sikao);
         }
         // AI判断为普通对话，但用关键词做兗底校验，防止AI误判
-        let mut doudigongju = guolv_gongju_anlingpai(lingpai, gongjuji::zhineng_tiqu_gongju(benci_neirong)).await;
-        if shifou_biaoqianfenlei_changjing(&yitu.guanjianci, benci_neirong) {
-            let yuanshi = doudigongju.len();
-            doudigongju = shouzhai_biaoqianfenlei_gongju(doudigongju);
-            println!("[意图] 标签/分类兗底收敛: {} -> {}", yuanshi, doudigongju.len());
-        }
+        let doudigongju = gongjuji::zhineng_tiqu_gongju(benci_neirong);
         if !doudigongju.is_empty() {
             println!("[意图] AI判断普通对话，但关键词兗底匹配到 {} 个工具，覆盖为工具调用", doudigongju.len());
             return (doudigongju, "工具调用(关键词兗底)".to_string(), sikao);
@@ -333,7 +287,7 @@ pub async fn huoqu_yitu_gongju(peizhi: &aipeizhi::Aipeizhi, xiaoxilie: &[Xiaoxi]
     }
     // 2. AI分析失败，降级为直接关键词匹配
     println!("[意图] AI分析失败，降级关键词匹配");
-    let gongju = guolv_gongju_anlingpai(lingpai, gongjuji::zhineng_tiqu_gongju(benci_neirong)).await;
+    let gongju = gongjuji::zhineng_tiqu_gongju(benci_neirong);
     if !gongju.is_empty() {
         println!("[意图] 降级匹配到 {} 个工具", gongju.len());
         return (gongju, "工具调用(降级匹配)".to_string(), None);

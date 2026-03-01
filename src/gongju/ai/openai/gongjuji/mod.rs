@@ -1,16 +1,11 @@
 use std::future::Future;
 use std::pin::Pin;
 use serde_json::Value;
-use crate::shujuku::psqlshujuku::shujubiao_nr::yonghu::yonghuyanzheng;
 
 pub mod gongjutexing;
 mod gongju_shijianchaxun;
 mod gongju_xunwen;
 pub mod gongju_aiqudaoguanli;
-mod gongju_ribaotupu;
-mod gongju_ribaobiaoqianguanli;
-mod gongju_ribaorenwuguanli;
-mod gongju_ribaoshendufenxi;
 pub mod ribao;
 pub mod ceshi_gongjufenzu;
 pub mod guanjianci_suoyin;
@@ -138,10 +133,6 @@ fn suoyouzhuce() -> Vec<Gongjuzhuce> {
         zhuce_gongju!(gongju_aiqudaoguanli),
         zhuce_gongju!(gongju_ribaojiancha),
         zhuce_gongju!(gongju_ribaorenwuchuli),
-        zhuce_gongju!(gongju_ribaotupu),
-        zhuce_gongju!(gongju_ribaobiaoqianguanli),
-        zhuce_gongju!(gongju_ribaorenwuguanli),
-        zhuce_gongju!(gongju_ribaoshendufenxi),
     ]
 }
 
@@ -323,68 +314,6 @@ pub fn huoqu_fenzu_yingshe() -> std::collections::HashMap<String, Vec<String>> {
     yingshe
 }
 
-/// 每个工具对应的接口权限路径（满足任一即可）
-fn gongju_quanxian_lujing(gongjuming: &str) -> &'static [&'static str] {
-    match gongjuming {
-        "shijian_chaxun" => &[],
-        "aiqudao_guanli" => &["/jiekou/xitong/aiqudao"],
-        "ribao_jiancha" => &["/jiekou/ribao/yonghu"],
-        "ribao_renwubiaoqian_chuli" => &["/jiekou/ribao/guanli"],
-        "ribao_tupu_guanli" => &["/jiekou/ribao/guanli"],
-        "ribao_biaoqian_guanli" => &["/jiekou/ribao/guanli"],
-        "ribao_renwu_guanli" => &["/jiekou/ribao/guanli"],
-        "ribao_shendu_fenxi" => &["/jiekou/ribao/guanli"],
-        _ => &[],
-    }
-}
-
-/// 判断工具是否允许当前令牌调用
-pub async fn gongju_yunxu_diaoyong(gongjuming: &str, lingpai: &str) -> bool {
-    let lujinglie = gongju_quanxian_lujing(gongjuming);
-    if lujinglie.is_empty() {
-        return true;
-    }
-    let zaiti = match yonghuyanzheng::yanzhenglingpai(lingpai).await {
-        Ok(z) => z,
-        Err(_) => return false,
-    };
-    for lujing in lujinglie {
-        if yonghuyanzheng::jianchajiekouquanxian(&zaiti.yonghuzuid, lujing).await.is_ok() {
-            return true;
-        }
-    }
-    false
-}
-
-/// 按令牌权限过滤可见工具（无权限工具不暴露给模型）
-pub async fn guolv_gongjulie_anlingpai(gongjulie: Vec<Tool>, lingpai: &str) -> Vec<Tool> {
-    let zaiti = match yonghuyanzheng::yanzhenglingpai(lingpai).await {
-        Ok(z) => z,
-        Err(_) => return Vec::new(),
-    };
-    let mut jieguo = Vec::with_capacity(gongjulie.len());
-    for gongju in gongjulie {
-        let lujinglie = gongju_quanxian_lujing(&gongju.function.name);
-        if lujinglie.is_empty() {
-            jieguo.push(gongju);
-            continue;
-        }
-        let mut keyong = false;
-        for lujing in lujinglie {
-            if yonghuyanzheng::jianchajiekouquanxian(&zaiti.yonghuzuid, lujing).await.is_ok() {
-                keyong = true;
-                break;
-            }
-        }
-        if keyong {
-            jieguo.push(gongju);
-        } else {
-            println!("[工具过滤] 用户组={} 无权限使用工具={}", zaiti.yonghuzuid, gongju.function.name);
-        }
-    }
-    jieguo
-}
-
 /// 询问信号检测结果
 pub struct Xunwenxinhao {
     pub wenti: String,
@@ -412,9 +341,6 @@ pub fn jiancha_xunwen(jieguolie: &[llm::ToolCall]) -> Option<Xunwenxinhao> {
 /// 按工具名称分发执行，返回结果字符串
 pub async fn zhixing(gongjuming: &str, canshu: &str, lingpai: &str) -> String {
     use serde_json::from_str;
-    if !gongju_yunxu_diaoyong(gongjuming, lingpai).await {
-        return serde_json::json!({"cuowu": "权限不足"}).to_string();
-    }
     
     let canshu_value: Value = from_str(canshu).unwrap_or(Value::Null);
     
